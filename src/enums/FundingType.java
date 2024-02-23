@@ -1,5 +1,0 @@
-package enums;
-
-public enum FundingType {
-    MONETARY_REGULAR, MONETARY_EARMARKED, INKIND_REGULAR, INKIND_EARMARKED
-}
