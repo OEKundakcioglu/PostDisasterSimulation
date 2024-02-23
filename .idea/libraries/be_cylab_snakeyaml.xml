@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="be.cylab.snakeyaml" type="repository">
+    <properties maven-id="be.cylab:snakeyaml:1.25.1" />
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/be/cylab/snakeyaml/1.25.1/snakeyaml-1.25.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
