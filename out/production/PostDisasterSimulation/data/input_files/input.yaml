@@ -3,6 +3,7 @@ simulationConfig:
   seedFundingTime: 11
   seedSupplyDisruptionTime: 12
   seedMigrationTime: 13
+  seedItemDuration: 14
   seedReplenishmentTime: 14
   seedTransferTime: 15
   seedTransshipmentTime: 16
@@ -12,9 +13,9 @@ simulationConfig:
   seedMigrationQuantity: 17
   seedSupplyDisruptionDuration: 18
 
-  simulationResolution: 1
+  simulationResolution: &period 10
   inventoryControlType: PERIODIC
-  planningHorizon: 50
+  planningHorizon: 720
 
 items:
   - &goods
@@ -29,7 +30,7 @@ items:
       distributionType: UNIFORM
       distParameters: !!data.distribution.DistUniform
         min: 1
-        max: 3
+        max: 1
 
   - &medicine
     name: Vaccine
@@ -43,12 +44,12 @@ items:
       distributionType: UNIFORM
       distParameters: !!data.distribution.DistUniform
         min: 10
-        max: 20
+        max: 10
     leadTimeData:
       distributionType: UNIFORM
       distParameters: !!data.distribution.DistUniform
-        min: 2
-        max: 5
+        min: 1
+        max: 1
 
 camps:
   - &campA
@@ -68,8 +69,8 @@ camps:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.01
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.7
+        externalRatio: 0.2
 
       - item: *medicine
         demandTimingType: SPORADIC
@@ -79,8 +80,8 @@ camps:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.01
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.7
+        externalRatio: 0.2
 
     campExternalDemandSatisfactionType: NONE
     populationType: REGULAR
@@ -95,7 +96,7 @@ camps:
       distParameters: !!data.distribution.DistTriangular
         min: 1
         mode: 2
-        max: 4
+        max: 2
     demands:
       - item: *goods
         demandTimingType: SPORADIC
@@ -106,7 +107,7 @@ camps:
           distParameters: !!data.distribution.DistExponential
             mean: 0.01
         internalRatio: 0.7
-        externalRatio: 0.05
+        externalRatio: 0.2
 
       - item: *medicine
         demandTimingType: SPORADIC
@@ -117,7 +118,7 @@ camps:
           distParameters: !!data.distribution.DistExponential
             mean: 0.01
         internalRatio: 0.7
-        externalRatio: 0.05
+        externalRatio: 0.2
 
     campExternalDemandSatisfactionType: NONE
     populationType: REGULAR
@@ -152,7 +153,7 @@ agencies:
         amountData:
           distributionType: FIXED
           distParameters: !!data.distribution.DistFixed
-            mean: 10000
+            mean: 1000000
 
   - name: AgencyB
     fundings:
@@ -166,30 +167,17 @@ agencies:
         amountData:
           distributionType: UNIFORM
           distParameters: !!data.distribution.DistUniform
-            min: 10000
-            max: 20000
+            min: 1000000
+            max: 2000000
 
 migrations:
-  - fromCamp:
-    toCamp: *campA
-    migrationType: INTERNAL_TO_SYSTEM
-    arrivalData:
-      distributionType: FIXED
-      distParameters: !!data.distribution.DistFixed
-        mean: 10
-    quantityData:
-      distributionType: FIXED
-      distParameters: !!data.distribution.DistFixed
-        mean: 100
-    migrationRatio: 0.2
-
   - fromCamp: *campA
     toCamp: *campB
     migrationType: INTERNAL_WITHIN_SYSTEM
     arrivalData:
       distributionType: FIXED
       distParameters: !!data.distribution.DistFixed
-        mean: 10
+        mean: 720
     migrationRatio: 0.05
 
 supplyStatusSwitches:
@@ -206,8 +194,8 @@ supplyStatusSwitches:
     disruptionArrivalData:
       distributionType: UNIFORM
       distParameters: !!data.distribution.DistUniform
-        min: 100
-        max: 200
+        min: 10
+        max: 20
     recoveryArrivalData:
       distributionType: EXPONENTIAL
       distParameters: !!data.distribution.DistExponential
@@ -216,28 +204,28 @@ supplyStatusSwitches:
 orderUpToPolicy:
   bufferRatios:
     *campA:
-      *goods: 0.5
-      *medicine: 0.3
+      *goods: 0.0
+      *medicine:  0.0
     *campB:
-      *goods: 0.5
-      *medicine: 0.3
+      *goods:  0.0
+      *medicine:  0.0
   centralBufferRatios:
-    *goods: 0.2
-    *medicine: 0.3
+    *goods:  0.0
+    *medicine:  0.0
   periodicCounts:
     *campA:
-      *goods: 1
-      *medicine: 1
+      *goods: *period
+      *medicine: *period
     *campB:
-      *goods: 1
-      *medicine: 1
+      *goods: *period
+      *medicine: *period
   centralPeriodicCounts:
-    *goods: 3
-    *medicine: 3
+    *goods: *period
+    *medicine: *period
 
 
 initialState:
-  availableFunds: 30000
+  availableFunds: 3000
   initialInventory:
     *campA:
       *goods: 100
@@ -249,8 +237,8 @@ initialState:
     *goods: 0
     *medicine: 0
   earmarkedFunds:
-    *campA: 200
-    *campB: 200
+    *campA: 0
+    *campB: 0
   initialEarmarkedInKind:
     *campA:
       *goods: 0

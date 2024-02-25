@@ -7,6 +7,7 @@ public class SimulationConfig {
     private int seedFundingTime;
     private int seedSupplyDisruptionTime;
     private int seedMigrationTime;
+    private int seedItemDuration;
     private int seedReplenishmentTime;
     private int seedTransferTime;
     private int seedTransshipmentTime;
@@ -49,6 +50,15 @@ public class SimulationConfig {
     public int getSeedMigrationTime() {
         return seedMigrationTime;
     }
+
+    public int getSeedItemDuration() {
+        return seedItemDuration;
+    }
+
+    public void setSeedItemDuration(int seedItemDuration) {
+        this.seedItemDuration = seedItemDuration;
+    }
+
 
     public void setSeedMigrationTime(int seedMigrationTime) {
         this.seedMigrationTime = seedMigrationTime;

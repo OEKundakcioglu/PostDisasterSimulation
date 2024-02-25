@@ -25,18 +25,17 @@ public class TransferEvent implements IEvent {
 
     @Override
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
+        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
+
         state.transferInventory(this.camp, this.item, this.inventoryToSend, this.time);
         return null;
     }
 
-    @Override
     public int compareTo(IEvent other) {
-        return 0;
+        return Double.compare(this.getTime(), other.getTime());
     }
-
-    @Override
     public double getTime() {
-        return 0;
+        return time;
     }
 
 

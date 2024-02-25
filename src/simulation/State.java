@@ -4,22 +4,23 @@ import java.util.*;
 
 import data.Camp;
 import data.Item;
+import enums.CampExternalDemandSatisfactionType;
 import enums.FundingType;
 import enums.MigrationType;
 import simulation.data.*;
 import simulation.decision.OrderUpToPolicy;
-import simulation.event.IEvent;
-import simulation.generator.InterarrivalGenerator;
-import simulation.generator.QuantityGenerator;
 
 public class State implements Cloneable {
 
     private HashMap<Camp, HashMap<Item, Integer>> initialInventory;
     private HashMap<Camp, HashMap<Item, PriorityQueue<InventoryItem>>> inventory;
+    private HashMap<Camp, HashMap<Item, Integer>> inventoryPosition;
 
 
     private HashMap<Item, Integer> initialCentralWarehouseInventory;
     private HashMap<Item, PriorityQueue<InventoryItem>> centralWarehouseInventory;
+    private HashMap<Item, Integer> centralWarehousePosition;
+
 
     private double availableFunds;
     private HashMap<Camp, Double> earmarkedFunds;
@@ -58,8 +59,8 @@ public class State implements Cloneable {
                 this.referralPopulation.get(camp).put(item, 0);
             }
         }
-
     }
+
 
     public void transshipmentInventory(Camp fromCamp, Camp toCamp, Item item, ArrayList<InventoryItem> inventoryToSend, double time) {
         if (!inventory.get(toCamp).containsKey(item)) {
@@ -137,6 +138,9 @@ public class State implements Cloneable {
     }
 
     public void consumeInventory(Camp camp, Item item, boolean isInternal, int quantity, double tNow) {
+        if (tNow > 700){
+            System.out.println();
+        }
         if (isInternal){
             // Consume from inventory
             if (inventory.containsKey(camp) && inventory.get(camp).containsKey(item)) {
@@ -147,12 +151,14 @@ public class State implements Cloneable {
                     if (inventoryItem.getQuantity() <= quantity) {
                         double totalTime = tNow - inventoryItem.getArrivalTime();
                         kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
+                        inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - inventoryItem.getQuantity());
                         quantity -= inventoryItem.getQuantity();
                         items.poll();
                     } else {
                         double totalTime = tNow - inventoryItem.getArrivalTime();
                         kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
                         inventoryItem.setQuantity(inventoryItem.getQuantity() - (int) quantity);
+                        inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - (int) quantity);
                         quantity = 0; // Exit the loop
                     }
                 }
@@ -166,14 +172,47 @@ public class State implements Cloneable {
                     deprivingPopulation.get(camp).put(item, new PriorityQueue<>(Comparator.comparingDouble(DeprivingPerson::getArrivalTime)));
                 }
                 deprivingPopulation.get(camp).get(item).offer(new DeprivingPerson(quantity, tNow));
+                inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - (int) quantity);
             }
         }
-        else{
-            // Control sharing policy and decide on whether share or not
-            int sharingQuantity = 0;
-            quantity -= sharingQuantity;
-            int val = referralPopulation.get(camp).get(item) + quantity;
-            referralPopulation.get(camp).put(item, val);
+        else {
+            if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
+                int val = referralPopulation.get(camp).get(item) + quantity;
+                referralPopulation.get(camp).put(item, val);
+            } else {
+                if (inventory.containsKey(camp) && inventory.get(camp).containsKey(item)) {
+                    HashMap<Item, PriorityQueue<InventoryItem>> innerMap = inventory.get(camp);
+                    PriorityQueue<InventoryItem> items = innerMap.get(item);
+                    while (quantity > 0 && !items.isEmpty()) {
+                        InventoryItem inventoryItem = items.peek();
+                        if (inventoryItem.getQuantity() <= quantity) {
+                            double totalTime = tNow - inventoryItem.getArrivalTime();
+                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
+                            quantity -= inventoryItem.getQuantity();
+                            this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - inventoryItem.getQuantity());
+                            items.poll();
+                        } else {
+                            double totalTime = tNow - inventoryItem.getArrivalTime();
+                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
+                            inventoryItem.setQuantity(inventoryItem.getQuantity() - (int) quantity);
+                            this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - (int) quantity);
+                            quantity = 0; // Exit the loop
+                        }
+                    }
+                }
+                // If no inventory is available, then add it to the depriving
+                if (quantity > 0) {
+                    if (!referralPopulation.containsKey(camp)) {
+                        referralPopulation.put(camp, new HashMap<>());
+                    }
+                    if (!referralPopulation.get(camp).containsKey(item)) {
+                        referralPopulation.get(camp).put(item, quantity);
+                    } else {
+                        int val = referralPopulation.get(camp).get(item) + quantity;
+                        referralPopulation.get(camp).put(item, val);
+                    }
+                }
+            }
         }
     }
 
@@ -217,6 +256,7 @@ public class State implements Cloneable {
                 centralWarehouseInventory.put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));
             }
             centralWarehouseInventory.get(item).offer(new InventoryItem((int) amount, expiration, arrivalTime));
+            centralWarehousePosition.put(item, centralWarehousePosition.get(item) + (int) amount);
         }
         else if (fundingType == FundingType.INKIND_EARMARKED){
             HashMap<Item, PriorityQueue<InventoryItem>> campInventory = inventory.get(camp);
@@ -225,6 +265,7 @@ public class State implements Cloneable {
                 campInventory.put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));
             }
             campInventory.get(item).offer(new InventoryItem((int) amount, expiration, arrivalTime));
+            inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) + (int) amount);
         }
     }
 
@@ -238,13 +279,22 @@ public class State implements Cloneable {
         HashMap<Camp, HashMap<Item, PriorityQueue<InventoryItem>>> newInventory = new HashMap<>();
         HashMap<Item, PriorityQueue<InventoryItem>> newCentralWarehouseInventory = new HashMap<>();
 
+        // Initialize initialCentralWarehousePosition
+        centralWarehousePosition = new HashMap<>(initialCentralWarehouseInventory);
+
+        // Initialize inventoryPosition
+        inventoryPosition = new HashMap<>();
+
         for (var camp : this.initialInventory.keySet()) {
             newInventory.put(camp, new HashMap<>());
+            inventoryPosition.put(camp, new HashMap<>());
+
             for (var item : this.initialInventory.get(camp).keySet()) {
                 PriorityQueue<InventoryItem> newInventoryItem = new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration));
                 int quantity = this.initialInventory.get(camp).get(item);
                 double expiration = 0.0;
                 newInventory.get(camp).put(item, newInventoryItem);
+                inventoryPosition.get(camp).put(item, quantity); // Initialize inventoryPosition
 
                 if (item.getIsPerishable()){
                     expiration = item.getDurationData().distParameters.generate(new Random());
@@ -281,6 +331,7 @@ public class State implements Cloneable {
             }
         }
     }
+
 
     public HashMap<Camp, HashMap<Item, Integer>> getInitialInventory() {
         return initialInventory;
@@ -402,5 +453,20 @@ public class State implements Cloneable {
         this.orderUpToPolicy = orderUpToPolicy;
     }
 
+    public HashMap<Camp, HashMap<Item, Integer>> getInventoryPosition() {
+        return inventoryPosition;
+    }
+
+    public void setInventoryPosition(HashMap<Camp, HashMap<Item, Integer>> inventoryPosition) {
+        this.inventoryPosition = inventoryPosition;
+    }
+
+    public HashMap<Item, Integer> getCentralWarehousePosition() {
+        return centralWarehousePosition;
+    }
+
+    public void setCentralWarehousePosition(HashMap<Item, Integer> centralWarehousePosition) {
+        this.centralWarehousePosition = centralWarehousePosition;
+    }
 
 }

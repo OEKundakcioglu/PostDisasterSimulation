@@ -1,6 +1,7 @@
 package simulation.event;
 
 import simulation.State;
+import simulation.data.InventoryItem;
 import simulation.decision.OrderUpToPolicy;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
@@ -24,11 +25,37 @@ public class InventoryControlEvent implements IEvent{
         ArrayList<IEvent> replenishmentEvents = state.getOrderUpToPolicy().generateReplenishmentEvents(interarrivalGenerator, quantityGenerator, this.time);
         if (replenishmentEvents != null) returnEvents.addAll(replenishmentEvents);
 
+        // From replenishment events, update the inventory positions
+        if (replenishmentEvents != null){
+            for (IEvent event : replenishmentEvents) {
+                var replenishmentEvent = (ReplenishmentEvent) event;
+                for (InventoryItem inventoryItem : replenishmentEvent.inventoryToSend) {
+                    // increase state.getCentralWarehousePosition().get(replenishmentEvent.item) by inventoryItem.quantity
+                    int quantity = inventoryItem.getQuantity();
+                    var item = replenishmentEvent.item;
+                    state.getCentralWarehousePosition().put(item, state.getCentralWarehousePosition().get(item) + quantity);
+                }
+            }
+        }
+
         // Generate transfer
         ArrayList<IEvent> transferEvents = state.getOrderUpToPolicy().generateTransferEvents(interarrivalGenerator, quantityGenerator, this.time);
         if (transferEvents != null) returnEvents.addAll(transferEvents);
 
-        // TODO: Transshipment Event
+        // From replenishment events, update the inventory positions
+        if (transferEvents != null){
+            for (IEvent event : transferEvents) {
+                var transferEvent = (TransferEvent) event;
+                for (InventoryItem inventoryItem : transferEvent.inventoryToSend) {
+                    // increase state.getCentralWarehousePosition().get(replenishmentEvent.item) by inventoryItem.quantity
+                    int quantity = inventoryItem.getQuantity();
+                    var item = transferEvent.item;
+                    var camp = transferEvent.camp;
+                    state.getInventoryPosition().get(camp).put(item, state.getInventoryPosition().get(camp).get(item) + quantity);
+                    state.getCentralWarehousePosition().put(item, state.getCentralWarehousePosition().get(item) - quantity);
+                }
+            }
+        }
 
         return returnEvents;
     }

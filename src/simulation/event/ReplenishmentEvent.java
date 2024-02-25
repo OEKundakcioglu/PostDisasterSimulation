@@ -13,9 +13,9 @@ public class ReplenishmentEvent implements IEvent {
     public ArrayList<InventoryItem> inventoryToSend;
     public double time;
 
-    public ReplenishmentEvent(Item item, ArrayList<InventoryItem> inventoryToSend, InterarrivalGenerator interarrivalGenerator, double tNow) {
+    public ReplenishmentEvent(Item item, ArrayList<InventoryItem> inventoryToSend, InterarrivalGenerator interarrivalGenerator, double arrival) {
         this.item = item;
-        this.time = tNow + interarrivalGenerator.generateReplenishment(item);
+        this.time = arrival;
         this.inventoryToSend = inventoryToSend;
     }
 

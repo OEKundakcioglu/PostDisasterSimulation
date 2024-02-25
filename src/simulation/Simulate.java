@@ -43,61 +43,101 @@ public class Simulate {
 
     private void reportKPIs() {
         System.out.println('\n' + "Final KPIs" + '\n' + "-------------------");
-        // Report costs
+
+    // Report ordering costs and calculate total ordering cost
+        double totalOrderingCostSum = 0.0;
         for (Item item : this.environment.getItems()) {
-            System.out.println("Total ordering cost for item " + item.getName() + " is " + this.state.getKpiManager().totalOrderingCost.get(item));
-        }
-
-        System.out.println();
-
-        for (Camp camp : this.environment.getCamps()) {
-            for (Item item : this.environment.getItems()) {
-                System.out.println("Total deprivation cost for camp " + camp.getName() + " and item " + item.getName() + " is " + this.state.getKpiManager().totalDeprivationCost.get(camp).get(item));
+            double totalOrderingCost = this.state.getKpiManager().totalOrderingCost.get(item);
+            if (totalOrderingCost != 0) {
+                totalOrderingCostSum += totalOrderingCost;
+                System.out.println("Total ordering cost for item " + item.getName() + " is " + totalOrderingCost);
             }
         }
-
+    // Print total ordering cost summation
+        System.out.println("Total ordering cost summation is " + totalOrderingCostSum);
         System.out.println();
 
+    // Report deprivation costs and calculate total deprivation cost
+        double totalDeprivationCostSum = 0.0;
         for (Camp camp : this.environment.getCamps()) {
             for (Item item : this.environment.getItems()) {
-                System.out.println("Total holding cost for camp " + camp.getName() + " and item " + item.getName() + " is " + this.state.getKpiManager().totalHoldingCost.get(camp).get(item));
+                double totalDeprivationCost = this.state.getKpiManager().totalDeprivationCost.get(camp).get(item);
+                if (totalDeprivationCost != 0) {
+                    totalDeprivationCostSum += totalDeprivationCost;
+                    System.out.println("Total deprivation cost for camp " + camp.getName() + " and item " + item.getName() + " is " + totalDeprivationCost);
+                }
             }
         }
-
+    // Print total deprivation cost summation
+        System.out.println("Total deprivation cost summation is " + totalDeprivationCostSum);
         System.out.println();
 
+    // Report holding costs and calculate total holding cost
+        double totalHoldingCostSum = 0.0;
         for (Camp camp : this.environment.getCamps()) {
             for (Item item : this.environment.getItems()) {
-                System.out.println("Total referral cost for camp " + camp.getName() + " and item " + item.getName() + " is " + this.state.getKpiManager().totalReferralCost.get(camp).get(item));
+                double totalHoldingCost = this.state.getKpiManager().totalHoldingCost.get(camp).get(item);
+                if (totalHoldingCost != 0) {
+                    totalHoldingCostSum += totalHoldingCost;
+                    System.out.println("Total holding cost for camp " + camp.getName() + " and item " + item.getName() + " is " + totalHoldingCost);
+                }
             }
         }
-
+    // Print total holding cost summation
+        System.out.println("Total holding cost summation is " + totalHoldingCostSum);
         System.out.println();
 
-        // Total replenishment
+    // Report referral costs and calculate total referral cost
+        double totalReferralCostSum = 0.0;
+        for (Camp camp : this.environment.getCamps()) {
+            for (Item item : this.environment.getItems()) {
+                double totalReferralCost = this.state.getKpiManager().totalReferralCost.get(camp).get(item);
+                if (totalReferralCost != 0) {
+                    totalReferralCostSum += totalReferralCost;
+                    System.out.println("Total referral cost for camp " + camp.getName() + " and item " + item.getName() + " is " + totalReferralCost);
+                }
+            }
+        }
+    // Print total referral cost summation
+        System.out.println("Total referral cost summation is " + totalReferralCostSum);
+        System.out.println();
+
+    // Report total replenishment and calculate total replenishment cost
         for (Item item : this.environment.getItems()) {
-            System.out.println("Total replenishment for item " + item.getName() + " is " + this.state.getKpiManager().totalOrderingCost.get(item) / item.getOrderingCost());
-        }
-
-        System.out.println();
-
-        for (Item item : this.environment.getItems()) {
-            System.out.println("Total central expired inventory for item " + item.getName() + " is " + this.state.getKpiManager().totalCentralExpiredInventory.get(item));
-        }
-
-        System.out.println();
-
-        for (Camp camp : this.environment.getCamps()) {
-            for (Item item : this.environment.getItems()) {
-                System.out.println("Total expired inventory for camp " + camp.getName() + " and item " + item.getName() + " is " + this.state.getKpiManager().totalExpiredInventory.get(camp).get(item));
+            double totalReplenishment = this.state.getKpiManager().totalOrderingCost.get(item) / item.getOrderingCost();
+            if (totalReplenishment != 0) {
+                System.out.println("Total replenishment for item " + item.getName() + " is " + totalReplenishment);
             }
         }
-
         System.out.println();
 
+    // Report total central expired inventory
+        for (Item item : this.environment.getItems()) {
+            double totalCentralExpiredInventory = this.state.getKpiManager().totalCentralExpiredInventory.get(item);
+            if (totalCentralExpiredInventory != 0) {
+                System.out.println("Total central expired inventory for item " + item.getName() + " is " + totalCentralExpiredInventory);
+            }
+        }
+        System.out.println();
+
+    // Report total expired inventory for each camp and item
         for (Camp camp : this.environment.getCamps()) {
             for (Item item : this.environment.getItems()) {
-                System.out.println("Total unsatisfied internal demand for camp " + camp.getName() + " and item " + item.getName() + " is " + this.state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item));
+                double totalExpiredInventory = this.state.getKpiManager().totalExpiredInventory.get(camp).get(item);
+                if (totalExpiredInventory != 0) {
+                    System.out.println("Total expired inventory for camp " + camp.getName() + " and item " + item.getName() + " is " + totalExpiredInventory);
+                }
+            }
+        }
+        System.out.println();
+
+    // Report total unsatisfied internal demand for each camp and item
+        for (Camp camp : this.environment.getCamps()) {
+            for (Item item : this.environment.getItems()) {
+                double totalUnsatisfiedInternalDemand = this.state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item);
+                if (totalUnsatisfiedInternalDemand != 0) {
+                    System.out.println("Total unsatisfied internal demand for camp " + camp.getName() + " and item " + item.getName() + " is " + totalUnsatisfiedInternalDemand);
+                }
             }
         }
     }
@@ -122,7 +162,6 @@ public class Simulate {
                 this.eventQueue.add(e);
             }
         }
-
         // At the end of the simulation, calculate the final costs
         calculateFinalCosts();
     }
@@ -140,6 +179,7 @@ public class Simulate {
                     if (item.getExpiration() != 0 && item.getExpiration() <= currentTime) {
                         this.state.getKpiManager().totalExpiredInventory.get(campEntry.getKey()).put(itemEntry.getKey(),
                                 this.state.getKpiManager().totalExpiredInventory.get(campEntry.getKey()).get(itemEntry.getKey()) + item.getQuantity());
+                        this.state.getInventoryPosition().get(campEntry.getKey()).put(itemEntry.getKey(), this.state.getInventoryPosition().get(campEntry.getKey()).get(itemEntry.getKey()) - item.getQuantity());
                         iterator.remove(); // Remove the expired item
                     }
                 }
@@ -156,6 +196,7 @@ public class Simulate {
                 if (item.getExpiration() != 0 && item.getExpiration() <= currentTime) {
                     this.state.getKpiManager().totalCentralExpiredInventory.put(itemEntry.getKey(),
                             this.state.getKpiManager().totalCentralExpiredInventory.get(itemEntry.getKey()) + item.getQuantity());
+                    this.state.getCentralWarehousePosition().put(itemEntry.getKey(), this.state.getCentralWarehousePosition().get(itemEntry.getKey()) - item.getQuantity());
                     iterator.remove(); // Remove the expired item
                 }
             }
@@ -166,15 +207,17 @@ public class Simulate {
         double finalTime = this.environment.getSimulationConfig().getPlanningHorizon();
         for (Camp camp : this.state.getDeprivingPopulation().keySet()){
             for (Item item : this.state.getDeprivingPopulation().get(camp).keySet()){
+
                 while (!this.state.getDeprivingPopulation().get(camp).get(item).isEmpty()) {
                     DeprivingPerson deprivingPerson = this.state.getDeprivingPopulation().get(camp).get(item).peek();
                     double totalTime = finalTime - deprivingPerson.getArrivalTime();
                     double previousCost = this.state.getKpiManager().totalDeprivationCost.get(camp).get(item);
-                    double currentCost = (Math.exp(totalTime * item.getDeprivationCoefficient()) - 1) * deprivingPerson.getQuantity();
+                    double currentCost = (Math.exp(totalTime * item.getDeprivationCoefficient()) + 1) * deprivingPerson.getQuantity();
                     this.state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).put(item, this.state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item) + deprivingPerson.getQuantity());
                     this.state.getKpiManager().totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
                     this.state.getDeprivingPopulation().get(camp).get(item).poll();
                 }
+                this.state.getKpiManager().totalReferralCost.get(camp).put(item, this.state.getReferralPopulation().get(camp).get(item) * item.getReferralCost());
             }
         }
 
@@ -208,11 +251,14 @@ public class Simulate {
                 double currentTime = 0.0;
                 DemandEvent de_internal =
                         new DemandEvent(this.state, camp, demand, true, this.interarrivalGenerator, this.quantityGenerator, currentTime);
-                currentTime = de_internal.getTime();
-                if (currentTime >=  this.environment.getSimulationConfig().getPlanningHorizon()){
-                    continue;
+                DemandEvent de_external =
+                        new DemandEvent(this.state, camp, demand, false, this.interarrivalGenerator, this.quantityGenerator, currentTime);
+                if (de_internal.getTime() <=  this.environment.getSimulationConfig().getPlanningHorizon()){
+                    this.eventQueue.add(de_internal);
                 }
-                this.eventQueue.add(de_internal);
+                if (de_external.getTime() <=  this.environment.getSimulationConfig().getPlanningHorizon()){
+                    this.eventQueue.add(de_external);
+                }
             }
         }
 
