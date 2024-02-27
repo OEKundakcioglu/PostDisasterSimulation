@@ -53,3 +53,5 @@ The enums package contains a set of enum classes that define various types and s
 ## Outputs
 
 Visualization:
+
+![alt text](image.png)
