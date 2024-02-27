@@ -16,6 +16,7 @@ import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
 
 import java.util.*;
+import java.util.logging.Logger;
 
 
 public class Simulate {
@@ -140,6 +141,12 @@ public class Simulate {
                 }
             }
         }
+
+        System.out.println(Math.round(totalOrderingCostSum));
+        System.out.println(Math.round(totalDeprivationCostSum));
+        System.out.println(Math.round(totalHoldingCostSum));
+        System.out.println(Math.round(totalReferralCostSum));
+
     }
 
     public void run() {

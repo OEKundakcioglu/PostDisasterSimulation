@@ -13,43 +13,45 @@ simulationConfig:
   seedMigrationQuantity: 17
   seedSupplyDisruptionDuration: 18
 
-  simulationResolution: &period 10
+  simulationResolution: &period 1
   inventoryControlType: PERIODIC
   planningHorizon: 720
 
 items:
   - &goods
-    name: Blanket
+    name: HygieneKit
     isPerishable: false
-    price: 10
-    orderingCost: 5
-    holdingCost: 0.5
-    deprivationCoefficient: 0.245
-    referralCost: 1
+    price: 7
+    orderingCost: 100
+    holdingCost: 1
+    deprivationCoefficient: 0.12
+    referralCost: 2
     leadTimeData:
-      distributionType: UNIFORM
-      distParameters: !!data.distribution.DistUniform
+      distributionType: TRIANGULAR
+      distParameters: !!data.distribution.DistTriangular
         min: 1
-        max: 1
+        mode: 2
+        max: 4
 
   - &medicine
-    name: Vaccine
+    name: Medicine
     isPerishable: true
-    price: 5
-    orderingCost: 5
-    holdingCost: 0.2
-    referralCost: 1
-    deprivationCoefficient: 0.125
+    price: 100
+    orderingCost: 100
+    holdingCost:  1
+    referralCost: 4
+    deprivationCoefficient: 0.245
     durationData:
       distributionType: UNIFORM
       distParameters: !!data.distribution.DistUniform
-        min: 10
-        max: 10
+        min: 20
+        max: 30
     leadTimeData:
-      distributionType: UNIFORM
-      distParameters: !!data.distribution.DistUniform
+      distributionType: TRIANGULAR
+      distParameters: !!data.distribution.DistTriangular
         min: 1
-        max: 1
+        mode: 2
+        max: 4
 
 camps:
   - &campA
@@ -68,8 +70,8 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.01
-        internalRatio: 0.7
+            mean: 0.0167
+        internalRatio: 0.8
         externalRatio: 0.2
 
       - item: *medicine
@@ -79,11 +81,11 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.01
-        internalRatio: 0.7
+            mean: 0.033
+        internalRatio: 0.8
         externalRatio: 0.2
 
-    campExternalDemandSatisfactionType: NONE
+    campExternalDemandSatisfactionType: FULLY
     populationType: REGULAR
     initialInternalPopulation: 100
     initialExternalPopulation: 1000
@@ -96,7 +98,7 @@ camps:
       distParameters: !!data.distribution.DistTriangular
         min: 1
         mode: 2
-        max: 2
+        max: 4
     demands:
       - item: *goods
         demandTimingType: SPORADIC
@@ -105,8 +107,8 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.01
-        internalRatio: 0.7
+            mean: 0.0167
+        internalRatio: 0.8
         externalRatio: 0.2
 
       - item: *medicine
@@ -116,11 +118,11 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.01
-        internalRatio: 0.7
+            mean: 0.033
+        internalRatio: 0.8
         externalRatio: 0.2
 
-    campExternalDemandSatisfactionType: NONE
+    campExternalDemandSatisfactionType: FULLY
     populationType: REGULAR
     initialInternalPopulation: 100
     initialExternalPopulation: 1000
@@ -185,33 +187,32 @@ supplyStatusSwitches:
     disruptionArrivalData:
       distributionType: EXPONENTIAL
       distParameters: !!data.distribution.DistExponential
-        mean: 0.1
+        mean: 0.005
     recoveryArrivalData:
       distributionType: EXPONENTIAL
       distParameters: !!data.distribution.DistExponential
         mean: 0.1
   - item: *medicine
     disruptionArrivalData:
-      distributionType: UNIFORM
-      distParameters: !!data.distribution.DistUniform
-        min: 10
-        max: 20
+      distributionType: EXPONENTIAL
+      distParameters: !!data.distribution.DistExponential
+        mean: 0.01
     recoveryArrivalData:
       distributionType: EXPONENTIAL
       distParameters: !!data.distribution.DistExponential
-        mean: 0.1
+        mean: 0.2
 
 orderUpToPolicy:
   bufferRatios:
     *campA:
-      *goods: 0.0
-      *medicine:  0.0
+      *goods: -0.2
+      *medicine:  -0.2
     *campB:
-      *goods:  0.0
-      *medicine:  0.0
+      *goods:  -0.2
+      *medicine:  -0.2
   centralBufferRatios:
-    *goods:  0.0
-    *medicine:  0.0
+    *goods:  -0.2
+    *medicine:  -0.2
   periodicCounts:
     *campA:
       *goods: *period
@@ -225,14 +226,14 @@ orderUpToPolicy:
 
 
 initialState:
-  availableFunds: 3000
+  availableFunds: 1000000
   initialInventory:
     *campA:
-      *goods: 100
-      *medicine: 100
+      *goods: 0
+      *medicine: 0
     *campB:
-      *goods: 100
-      *medicine: 100
+      *goods: 0
+      *medicine: 0
   initialCentralWarehouseInventory:
     *goods: 0
     *medicine: 0

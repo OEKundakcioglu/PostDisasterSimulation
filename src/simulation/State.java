@@ -138,9 +138,7 @@ public class State implements Cloneable {
     }
 
     public void consumeInventory(Camp camp, Item item, boolean isInternal, int quantity, double tNow) {
-        if (tNow > 700){
-            System.out.println();
-        }
+
         if (isInternal){
             // Consume from inventory
             if (inventory.containsKey(camp) && inventory.get(camp).containsKey(item)) {

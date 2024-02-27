@@ -4,6 +4,7 @@ import data.Camp;
 import data.Environment;
 import data.Item;
 import data.event_info.Demand;
+import enums.CampExternalDemandSatisfactionType;
 import simulation.State;
 import simulation.data.InventoryItem;
 import simulation.data.requests.TransferRequest;
@@ -67,6 +68,9 @@ public class OrderUpToPolicy implements Cloneable {
                 var internalPopulation = state.getInternalPopulation().get(camp) * onePeriodDemand.getInternalRatio();
                 var externalPopulation = state.getExternalPopulation().get(camp) * onePeriodDemand.getExternalRatio();
 
+                if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
+                    externalPopulation = 0;
+                }
                 var bufferRatio = bufferRatios.get(camp).get(item);
                 var periodicCount = periodicCounts.get(camp).get(item);
 
@@ -81,7 +85,14 @@ public class OrderUpToPolicy implements Cloneable {
 
             for (Camp camp : environment.getCamps()) {
                 Demand onePeriodDemand = this.environment.getCorrespondingDemand(item, camp);
-                var population = (state.getInternalPopulation().get(camp) * onePeriodDemand.getInternalRatio())  + (state.getExternalPopulation().get(camp) * onePeriodDemand.getExternalRatio());
+                var internalPopulation = state.getInternalPopulation().get(camp) * onePeriodDemand.getInternalRatio();
+                var externalPopulation = state.getExternalPopulation().get(camp) * onePeriodDemand.getExternalRatio();
+
+                if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
+                    externalPopulation = 0;
+                }
+
+                var population = (internalPopulation + externalPopulation);
                 totalDemand += (this.environment.getCorrespondingDemand(item, camp).getArrivalData().getDistParameters().getMean() * population);
             }
 

@@ -19,25 +19,24 @@ simulationConfig:
 
 items:
   - &goods
-    name: HygieneKit
+    name: Water
     isPerishable: false
-    price: 7
-    orderingCost: 100
+    price: 5
+    orderingCost: 5
     holdingCost: 1
     deprivationCoefficient: 0.12
     referralCost: 2
     leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
+      distributionType: UNIFORM
+      distParameters: !!data.distribution.DistUniform
+        min: 2
+        max: 2
 
   - &medicine
-    name: Medicine
+    name: Vaccine
     isPerishable: true
     price: 100
-    orderingCost: 100
+    orderingCost: 5
     holdingCost:  1
     referralCost: 4
     deprivationCoefficient: 0.245
@@ -45,13 +44,12 @@ items:
       distributionType: UNIFORM
       distParameters: !!data.distribution.DistUniform
         min: 20
-        max: 30
+        max: 20
     leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
+      distributionType: UNIFORM
+      distParameters: !!data.distribution.DistUniform
+        min: 2
+        max: 2
 
 camps:
   - &campA
@@ -70,8 +68,8 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
-        internalRatio: 0.8
+            mean: 0.01
+        internalRatio: 0.7
         externalRatio: 0.2
 
       - item: *medicine
@@ -81,11 +79,11 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.8
+            mean: 0.01
+        internalRatio: 0.7
         externalRatio: 0.2
 
-    campExternalDemandSatisfactionType: FULLY
+    campExternalDemandSatisfactionType: NONE
     populationType: REGULAR
     initialInternalPopulation: 100
     initialExternalPopulation: 1000
@@ -107,8 +105,8 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
-        internalRatio: 0.8
+            mean: 0.01
+        internalRatio: 0.7
         externalRatio: 0.2
 
       - item: *medicine
@@ -118,11 +116,11 @@ camps:
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.8
+            mean: 0.01
+        internalRatio: 0.7
         externalRatio: 0.2
 
-    campExternalDemandSatisfactionType: FULLY
+    campExternalDemandSatisfactionType: NONE
     populationType: REGULAR
     initialInternalPopulation: 100
     initialExternalPopulation: 1000
@@ -179,20 +177,11 @@ migrations:
     arrivalData:
       distributionType: FIXED
       distParameters: !!data.distribution.DistFixed
-        mean: 720
-    migrationRatio: 0.05
+        mean: 1000
+    migrationRatio: 0.01
 
 supplyStatusSwitches:
   - item: *goods
-    disruptionArrivalData:
-      distributionType: EXPONENTIAL
-      distParameters: !!data.distribution.DistExponential
-        mean: 0.005
-    recoveryArrivalData:
-      distributionType: EXPONENTIAL
-      distParameters: !!data.distribution.DistExponential
-        mean: 0.1
-  - item: *medicine
     disruptionArrivalData:
       distributionType: EXPONENTIAL
       distParameters: !!data.distribution.DistExponential
@@ -200,19 +189,20 @@ supplyStatusSwitches:
     recoveryArrivalData:
       distributionType: EXPONENTIAL
       distParameters: !!data.distribution.DistExponential
-        mean: 0.2
+        mean: 10000
+
 
 orderUpToPolicy:
   bufferRatios:
     *campA:
-      *goods: -0.2
-      *medicine:  -0.2
+      *goods: 0.05
+      *medicine:  0.05
     *campB:
-      *goods:  -0.2
-      *medicine:  -0.2
+      *goods:  0.05
+      *medicine:  0.05
   centralBufferRatios:
-    *goods:  -0.2
-    *medicine:  -0.2
+    *goods:  0.05
+    *medicine:  0.05
   periodicCounts:
     *campA:
       *goods: *period
@@ -226,14 +216,14 @@ orderUpToPolicy:
 
 
 initialState:
-  availableFunds: 1000000
+  availableFunds: 3000
   initialInventory:
     *campA:
-      *goods: 0
-      *medicine: 0
+      *goods: 100
+      *medicine: 100
     *campB:
-      *goods: 0
-      *medicine: 0
+      *goods: 100
+      *medicine: 100
   initialCentralWarehouseInventory:
     *goods: 0
     *medicine: 0
