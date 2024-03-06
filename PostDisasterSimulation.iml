@@ -8,5 +8,6 @@
     <orderEntry type="library" exported="" name="be.cylab.snakeyaml" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="inheritedJdk" />
+    <orderEntry type="library" exported="" name="apache.poi.ooxml" level="project" />
   </component>
 </module>

@@ -20,7 +20,9 @@ public class SupplyRecoveryEvent implements IEvent {
     }
 
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
-        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
+
+        if (state.getKpiManager().isReportEvents())
+            System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
 
         // Update the state (camp inventories)
         state.updateItemAvailability(this.item, true);

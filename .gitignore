@@ -4,6 +4,8 @@
 # Log file
 *.log
 
+*.xlsx
+
 # BlueJ files
 *.ctxt
 
@@ -25,4 +27,4 @@ replay_pid*
 
 .DS_Store
 ```
-.DS_Store
+*.DS_Store

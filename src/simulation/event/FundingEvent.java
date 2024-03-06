@@ -39,7 +39,8 @@ public class FundingEvent implements IEvent {
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
         ArrayList<IEvent> returnEvents = new ArrayList<>();
 
-        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Amount: " +
+        if (state.getKpiManager().isReportEvents())
+            System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Amount: " +
                 this.amount);
 
         // Update the state

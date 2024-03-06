@@ -14,11 +14,9 @@ import simulation.event.TransferEvent;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 public class OrderUpToPolicy implements Cloneable {
@@ -43,7 +41,7 @@ public class OrderUpToPolicy implements Cloneable {
 
     }
 
-    public void intialize(Environment environment, State state) {
+    public void initialize(Environment environment, State state) {
 
         this.environment = environment;
         this.state = state;
@@ -53,8 +51,13 @@ public class OrderUpToPolicy implements Cloneable {
 
         this.centralReorderPoints = new HashMap<>();
         this.centralOrderUpToLevels = new HashMap<>();
+        
+        
+        setCampLevels();
+        setCentralLevels();
+    }
 
-
+    private void setCampLevels() {
         for (Camp camp : environment.getCamps()) {
             reorderPoints.put(camp, new HashMap<>());
             orderUpToLevels.put(camp, new HashMap<>());
@@ -78,7 +81,9 @@ public class OrderUpToPolicy implements Cloneable {
                 orderUpToLevels.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (periodicCount + leadTime) * (1 + bufferRatio)));
             }
         }
+    }
 
+    private void setCentralLevels() {
         for (Item item : environment.getItems()) {
             double totalDemand = 0.0;
             double leadTime = item.getLeadTimeData().distParameters.getMean();
@@ -101,96 +106,11 @@ public class OrderUpToPolicy implements Cloneable {
         }
     }
 
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        return super.clone();
-    }
-
-    public Environment getEnvironment() {
-        return environment;
-    }
-
-    public void setEnvironment(Environment environment) {
-        this.environment = environment;
-    }
-
-    public State getState() {
-        return state;
-    }
-
-    public void setState(State state) {
-        this.state = state;
-    }
-
-
-    public HashMap<Camp, HashMap<Item, Integer>> getReorderPoints() {
-        return reorderPoints;
-    }
-
-    public void setReorderPoints(HashMap<Camp, HashMap<Item, Integer>> reorderPoints) {
-        this.reorderPoints = reorderPoints;
-    }
-
-    public HashMap<Camp, HashMap<Item, Integer>> getOrderUpToLevels() {
-        return orderUpToLevels;
-    }
-
-    public void setOrderUpToLevels(HashMap<Camp, HashMap<Item, Integer>> orderUpToLevels) {
-        this.orderUpToLevels = orderUpToLevels;
-    }
-
-    public HashMap<Item, Integer> getCentralReorderPoints() {
-        return centralReorderPoints;
-    }
-
-    public void setCentralReorderPoints(HashMap<Item, Integer> centralReorderPoints) {
-        this.centralReorderPoints = centralReorderPoints;
-    }
-
-    public HashMap<Item, Integer> getCentralOrderUpToLevels() {
-        return centralOrderUpToLevels;
-    }
-
-    public void setCentralOrderUpToLevels(HashMap<Item, Integer> centralOrderUpToLevels) {
-        this.centralOrderUpToLevels = centralOrderUpToLevels;
-    }
-
-    public HashMap<Camp, HashMap<Item, Double>> getBufferRatios() {
-        return bufferRatios;
-    }
-
-    public void setBufferRatios(HashMap<Camp, HashMap<Item, Double>> bufferRatios) {
-        this.bufferRatios = bufferRatios;
-    }
-
-    public HashMap<Item, Double> getCentralBufferRatios() {
-        return centralBufferRatios;
-    }
-
-    public void setCentralBufferRatios(HashMap<Item, Double> centralBufferRatios) {
-        this.centralBufferRatios = centralBufferRatios;
-    }
-
-    public HashMap<Camp, HashMap<Item, Integer>> getPeriodicCounts() {
-        return periodicCounts;
-    }
-
-    public void setPeriodicCounts(HashMap<Camp, HashMap<Item, Integer>> periodicCounts) {
-        this.periodicCounts = periodicCounts;
-    }
-
-    public HashMap<Item, Integer> getCentralPeriodicCounts() {
-        return centralPeriodicCounts;
-    }
-
-    public void setCentralPeriodicCounts(HashMap<Item, Integer> centralPeriodicCounts) {
-        this.centralPeriodicCounts = centralPeriodicCounts;
-    }
-
     public ArrayList<IEvent> generateReplenishmentEvents(InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator, double time) {
         // First of all, we need to find the requests for replenishment
         double totalCashNeededForItem = 0;
         double totalCashNeededForOrdering = 0;
+
         for (Item item : state.getCentralWarehousePosition().keySet()) {
             // If the item is not available, we will not consider it since we cannot order it
             if (!state.getIsItemAvailable().get(item)) continue;
@@ -319,8 +239,8 @@ public class OrderUpToPolicy implements Cloneable {
                         boolean fulfilled = false; // Flag to track if the request is fulfilled
                         for (Iterator<InventoryItem> iterator = state.getCentralWarehouseInventory().get(item).iterator(); iterator.hasNext(); ) {
                             InventoryItem ie = iterator.next();
+                            ArrayList<InventoryItem> inventoryItems = new ArrayList<>();
                             if (ie.getQuantity() >= tr.getQuantity()) {
-                                ArrayList<InventoryItem> inventoryItems = new ArrayList<>();
                                 inventoryItems.add(new InventoryItem(tr.getQuantity(), ie.getExpiration(), ie.getArrivalTime()));
                                 ie.setQuantity(ie.getQuantity() - tr.getQuantity());
                                 transferEvents.add(new TransferEvent(tr.getToCamp(), item, inventoryItems, interarrivalGenerator, time));
@@ -328,7 +248,6 @@ public class OrderUpToPolicy implements Cloneable {
                                 fulfilled = true;
                                 break;
                             } else {
-                                ArrayList<InventoryItem> inventoryItems = new ArrayList<>();
                                 inventoryItems.add(new InventoryItem(ie.getQuantity(), ie.getExpiration(), ie.getArrivalTime()));
                                 tr.setQuantity(tr.getQuantity() - ie.getQuantity());
                                 iterator.remove(); // Remove the inventory item from the list
@@ -344,6 +263,92 @@ public class OrderUpToPolicy implements Cloneable {
             }
         }
         return transferEvents;
+    }
 
+    
+
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+
+    public Environment getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void setState(State state) {
+        this.state = state;
+    }
+
+    public HashMap<Camp, HashMap<Item, Integer>> getReorderPoints() {
+        return reorderPoints;
+    }
+
+    public void setReorderPoints(HashMap<Camp, HashMap<Item, Integer>> reorderPoints) {
+        this.reorderPoints = reorderPoints;
+    }
+
+    public HashMap<Camp, HashMap<Item, Integer>> getOrderUpToLevels() {
+        return orderUpToLevels;
+    }
+
+    public void setOrderUpToLevels(HashMap<Camp, HashMap<Item, Integer>> orderUpToLevels) {
+        this.orderUpToLevels = orderUpToLevels;
+    }
+
+    public HashMap<Item, Integer> getCentralReorderPoints() {
+        return centralReorderPoints;
+    }
+
+    public void setCentralReorderPoints(HashMap<Item, Integer> centralReorderPoints) {
+        this.centralReorderPoints = centralReorderPoints;
+    }
+
+    public HashMap<Item, Integer> getCentralOrderUpToLevels() {
+        return centralOrderUpToLevels;
+    }
+
+    public void setCentralOrderUpToLevels(HashMap<Item, Integer> centralOrderUpToLevels) {
+        this.centralOrderUpToLevels = centralOrderUpToLevels;
+    }
+
+    public HashMap<Camp, HashMap<Item, Double>> getBufferRatios() {
+        return bufferRatios;
+    }
+
+    public void setBufferRatios(HashMap<Camp, HashMap<Item, Double>> bufferRatios) {
+        this.bufferRatios = bufferRatios;
+    }
+
+    public HashMap<Item, Double> getCentralBufferRatios() {
+        return centralBufferRatios;
+    }
+
+    public void setCentralBufferRatios(HashMap<Item, Double> centralBufferRatios) {
+        this.centralBufferRatios = centralBufferRatios;
+    }
+
+    public HashMap<Camp, HashMap<Item, Integer>> getPeriodicCounts() {
+        return periodicCounts;
+    }
+
+    public void setPeriodicCounts(HashMap<Camp, HashMap<Item, Integer>> periodicCounts) {
+        this.periodicCounts = periodicCounts;
+    }
+
+    public HashMap<Item, Integer> getCentralPeriodicCounts() {
+        return centralPeriodicCounts;
+    }
+
+    public void setCentralPeriodicCounts(HashMap<Item, Integer> centralPeriodicCounts) {
+        this.centralPeriodicCounts = centralPeriodicCounts;
     }
 }

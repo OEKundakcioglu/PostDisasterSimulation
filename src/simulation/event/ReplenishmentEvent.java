@@ -20,7 +20,8 @@ public class ReplenishmentEvent implements IEvent {
     }
 
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
-        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
+        if (state.getKpiManager().isReportEvents())
+            System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Item: " + this.item.getName() + " Quantity: " + this.inventoryToSend.get(0).getQuantity());
 
         // Update ordering cost
         state.replenishInventory(this.item, this.inventoryToSend);

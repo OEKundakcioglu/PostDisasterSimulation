@@ -1,21 +1,27 @@
 simulationConfig:
   seedDemandTime: 10
-  seedFundingTime: 11
-  seedSupplyDisruptionTime: 12
-  seedMigrationTime: 13
+  seedDemandQuantity: 15
+
   seedItemDuration: 14
+
+  seedSupplyDisruptionTime: 12
+  seedSupplyDisruptionDuration: 18
+
+  seedMigrationTime: 13
+  seedMigrationQuantity: 17
+
+  seedFundingTime: 11
+  seedFundingAmount: 16
+
   seedReplenishmentTime: 14
   seedTransferTime: 15
   seedTransshipmentTime: 16
 
-  seedDemandQuantity: 15
-  seedFundingAmount: 16
-  seedMigrationQuantity: 17
-  seedSupplyDisruptionDuration: 18
-
-  simulationResolution: &period 1
   inventoryControlType: PERIODIC
+  inventoryControlPeriod: &period 1
   planningHorizon: 720
+  reportEvents: false
+  reportKPIs: true
 
 items:
   - &goods

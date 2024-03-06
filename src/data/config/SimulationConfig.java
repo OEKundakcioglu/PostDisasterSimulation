@@ -17,14 +17,18 @@ public class SimulationConfig {
     private int seedMigrationQuantity;
     private int seedSupplyDisruptionDuration;
 
-    private int simulationResolution;
-
     private InventoryControlType inventoryControlType;
+    private int inventoryControlPeriod;
     private double planningHorizon;
+    private boolean reportEvents;
+    private boolean reportKPIs;
+
+    private double dummy;
+    private double centralDummy;
 
 
     public int getSeedDemandTime() {
-        return seedDemandTime;
+        return this.seedDemandTime;
     }
 
     public void setSeedDemandTime(int seedDemandTime) {
@@ -119,12 +123,12 @@ public class SimulationConfig {
         this.seedSupplyDisruptionDuration = seedSupplyDisruptionDuration;
     }
 
-    public int getSimulationResolution() {
-        return simulationResolution;
+    public int getInventoryControlPeriod() {
+        return inventoryControlPeriod;
     }
 
-    public void setSimulationResolution(int simulationResolution) {
-        this.simulationResolution = simulationResolution;
+    public void setInventoryControlPeriod(int inventoryControlPeriod) {
+        this.inventoryControlPeriod = inventoryControlPeriod;
     }
 
     public double getPlanningHorizon() {
@@ -141,6 +145,38 @@ public class SimulationConfig {
 
     public void setInventoryControlType(InventoryControlType inventoryControlType) {
         this.inventoryControlType = inventoryControlType;
+    }
+
+    public boolean isReportEvents() {
+        return reportEvents;
+    }
+
+    public void setReportEvents(boolean reportEvents) {
+        this.reportEvents = reportEvents;
+    }
+
+    public boolean isReportKPIs() {
+        return reportKPIs;
+    }
+
+    public void setReportKPIs(boolean reportKPIs) {
+        this.reportKPIs = reportKPIs;
+    }
+
+    public double getDummy() {
+        return dummy;
+    }
+
+    public void setDummy(double dummy) {
+        this.dummy = dummy;
+    }
+
+    public double getCentralDummy() {
+        return centralDummy;
+    }
+
+    public void setCentralDummy(double centralDummy) {
+        this.centralDummy = centralDummy;
     }
 
 }

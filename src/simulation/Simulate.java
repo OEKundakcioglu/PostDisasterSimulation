@@ -8,7 +8,6 @@ import data.event_info.Funding;
 import data.event_info.Migration;
 import data.event_info.SupplyStatusSwitch;
 import enums.InventoryControlType;
-import simulation.data.DeprivingPerson;
 import simulation.data.InventoryItem;
 import simulation.decision.OrderUpToPolicy;
 import simulation.event.*;
@@ -16,13 +15,11 @@ import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
 
 import java.util.*;
-import java.util.logging.Logger;
 
 
 public class Simulate {
     private final Environment environment;
     private State state;
-
     private final InterarrivalGenerator interarrivalGenerator;
     private final QuantityGenerator quantityGenerator;
     private PriorityQueue<IEvent> eventQueue;
@@ -30,124 +27,19 @@ public class Simulate {
 
     public Simulate(Environment environment) throws CloneNotSupportedException {
         this.environment = environment;
-        environment.getInitialState().projectInitialState();
+        this.environment.getInitialState().projectInitialState();
         this.state = environment.getInitialState();
-        this.state.initializations();
-        environment.getOrderUpToPolicy().intialize(environment, this.state);
+        this.state.initialize(this.environment);
+        this.environment.getOrderUpToPolicy().initialize(environment, this.state);
         this.state.setOrderUpToPolicy((OrderUpToPolicy) environment.getOrderUpToPolicy().clone());
         this.interarrivalGenerator = new InterarrivalGenerator(this.environment.getSimulationConfig());
         this.quantityGenerator = new QuantityGenerator(this.environment.getSimulationConfig());
         this.eventQueue = new PriorityQueue<>();
         this.run();
-        reportKPIs();
+        this.state.getKpiManager().calculateFinalCosts(this.environment, this.state);
+        this.state.getKpiManager().reportKPIs(this.environment);
     }
 
-    private void reportKPIs() {
-        System.out.println('\n' + "Final KPIs" + '\n' + "-------------------");
-
-    // Report ordering costs and calculate total ordering cost
-        double totalOrderingCostSum = 0.0;
-        for (Item item : this.environment.getItems()) {
-            double totalOrderingCost = this.state.getKpiManager().totalOrderingCost.get(item);
-            if (totalOrderingCost != 0) {
-                totalOrderingCostSum += totalOrderingCost;
-                System.out.println("Total ordering cost for item " + item.getName() + " is " + totalOrderingCost);
-            }
-        }
-    // Print total ordering cost summation
-        System.out.println("Total ordering cost summation is " + totalOrderingCostSum);
-        System.out.println();
-
-    // Report deprivation costs and calculate total deprivation cost
-        double totalDeprivationCostSum = 0.0;
-        for (Camp camp : this.environment.getCamps()) {
-            for (Item item : this.environment.getItems()) {
-                double totalDeprivationCost = this.state.getKpiManager().totalDeprivationCost.get(camp).get(item);
-                if (totalDeprivationCost != 0) {
-                    totalDeprivationCostSum += totalDeprivationCost;
-                    System.out.println("Total deprivation cost for camp " + camp.getName() + " and item " + item.getName() + " is " + totalDeprivationCost);
-                }
-            }
-        }
-    // Print total deprivation cost summation
-        System.out.println("Total deprivation cost summation is " + totalDeprivationCostSum);
-        System.out.println();
-
-    // Report holding costs and calculate total holding cost
-        double totalHoldingCostSum = 0.0;
-        for (Camp camp : this.environment.getCamps()) {
-            for (Item item : this.environment.getItems()) {
-                double totalHoldingCost = this.state.getKpiManager().totalHoldingCost.get(camp).get(item);
-                if (totalHoldingCost != 0) {
-                    totalHoldingCostSum += totalHoldingCost;
-                    System.out.println("Total holding cost for camp " + camp.getName() + " and item " + item.getName() + " is " + totalHoldingCost);
-                }
-            }
-        }
-    // Print total holding cost summation
-        System.out.println("Total holding cost summation is " + totalHoldingCostSum);
-        System.out.println();
-
-    // Report referral costs and calculate total referral cost
-        double totalReferralCostSum = 0.0;
-        for (Camp camp : this.environment.getCamps()) {
-            for (Item item : this.environment.getItems()) {
-                double totalReferralCost = this.state.getKpiManager().totalReferralCost.get(camp).get(item);
-                if (totalReferralCost != 0) {
-                    totalReferralCostSum += totalReferralCost;
-                    System.out.println("Total referral cost for camp " + camp.getName() + " and item " + item.getName() + " is " + totalReferralCost);
-                }
-            }
-        }
-    // Print total referral cost summation
-        System.out.println("Total referral cost summation is " + totalReferralCostSum);
-        System.out.println();
-
-    // Report total replenishment and calculate total replenishment cost
-        for (Item item : this.environment.getItems()) {
-            double totalReplenishment = this.state.getKpiManager().totalOrderingCost.get(item) / item.getOrderingCost();
-            if (totalReplenishment != 0) {
-                System.out.println("Total replenishment for item " + item.getName() + " is " + totalReplenishment);
-            }
-        }
-        System.out.println();
-
-    // Report total central expired inventory
-        for (Item item : this.environment.getItems()) {
-            double totalCentralExpiredInventory = this.state.getKpiManager().totalCentralExpiredInventory.get(item);
-            if (totalCentralExpiredInventory != 0) {
-                System.out.println("Total central expired inventory for item " + item.getName() + " is " + totalCentralExpiredInventory);
-            }
-        }
-        System.out.println();
-
-    // Report total expired inventory for each camp and item
-        for (Camp camp : this.environment.getCamps()) {
-            for (Item item : this.environment.getItems()) {
-                double totalExpiredInventory = this.state.getKpiManager().totalExpiredInventory.get(camp).get(item);
-                if (totalExpiredInventory != 0) {
-                    System.out.println("Total expired inventory for camp " + camp.getName() + " and item " + item.getName() + " is " + totalExpiredInventory);
-                }
-            }
-        }
-        System.out.println();
-
-    // Report total unsatisfied internal demand for each camp and item
-        for (Camp camp : this.environment.getCamps()) {
-            for (Item item : this.environment.getItems()) {
-                double totalUnsatisfiedInternalDemand = this.state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item);
-                if (totalUnsatisfiedInternalDemand != 0) {
-                    System.out.println("Total unsatisfied internal demand for camp " + camp.getName() + " and item " + item.getName() + " is " + totalUnsatisfiedInternalDemand);
-                }
-            }
-        }
-
-        System.out.println(Math.round(totalOrderingCostSum));
-        System.out.println(Math.round(totalDeprivationCostSum));
-        System.out.println(Math.round(totalHoldingCostSum));
-        System.out.println(Math.round(totalReferralCostSum));
-
-    }
 
     public void run() {
         generateInitialEvents();
@@ -158,22 +50,26 @@ public class Simulate {
             deleteExpiredItems(this.state, event.getTime());
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
 
+            if (!event.getClass().getSimpleName().equals("InventoryControlEvent") && this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS) {
+                InventoryControlEvent ice = new InventoryControlEvent(event.getTime());
+                this.eventQueue.add(ice);
+            }
+
             if (eventSet == null) {
                 continue;
             }
 
             for (IEvent e : eventSet) {
-                if (e.getTime() >= this.environment.getSimulationConfig().getPlanningHorizon()) {
+                if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) {
                     continue;
                 }
                 this.eventQueue.add(e);
             }
         }
-        // At the end of the simulation, calculate the final costs
-        calculateFinalCosts();
     }
 
     public void deleteExpiredItems(State state, double currentTime) {
+        // Delete from camp inventory
         for (Map.Entry<Camp, HashMap<Item, PriorityQueue<InventoryItem>>> campEntry : state.getInventory().entrySet()) {
             HashMap<Item, PriorityQueue<InventoryItem>> campInventory = campEntry.getValue();
 
@@ -193,7 +89,7 @@ public class Simulate {
             }
         }
 
-        // Delete also from central inventory
+        // Delete from central inventory
         for (Map.Entry<Item, PriorityQueue<InventoryItem>> itemEntry : state.getCentralWarehouseInventory().entrySet()) {
             PriorityQueue<InventoryItem> itemQueue = itemEntry.getValue();
 
@@ -210,37 +106,6 @@ public class Simulate {
         }
     }
 
-    public void calculateFinalCosts() {
-        double finalTime = this.environment.getSimulationConfig().getPlanningHorizon();
-        for (Camp camp : this.state.getDeprivingPopulation().keySet()){
-            for (Item item : this.state.getDeprivingPopulation().get(camp).keySet()){
-
-                while (!this.state.getDeprivingPopulation().get(camp).get(item).isEmpty()) {
-                    DeprivingPerson deprivingPerson = this.state.getDeprivingPopulation().get(camp).get(item).peek();
-                    double totalTime = finalTime - deprivingPerson.getArrivalTime();
-                    double previousCost = this.state.getKpiManager().totalDeprivationCost.get(camp).get(item);
-                    double currentCost = (Math.exp(totalTime * item.getDeprivationCoefficient()) + 1) * deprivingPerson.getQuantity();
-                    this.state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).put(item, this.state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item) + deprivingPerson.getQuantity());
-                    this.state.getKpiManager().totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
-                    this.state.getDeprivingPopulation().get(camp).get(item).poll();
-                }
-                this.state.getKpiManager().totalReferralCost.get(camp).put(item, this.state.getReferralPopulation().get(camp).get(item) * item.getReferralCost());
-            }
-        }
-
-        for (Camp camp : this.state.getInventory().keySet()){
-            for (Item item : this.state.getInventory().get(camp).keySet()){
-                while (!this.state.getInventory().get(camp).get(item).isEmpty()) {
-                    InventoryItem inventoryItem = this.state.getInventory().get(camp).get(item).peek();
-                    double previousCost = this.state.getKpiManager().totalHoldingCost.get(camp).get(item);
-                    double currentCost = (finalTime - inventoryItem.getArrivalTime()) * inventoryItem.getQuantity() * item.getHoldingCost();
-                    this.state.getKpiManager().totalHoldingCost.get(camp).put(item, previousCost + currentCost);
-                    this.state.getInventory().get(camp).get(item).poll();
-                }
-            }
-        }
-    }
-
 
     // This method generates the initial events for the simulation
     private void generateInitialEvents() {
@@ -250,7 +115,6 @@ public class Simulate {
         generateInitialMigrationEvents();
         generateInventoryControlEvents();
     }
-
 
     private void generateInitialDemandEvents() {
         for (Camp camp : this.environment.getCamps()) {
@@ -268,10 +132,12 @@ public class Simulate {
                 }
             }
         }
-
     }
 
     private void generateInitialFundingEvents() {
+        if (this.environment.getSupplyStatusSwitches() == null){
+            return;
+        }
         for (Agency agency : this.environment.getAgencies()) {
             for (Funding funding: agency.getFundings()){
                 double currentTime = 0.0;
@@ -286,6 +152,9 @@ public class Simulate {
     }
 
     private void generateInitialSupplyStatusSwitchEvents(){
+        if (this.environment.getSupplyStatusSwitches() == null){
+            return;
+        }
         for (SupplyStatusSwitch supplyStatusSwitch : this.environment.getSupplyStatusSwitches()){
             double currentTime = 0.0;
 
@@ -306,6 +175,9 @@ public class Simulate {
     }
 
     private void generateInitialMigrationEvents(){
+        if (this.environment.getMigrations() == null){
+            return;
+        }
         for (Migration migration : this.environment.getMigrations()) {
             double currentTime = 0.0;
             MigrationEvent me = new MigrationEvent(state, migration, this.interarrivalGenerator, this.quantityGenerator, currentTime);
@@ -320,10 +192,16 @@ public class Simulate {
 
     private void generateInventoryControlEvents(){
         if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.PERIODIC){
-            for (int i = 0; i < this.environment.getSimulationConfig().getPlanningHorizon(); i += this.environment.getSimulationConfig().getSimulationResolution()){
+            for (int i = 0; i < this.environment.getSimulationConfig().getPlanningHorizon(); i += this.environment.getSimulationConfig().getInventoryControlPeriod()){
                 InventoryControlEvent ice = new InventoryControlEvent(i);
                 this.eventQueue.add(ice);
             }
         }
+        else if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS){
+            InventoryControlEvent ice = new InventoryControlEvent(0);
+            this.eventQueue.add(ice);
+        }
     }
+
+
 }

@@ -25,7 +25,9 @@ public class TransferEvent implements IEvent {
 
     @Override
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
-        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
+
+        if (state.getKpiManager().isReportEvents())
+            System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
 
         state.transferInventory(this.camp, this.item, this.inventoryToSend, this.time);
         return null;

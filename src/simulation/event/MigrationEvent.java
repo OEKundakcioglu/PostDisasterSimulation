@@ -44,8 +44,8 @@ public class MigrationEvent implements IEvent {
 
         ArrayList<IEvent> returnEvents = new ArrayList<>();
 
-        // Report what it is
-        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Quantity: " +
+        if (state.getKpiManager().isReportEvents())
+            System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Quantity: " +
                 this.quantity);
 
         // Update the state (camp inventories)

@@ -41,7 +41,7 @@ public class InterarrivalGenerator {
         return supplyStatusSwitch.getRecoveryArrivalData().distParameters.generate(this.rngSupplySwitch);
     }
     public double genereteItemDuration(Item item){
-        return item.getDurationData().distParameters.generate(this.rngReplenishment);
+        return item.getDurationData().distParameters.generate(this.rngItemDuration);
     }
     public double generateReplenishment(Item item){
         return item.getLeadTimeData().distParameters.generate(this.rngReplenishment);

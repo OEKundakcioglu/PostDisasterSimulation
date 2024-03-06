@@ -19,7 +19,8 @@ public class InventoryControlEvent implements IEvent{
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
         ArrayList<IEvent> returnEvents = new ArrayList<>();
 
-        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
+        if (state.getKpiManager().isReportEvents())
+            System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
 
         // Generate replenishment
         ArrayList<IEvent> replenishmentEvents = state.getOrderUpToPolicy().generateReplenishmentEvents(interarrivalGenerator, quantityGenerator, this.time);

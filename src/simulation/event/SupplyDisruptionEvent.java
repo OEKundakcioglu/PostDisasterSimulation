@@ -38,8 +38,8 @@ public class SupplyDisruptionEvent implements IEvent {
         SupplyRecoveryEvent recoveryEvent = new SupplyRecoveryEvent(this.supplyStatusSwitch, interarrivalGenerator, this.getTime());
         returnEvents.add(recoveryEvent);
 
-        // Report what it is
-        System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime()
+        if (state.getKpiManager().isReportEvents())
+            System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime()
                 + " Total Disruption Time for " + this.item.getName() + ": " + (recoveryEvent.getTime() - this.getTime()));
 
         // Update the state (camp inventories)
