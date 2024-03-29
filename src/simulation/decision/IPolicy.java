@@ -16,6 +16,7 @@ public interface IPolicy {
 
     public ArrayList<IEvent> generateTransferEvents(InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator, double time);
 
+
     public Environment getEnvironment();
 
     public void setEnvironment(Environment environment);

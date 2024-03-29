@@ -51,6 +51,7 @@ public class State implements Cloneable {
         this.kpiManager = new KPIManager(this);
         this.kpiManager.setReportEvents(environment.getSimulationConfig().isReportEvents());
         this.kpiManager.setReportKPIs(environment.getSimulationConfig().isReportKPIs());
+        this.kpiManager.setFileName(environment.getSimulationConfig().getFileName());
 
         this.deprivingPopulation = new HashMap<>();
         this.referralPopulation = new HashMap<>();
@@ -271,6 +272,7 @@ public class State implements Cloneable {
                     }
                 }
             }
+
         }
     }
 

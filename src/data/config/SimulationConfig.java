@@ -22,6 +22,7 @@ public class SimulationConfig {
     private double planningHorizon;
     private boolean reportEvents;
     private boolean reportKPIs;
+    private String fileName;
 
     private double dummy;
     private double centralDummy;
@@ -178,5 +179,14 @@ public class SimulationConfig {
     public void setCentralDummy(double centralDummy) {
         this.centralDummy = centralDummy;
     }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
 
 }

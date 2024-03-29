@@ -4,8 +4,6 @@ import java.util.Random;
 
 public class DistEqualShare implements IDist {
     public double mean;
-    public int totalCount;
-
 
     public DistEqualShare() {
 

@@ -14,7 +14,7 @@ import data.Item;
 public class ExcelReportGenerator {
 
     public ExcelReportGenerator(KPIManager kpiManager) {
-        String filename = "KPI_Report.xlsx";
+        String filename = kpiManager.fileName + ".xlsx";
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet overallSheet = workbook.createSheet("Overall Report");
             createOverallTable(overallSheet, kpiManager);

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 
 public class KPIManager {
+
     int totalReferralPopulation;
     double totalReferralCostSum;
     double totalHoldingCostSum;
@@ -37,6 +38,8 @@ public class KPIManager {
 
     boolean reportEvents;
     boolean reportKPIs;
+    String fileName;
+
 
 
     public KPIManager(State state){
@@ -328,5 +331,13 @@ public class KPIManager {
 
     public double getTotalOrderingCostSum() {
         return totalOrderingCostSum;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public String getFileName() {
+        return fileName;
     }
 }

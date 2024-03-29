@@ -1,6 +1,6 @@
 simulationConfig:
   seedDemandTime: 10
-  seedDemandQuantity: 15
+  seedDemandQuantity: 16
 
   seedItemDuration: 14
 

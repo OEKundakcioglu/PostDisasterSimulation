@@ -3,19 +3,24 @@ package data.distribution;
 import java.util.Random;
 
 public class DistNormal implements IDist {
-    public double mean;
-    public double stdDev;
+    private double mean;
+    private double stdDev;
 
-    public DistNormal(){
-
+    public DistNormal(double mean, double stdDev) {
+        this.mean = mean;
+        this.stdDev = stdDev;
     }
 
-
-    public double generate(Random rng){
-        return rng.nextGaussian() * this.stdDev + this.mean;
+    public double generate(Random rng) {
+        double value;
+        do {
+            value = rng.nextGaussian() * this.stdDev + this.mean;
+        } while (value < 0);
+        return value;
     }
 
-    public double getMean(){
+    public double getMean() {
         return this.mean;
     }
+
 }

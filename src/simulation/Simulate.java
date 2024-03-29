@@ -57,16 +57,24 @@ public class Simulate {
             // If population changes, generate new demand events with the new population, deleting the old demand events
             if (event.getClass().getSimpleName().equals("MigrationEvent")) {
                 MigrationEvent migrationEvent = (MigrationEvent) event;
-                controlStateChange(migrationEvent);
+                migrationStateUpdate(migrationEvent);
             }
 
             if(event.getClass().getSimpleName().equals("DemandEvent")){
-               // If demand event, get the earliest demand event from the queue
+                // If demand event, get the earliest demand event from the queue
                 DemandEvent demandEvent = (DemandEvent) event;
                 Camp camp = demandEvent.camp;
+
+                for (IEvent e : eventSet) {
+                    if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) {
+                        continue;
+                    }
+                    this.demandEventQueue.get(camp).offer(e);
+                }
+
                 PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
                 if (!demandQueue.isEmpty()){
-                    this.eventQueue.add(demandQueue.poll());
+                    this.eventQueue.offer(demandQueue.poll());
                 }
             }
 
@@ -74,7 +82,7 @@ public class Simulate {
             if (!event.getClass().getSimpleName().equals("InventoryControlEvent") &&
                 this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS) {
                 InventoryControlEvent ice = new InventoryControlEvent(event.getTime());
-                this.eventQueue.add(ice);
+                this.eventQueue.offer(ice);
             }
 
             // Add the new events to the event queue
@@ -83,10 +91,11 @@ public class Simulate {
             }
 
             for (IEvent e : eventSet) {
+                if (e.getClass().getSimpleName().equals("DemandEvent")) continue;
                 if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) {
                     continue;
                 }
-                this.eventQueue.add(e);
+                this.eventQueue.offer(e);
             }
         }
     }
@@ -173,14 +182,14 @@ public class Simulate {
 
                     for (double arrivalTime : arrivalTimes){
                         FundingEvent fe = new FundingEvent(funding, arrivalTime, totalFunding/count);
-                        this.eventQueue.add(fe);
+                        this.eventQueue.offer(fe);
                     }
                 }
                 // Else we generate a random amount for each event
                 else{
                     for (double arrivalTime : arrivalTimes){
                         FundingEvent fe = new FundingEvent(funding, quantityGenerator, arrivalTime);
-                        this.eventQueue.add(fe);
+                        this.eventQueue.offer(fe);
                     }
                 }
             }
@@ -199,12 +208,12 @@ public class Simulate {
                 if (currentTime >= this.environment.getSimulationConfig().getPlanningHorizon()) {
                     continue;
                 }
-                this.eventQueue.add(sde);
+                this.eventQueue.offer(sde);
 
                 SupplyRecoveryEvent sre = new SupplyRecoveryEvent(supplyStatusSwitch, this.interarrivalGenerator, currentTime);
                 currentTime = sre.getTime();
 
-                this.eventQueue.add(sre);
+                this.eventQueue.offer(sre);
             }
         }
     }
@@ -220,7 +229,7 @@ public class Simulate {
             if (currentTime >=  this.environment.getSimulationConfig().getPlanningHorizon()){
                 break;
             }
-            this.eventQueue.add(me);
+            this.eventQueue.offer(me);
         }
     }
 
@@ -228,23 +237,26 @@ public class Simulate {
         if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.PERIODIC){
             for (int i = 0; i < this.environment.getSimulationConfig().getPlanningHorizon(); i += this.environment.getSimulationConfig().getInventoryControlPeriod()){
                 InventoryControlEvent ice = new InventoryControlEvent(i);
-                this.eventQueue.add(ice);
+                this.eventQueue.offer(ice);
             }
         }
         else if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS){
             InventoryControlEvent ice = new InventoryControlEvent(0);
-            this.eventQueue.add(ice);
+            this.eventQueue.offer(ice);
         }
     }
 
     private void generateDemandEvents(Camp camp, Demand demand, double currentTime){
-        PriorityQueue<IEvent> demandQueue = new PriorityQueue<>(IEvent::compareTo);
+        if (!this.demandEventQueue.containsKey(camp)){
+            this.demandEventQueue.put(camp, new PriorityQueue<>(IEvent::compareTo));
+        }
+        PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
         for (int i = 0; i < this.state.getInternalPopulation().get(camp); i++){
             if (this.quantityGenerator.rngDemand.nextDouble() < demand.getInternalRatio()){
                 DemandEvent de_internal =
                         new DemandEvent(this.state, camp, demand, true, this.interarrivalGenerator, this.quantityGenerator, currentTime);
                 if (de_internal.getTime() <=  this.environment.getSimulationConfig().getPlanningHorizon()){
-                    demandQueue.add(de_internal);
+                    demandQueue.offer(de_internal);
                 }
             }
         }
@@ -253,38 +265,48 @@ public class Simulate {
                 DemandEvent de_external =
                         new DemandEvent(this.state, camp, demand, false, this.interarrivalGenerator, this.quantityGenerator, currentTime);
                 if (de_external.getTime() <=  this.environment.getSimulationConfig().getPlanningHorizon()){
-                    demandQueue.add(de_external);
+                    demandQueue.offer(de_external);
                 }
             }
         }
         // pick the first event from the queue
         if (!demandQueue.isEmpty()){
-            this.eventQueue.add(demandQueue.poll());
+            this.eventQueue.offer(demandQueue.poll());
         }
         this.demandEventQueue.put(camp, demandQueue);
     }
 
-    private void controlStateChange(MigrationEvent migrationEvent){
+    private void migrationStateUpdate(MigrationEvent migrationEvent){
         if (migrationEvent.migrationType == MigrationType.EXTERNAL_TO_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.INTERNAL_TO_SYSTEM) {
             if (migrationEvent.quantity > 0) {
+                this.state.getInventoryPolicy().initialize(environment, this.state);
                 for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                    // Reset the demand events for the camp
+                    this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
                     generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
                 }
             }
-
         }
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_FROM_SYSTEM ||
-                migrationEvent.migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM) {
+                migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM
+                ) {
             if (migrationEvent.quantity > 0) {
-                for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                this.state.getInventoryPolicy().initialize(environment, this.state);
+                for (Demand demand : migrationEvent.fromCamp.getDemands()) {
+                    // Reset the demand events for the camp
+                    this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
                     generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
                 }
             }
         }
-        else if (migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM ||
+        else if ( migrationEvent.migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM||
                 migrationEvent.migrationType == MigrationType.EXTERNAL_WITHIN_SYSTEM) {
             if (migrationEvent.quantity > 0) {
+                // Reset the demand events for the camp
+                this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
+                this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
+                this.state.getInventoryPolicy().initialize(environment, this.state);
                 for (Demand demand : migrationEvent.toCamp.getDemands()) {
                     generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
                 }

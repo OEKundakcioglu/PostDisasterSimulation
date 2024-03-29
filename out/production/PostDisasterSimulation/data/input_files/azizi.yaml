@@ -20,8 +20,9 @@ simulationConfig:
   inventoryControlType: PERIODIC
   inventoryControlPeriod: &period 5
   planningHorizon: 1080
-  reportEvents: true
+  reportEvents: false
   reportKPIs: true
+  fileName: T3
   dummy: &dummy 0.0
   centralDummy: &centralDummy 0.0
 
@@ -312,13 +313,22 @@ agencies:
           distributionType: BERNOULLI
           distParameters: !!data.distribution.DistBernoulli
             mean: 1.0
-            arrivalInterval: 1080
+            arrivalInterval: 360
             initialArrival: true
         amountData:
           distributionType: EQUAL_SHARE
           distParameters: !!data.distribution.DistEqualShare
-            mean: 50000000
+            mean: 14900000
 
+migrations:
+  - fromCamp: *hatay1
+    toCamp: *hatay2
+    migrationType: INTERNAL_WITHIN_SYSTEM
+    arrivalData:
+      distributionType: FIXED
+      distParameters: !!data.distribution.DistFixed
+        mean: 120000
+    migrationRatio: 0.05
 
 inventoryPolicy: !!simulation.decision.OrderUpToPolicy
   bufferRatios:
