@@ -6,6 +6,7 @@ import data.event_info.Demand;
 import data.event_info.Migration;
 import data.event_info.SupplyStatusSwitch;
 import simulation.State;
+import simulation.decision.IPolicy;
 import simulation.decision.OrderUpToPolicy;
 
 public class Environment {
@@ -16,18 +17,15 @@ public class Environment {
     private Agency[] agencies;
     private Migration[] migrations;
     private SupplyStatusSwitch[] supplyStatusSwitches;
-    private Transshipment[] transshipmentData;
     private SimulationConfig simulationConfig;
-    private OrderUpToPolicy orderUpToPolicy;
+    private IPolicy inventoryPolicy;
 
 
     public Environment() {
 
-
     }
 
     public Environment(RandomConfig randomConfig) {
-
 
     }
 
@@ -100,22 +98,13 @@ public class Environment {
         this.items = items;
     }
 
-    public Transshipment[] getTransshipmentData() {
-        return transshipmentData;
+    public IPolicy getInventoryPolicy() {
+        return inventoryPolicy;
     }
 
-    public void setTransshipmentData(Transshipment[] transshipmentData) {
-        this.transshipmentData = transshipmentData;
+    public void setInventoryPolicy(IPolicy inventoryPolicy) {
+        this.inventoryPolicy = inventoryPolicy;
     }
-
-    public OrderUpToPolicy getOrderUpToPolicy() {
-        return orderUpToPolicy;
-    }
-
-    public void setOrderUpToPolicy(OrderUpToPolicy orderUpToPolicy) {
-        this.orderUpToPolicy = orderUpToPolicy;
-    }
-
 
 }
 

@@ -26,13 +26,12 @@ public class DemandEvent implements IEvent {
         this.isInternal = isInternal;
         this.demand = demand;
         this.item = demand.getItem();
+        this.time = tNow + interarrivalGenerator.generateDemand(demand);
 
         if (isInternal) {
-            this.time = tNow + (interarrivalGenerator.generateDemand(demand)) / (state.getInternalPopulation().get(this.camp) * demand.getInternalRatio());
-            this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getInternalPopulation().get(this.camp), isInternal);
+            this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getInternalPopulation().get(this.camp), true);
         } else {
-            this.time = tNow + interarrivalGenerator.generateDemand(demand) / (state.getExternalPopulation().get(this.camp) * demand.getExternalRatio());
-            this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getExternalPopulation().get(this.camp), isInternal);
+            this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getExternalPopulation().get(this.camp), false);
         }
     }
 

@@ -13,7 +13,6 @@ public class InterarrivalGenerator {
     private final Random rngItemDuration;
     private final Random rngReplenishment;
     private final Random rngTransferTime;
-    private final Random rngTransshipmentTime;
 
     public InterarrivalGenerator(SimulationConfig simulationConfig) {
         this.rngDemand = new Random(simulationConfig.getSeedDemandTime());
@@ -23,7 +22,6 @@ public class InterarrivalGenerator {
         this.rngItemDuration = new Random(simulationConfig.getSeedItemDuration());
         this.rngReplenishment = new Random(simulationConfig.getSeedReplenishmentTime());
         this.rngTransferTime = new Random(simulationConfig.getSeedTransferTime());
-        this.rngTransshipmentTime = new Random(simulationConfig.getSeedTransshipmentTime());
     }
     public double generateDemand(Demand demand) {
         return demand.getArrivalData().distParameters.generate(this.rngDemand);
@@ -40,7 +38,7 @@ public class InterarrivalGenerator {
     public double generateSupplyDisruptionDuration(SupplyStatusSwitch supplyStatusSwitch) {
         return supplyStatusSwitch.getRecoveryArrivalData().distParameters.generate(this.rngSupplySwitch);
     }
-    public double genereteItemDuration(Item item){
+    public double generateItemDuration(Item item){
         return item.getDurationData().distParameters.generate(this.rngItemDuration);
     }
     public double generateReplenishment(Item item){
@@ -48,9 +46,6 @@ public class InterarrivalGenerator {
     }
     public double generateTransferTime(Camp camp){
         return camp.getLeadTimeData().distParameters.generate(this.rngTransferTime);
-    }
-    public double generateTransshipmentTime(Transshipment transshipment){
-        return transshipment.getLeadTimeData().distParameters.generate(this.rngTransshipmentTime);
     }
 
 }

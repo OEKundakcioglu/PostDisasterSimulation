@@ -2,7 +2,6 @@ package simulation.event;
 
 import simulation.State;
 import simulation.data.InventoryItem;
-import simulation.decision.OrderUpToPolicy;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
 
@@ -23,7 +22,7 @@ public class InventoryControlEvent implements IEvent{
             System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime());
 
         // Generate replenishment
-        ArrayList<IEvent> replenishmentEvents = state.getOrderUpToPolicy().generateReplenishmentEvents(interarrivalGenerator, quantityGenerator, this.time);
+        ArrayList<IEvent> replenishmentEvents = state.getInventoryPolicy().generateReplenishmentEvents(interarrivalGenerator, this.time);
         if (replenishmentEvents != null) returnEvents.addAll(replenishmentEvents);
 
         // From replenishment events, update the inventory positions
@@ -40,7 +39,7 @@ public class InventoryControlEvent implements IEvent{
         }
 
         // Generate transfer
-        ArrayList<IEvent> transferEvents = state.getOrderUpToPolicy().generateTransferEvents(interarrivalGenerator, quantityGenerator, this.time);
+        ArrayList<IEvent> transferEvents = state.getInventoryPolicy().generateTransferEvents(interarrivalGenerator, quantityGenerator, this.time);
         if (transferEvents != null) returnEvents.addAll(transferEvents);
 
         // From replenishment events, update the inventory positions
@@ -48,7 +47,6 @@ public class InventoryControlEvent implements IEvent{
             for (IEvent event : transferEvents) {
                 var transferEvent = (TransferEvent) event;
                 for (InventoryItem inventoryItem : transferEvent.inventoryToSend) {
-                    // increase state.getCentralWarehousePosition().get(replenishmentEvent.item) by inventoryItem.quantity
                     int quantity = inventoryItem.getQuantity();
                     var item = transferEvent.item;
                     var camp = transferEvent.camp;
@@ -57,7 +55,6 @@ public class InventoryControlEvent implements IEvent{
                 }
             }
         }
-
         return returnEvents;
     }
 

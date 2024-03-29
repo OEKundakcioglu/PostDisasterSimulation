@@ -10,12 +10,12 @@ import java.util.ArrayList;
 public class Camp {
     private String name;
     private Demand[] demands;
+    private ProbabilityData leadTimeData;
     private CampExternalDemandSatisfactionType campExternalDemandSatisfactionType;
     private PopulationType populationType;
     private int initialInternalPopulation;
     private int initialExternalPopulation;
     private double externalDemandSatisfactionThreshold;
-    private ProbabilityData leadTimeData;
 
 
     public Camp(String name) {
@@ -89,6 +89,5 @@ public class Camp {
     public void setLeadTimeData(ProbabilityData leadTimeData) {
         this.leadTimeData = leadTimeData;
     }
-
 
 }

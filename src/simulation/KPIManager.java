@@ -6,6 +6,7 @@ import data.Item;
 import simulation.data.DeprivingPerson;
 import simulation.data.InventoryItem;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 
 public class KPIManager {
@@ -91,9 +92,10 @@ public class KPIManager {
 
                 while (!state.getDeprivingPopulation().get(camp).get(item).isEmpty()) {
                     DeprivingPerson deprivingPerson = state.getDeprivingPopulation().get(camp).get(item).peek();
+                    assert deprivingPerson != null;
                     double totalTime = finalTime - deprivingPerson.getArrivalTime();
                     double previousCost = state.getKpiManager().totalDeprivationCost.get(camp).get(item);
-                    double currentCost = (Math.exp(totalTime * item.getDeprivationCoefficient()) + 1) * deprivingPerson.getQuantity();
+                    double currentCost = item.getDeprivationCoefficient() * (Math.exp(totalTime * item.getDeprivationRate()) - 1) * deprivingPerson.getQuantity();
                     state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).put(item, state.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item) + deprivingPerson.getQuantity());
                     state.getKpiManager().totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
                     state.getDeprivingPopulation().get(camp).get(item).poll();
@@ -107,13 +109,13 @@ public class KPIManager {
                 while (!state.getInventory().get(camp).get(item).isEmpty()) {
                     InventoryItem inventoryItem = state.getInventory().get(camp).get(item).peek();
                     double previousCost = state.getKpiManager().totalHoldingCost.get(camp).get(item);
+                    assert inventoryItem != null;
                     double currentCost = (finalTime - inventoryItem.getArrivalTime()) * inventoryItem.getQuantity() * item.getHoldingCost();
                     state.getKpiManager().totalHoldingCost.get(camp).put(item, previousCost + currentCost);
                     state.getInventory().get(camp).get(item).poll();
                 }
             }
         }
-
         // Calculate average deprivation time
         for (Camp camp : this.averageDeprivationTime.keySet()){
             for (Item item : this.averageDeprivationTime.get(camp).keySet()){
@@ -128,8 +130,9 @@ public class KPIManager {
 
     public void reportKPIs(Environment environment) {
         if (reportKPIs){
-
-        System.out.println('\n' + "Final KPIs" + '\n' + "-------------------");
+        System.out.println("""
+                Final KPIs
+                -------------------""");
         reportCashSpent(environment);
         reportDeprivingPopulationStatistics(environment);
         reportHoldingCosts(environment);
@@ -141,10 +144,11 @@ public class KPIManager {
         System.out.println(Math.round(totalDeprivationCostSum));
         System.out.println(Math.round(totalHoldingCostSum));
         System.out.println(Math.round(totalReferralCostSum));
+        var totalObj = totalOrderingCostSum + totalDeprivationCostSum + totalHoldingCostSum + totalReferralCostSum;
+        System.out.println(Math.round(totalObj));
         System.out.println(Math.round(totalFundingSpent));
 
         ExcelReportGenerator excelReportGenerator = new ExcelReportGenerator(this);
-
         }
     }
 
@@ -180,7 +184,6 @@ public class KPIManager {
     }
 
     public void reportDeprivingPopulationStatistics(Environment environment) {
-
         // Report deprivation costs and calculate total deprivation cost
         totalDeprivationCostSum = 0.0;
         for (Camp camp : environment.getCamps()) {
@@ -192,6 +195,7 @@ public class KPIManager {
                 }
             }
         }
+
         // Print total deprivation cost summation
         System.out.println("Total deprivation cost summation is " + totalDeprivationCostSum);
         System.out.println();
@@ -207,6 +211,7 @@ public class KPIManager {
                 }
             }
         }
+
         // Print total deprivation cost summation
         System.out.println("Total deprived population is " + totalDeprivedPopulation);
         System.out.println();

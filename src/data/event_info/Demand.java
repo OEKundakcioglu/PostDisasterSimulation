@@ -11,7 +11,6 @@ public class Demand {
     private DemandQuantityType demandQuantityType;
     private ProbabilityData arrivalData;
     private ProbabilityData quantityData;
-    private boolean isInternal;
     private double internalRatio;
     private double externalRatio;
 
@@ -73,14 +72,6 @@ public class Demand {
 
     public void setExternalRatio(double externalRatio) {
         this.externalRatio = externalRatio;
-    }
-
-    public boolean getIsInternal() {
-        return isInternal;
-    }
-
-    public void setIsInternal(boolean internal) {
-        isInternal = internal;
     }
 
 

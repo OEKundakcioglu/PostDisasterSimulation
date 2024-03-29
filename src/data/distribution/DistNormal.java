@@ -10,6 +10,7 @@ public class DistNormal implements IDist {
 
     }
 
+
     public double generate(Random rng){
         return rng.nextGaussian() * this.stdDev + this.mean;
     }

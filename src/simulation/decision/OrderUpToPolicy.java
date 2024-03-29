@@ -19,11 +19,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.stream.Collectors;
 
-public class OrderUpToPolicy implements Cloneable {
-
+public class OrderUpToPolicy implements IPolicy, Cloneable {
     private Environment environment;
     private State state;
-
     private HashMap<Camp, HashMap<Item, Integer>> reorderPoints;
     private HashMap<Camp, HashMap<Item, Integer>> orderUpToLevels;
 
@@ -51,8 +49,8 @@ public class OrderUpToPolicy implements Cloneable {
 
         this.centralReorderPoints = new HashMap<>();
         this.centralOrderUpToLevels = new HashMap<>();
-        
-        
+
+
         setCampLevels();
         setCentralLevels();
     }
@@ -64,6 +62,11 @@ public class OrderUpToPolicy implements Cloneable {
 
             for (Item item : environment.getItems()) {
                 Demand onePeriodDemand = this.environment.getCorrespondingDemand(item, camp);
+                if (onePeriodDemand == null) {
+                    reorderPoints.get(camp).put(item, 0);
+                    orderUpToLevels.get(camp).put(item, 0);
+                    continue;
+                }
 
                 var leadTime = camp.getLeadTimeData().distParameters.getMean();
                 var mean = onePeriodDemand.getArrivalData().getDistParameters().getMean();
@@ -90,6 +93,13 @@ public class OrderUpToPolicy implements Cloneable {
 
             for (Camp camp : environment.getCamps()) {
                 Demand onePeriodDemand = this.environment.getCorrespondingDemand(item, camp);
+
+                if (onePeriodDemand == null) {
+                    centralReorderPoints.put(item, 0);
+                    centralOrderUpToLevels.put(item, 0);
+                    continue;
+                }
+
                 var internalPopulation = state.getInternalPopulation().get(camp) * onePeriodDemand.getInternalRatio();
                 var externalPopulation = state.getExternalPopulation().get(camp) * onePeriodDemand.getExternalRatio();
 
@@ -106,7 +116,7 @@ public class OrderUpToPolicy implements Cloneable {
         }
     }
 
-    public ArrayList<IEvent> generateReplenishmentEvents(InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator, double time) {
+    public ArrayList<IEvent> generateReplenishmentEvents(InterarrivalGenerator interarrivalGenerator, double time) {
         // First of all, we need to find the requests for replenishment
         double totalCashNeededForItem = 0;
         double totalCashNeededForOrdering = 0;
@@ -131,17 +141,16 @@ public class OrderUpToPolicy implements Cloneable {
             }
         }
         // Now we need to find the cash available
-        double cashAvailable = state.getAvailableFunds();
+        double cashAvailable = state.getAvailableFunds() - totalCashNeededForOrdering;
 
-        double ratio = Math.min(cashAvailable / totalCashNeededForItem, 1.0);
+        double ratio = Math.min(cashAvailable / (totalCashNeededForItem), 1.0);
         ArrayList<IEvent> replenishmentEvents = new ArrayList<>();
 
-        if (ratio == 0) {
+        if (cashAvailable <= 0) {
             return replenishmentEvents;
         }
-        else if (ratio == 1) {
+        else if (cashAvailable >= (totalCashNeededForItem + totalCashNeededForOrdering)) {
             for (Item item : state.getCentralWarehousePosition().keySet()) {
-
                 int totalInventory = state.getCentralWarehousePosition().get(item);
                 for (Camp camp : environment.getCamps()) {
                     if (state.getInventoryPosition().get(camp).get(item) < 0)
@@ -157,10 +166,11 @@ public class OrderUpToPolicy implements Cloneable {
                     double arrivalTime = time + interarrivalGenerator.generateReplenishment(item);
                     double expiration = 0;
                     if (item.getIsPerishable()) {
-                        expiration = arrivalTime + interarrivalGenerator.genereteItemDuration(item);
+                        expiration = arrivalTime + interarrivalGenerator.generateItemDuration(item);
                     }
                     inventoryItems.add(new InventoryItem(quantity, expiration, arrivalTime));
                     replenishmentEvents.add(new ReplenishmentEvent(item, inventoryItems, interarrivalGenerator, arrivalTime));
+                    state.setAvailableFunds(state.getAvailableFunds() - (quantity * item.getPrice() + item.getOrderingCost()));
                 }
             }
         }
@@ -177,11 +187,13 @@ public class OrderUpToPolicy implements Cloneable {
                     ArrayList<InventoryItem> inventoryItems = new ArrayList<>();
                     double arrivalTime = time + interarrivalGenerator.generateReplenishment(item);
                     double expiration = 0.0;
+
                     if (item.getIsPerishable()) {
-                        expiration = arrivalTime + interarrivalGenerator.genereteItemDuration(item);
+                        expiration = arrivalTime + interarrivalGenerator.generateItemDuration(item);
                     }
                     inventoryItems.add(new InventoryItem(quantity, expiration, arrivalTime));
                     replenishmentEvents.add(new ReplenishmentEvent(item, inventoryItems, interarrivalGenerator, arrivalTime));
+                    state.setAvailableFunds(state.getAvailableFunds() - (quantity * item.getPrice() + item.getOrderingCost()));
                 }
             }
         }
@@ -265,7 +277,7 @@ public class OrderUpToPolicy implements Cloneable {
         return transferEvents;
     }
 
-    
+
 
     @Override
     public Object clone() throws CloneNotSupportedException {

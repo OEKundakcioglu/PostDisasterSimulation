@@ -4,13 +4,13 @@ simulationConfig:
 
   seedItemDuration: 14
 
-  seedSupplyDisruptionTime: 12
+  seedSupplyDisruptionTime: 11
   seedSupplyDisruptionDuration: 18
 
   seedMigrationTime: 13
   seedMigrationQuantity: 17
 
-  seedFundingTime: 11
+  seedFundingTime: 13
   seedFundingAmount: 16
 
   seedReplenishmentTime: 14
@@ -18,13 +18,12 @@ simulationConfig:
   seedTransshipmentTime: 16
 
   inventoryControlType: PERIODIC
-  inventoryControlPeriod: &period 1
-  planningHorizon: 720
-  reportEvents: false
+  inventoryControlPeriod: &period 5
+  planningHorizon: 1080
+  reportEvents: true
   reportKPIs: true
   dummy: &dummy 0.0
   centralDummy: &centralDummy 0.0
-
 
 items:
   - &goods
@@ -33,7 +32,8 @@ items:
     price: 5
     orderingCost: 1200
     holdingCost: 1
-    deprivationCoefficient: 0.12
+    deprivationRate: 0.12
+    deprivationCoefficient: 1
     referralCost: 2
     leadTimeData:
       distributionType: TRIANGULAR
@@ -49,7 +49,8 @@ items:
     orderingCost: 2400
     holdingCost:  1
     referralCost: 4
-    deprivationCoefficient: 0.245
+    deprivationRate: 0.245
+    deprivationCoefficient: 1
     durationData:
       distributionType: UNIFORM
       distParameters: !!data.distribution.DistUniform
@@ -75,18 +76,16 @@ camps:
       - item: *goods
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.5
+        externalRatio: 0.05
 
       - item: *medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
@@ -98,7 +97,6 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 2142
     initialExternalPopulation: 144105
-    externalDemandSatisfactionThreshold: 0.62
 
   - &hatay2
     name: Hatay-2
@@ -112,18 +110,16 @@ camps:
       - item: *goods
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.5
+        externalRatio: 0.05
 
       - item: *medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
@@ -135,7 +131,6 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 3213
     initialExternalPopulation: 143034
-    externalDemandSatisfactionThreshold: 0.62
 
   - &hatay3
     name: Hatay-3
@@ -149,18 +144,16 @@ camps:
       - item: *goods
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.5
+        externalRatio: 0.05
 
       - item: *medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
@@ -172,7 +165,6 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 5355
     initialExternalPopulation: 140892
-    externalDemandSatisfactionThreshold: 0.62
 
   - &adana
     name: Adana
@@ -186,18 +178,16 @@ camps:
       - item: *goods
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.5
+        externalRatio: 0.05
 
       - item: *medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
@@ -209,7 +199,6 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 21414
     initialExternalPopulation: 225048
-    externalDemandSatisfactionThreshold: 0.62
 
   - &osmaniye
     name: Osmaniye
@@ -223,18 +212,16 @@ camps:
       - item: *goods
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.5
+        externalRatio: 0.05
 
       - item: *medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
@@ -246,7 +233,6 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 12418
     initialExternalPopulation: 37126
-    externalDemandSatisfactionThreshold: 0.62
 
   - &kilis
     name: Kilis
@@ -260,18 +246,16 @@ camps:
       - item: *goods
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.5
+        externalRatio: 0.05
 
       - item: *medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
@@ -283,7 +267,6 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 8492
     initialExternalPopulation: 103700
-    externalDemandSatisfactionThreshold: 0.62
 
   - &kahramanmaras
     name: Kahramanmaraş
@@ -297,18 +280,16 @@ camps:
       - item: *goods
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
+        internalRatio: 0.5
+        externalRatio: 0.05
 
       - item: *medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
-        isInternal: true
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
@@ -320,26 +301,26 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 10872
     initialExternalPopulation: 81421
-    externalDemandSatisfactionThreshold: 0.62
-
 
 agencies:
   - name: Government
-    fundings:
+    fundingArray:
       - items:
         camps:
         fundingType: MONETARY_REGULAR
         arrivalData:
-          distributionType: FIXED
-          distParameters: !!data.distribution.DistFixed
-            mean: 10
+          distributionType: BERNOULLI
+          distParameters: !!data.distribution.DistBernoulli
+            mean: 1.0
+            arrivalInterval: 1080
+            initialArrival: true
         amountData:
-          distributionType: FIXED
-          distParameters: !!data.distribution.DistFixed
-            mean: 1000000
+          distributionType: EQUAL_SHARE
+          distParameters: !!data.distribution.DistEqualShare
+            mean: 50000000
 
 
-orderUpToPolicy:
+inventoryPolicy: !!simulation.decision.OrderUpToPolicy
   bufferRatios:
     *hatay1:
       *goods : *dummy
@@ -392,7 +373,7 @@ orderUpToPolicy:
     *medicine: *period
 
 initialState:
-  availableFunds: 100000000
+  availableFunds: 0
   initialInventory:
     *hatay1:
       *goods: 0

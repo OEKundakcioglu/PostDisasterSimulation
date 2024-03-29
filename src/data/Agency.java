@@ -4,7 +4,7 @@ import data.event_info.Funding;
 
 public class Agency {
     private String name;
-    private Funding[] fundings;
+    private Funding[] fundingArray;
 
     public Agency() {
     }
@@ -17,11 +17,11 @@ public class Agency {
         this.name = name;
     }
 
-    public Funding[] getFundings() {
-        return fundings;
+    public Funding[] getFundingArray() {
+        return fundingArray;
     }
 
-    public void setFundings(Funding[] fundings) {
-        this.fundings = fundings;
+    public void setFundingArray(Funding[] fundingArray) {
+        this.fundingArray = fundingArray;
     }
 }

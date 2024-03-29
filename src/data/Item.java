@@ -7,6 +7,7 @@ public class Item {
     private double price;
     private double orderingCost;
     private double holdingCost;
+    private double deprivationRate;
     private double deprivationCoefficient;
     private double referralCost;
     private boolean isPerishable;
@@ -53,6 +54,14 @@ public class Item {
 
     public void setHoldingCost(double holdingCost) {
         this.holdingCost = holdingCost;
+    }
+
+    public double getDeprivationRate() {
+        return deprivationRate;
+    }
+
+    public void setDeprivationRate(double deprivationRate) {
+        this.deprivationRate = deprivationRate;
     }
 
     public double getDeprivationCoefficient() {

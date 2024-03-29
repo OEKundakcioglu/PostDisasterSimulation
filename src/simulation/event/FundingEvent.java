@@ -2,6 +2,7 @@ package simulation.event;
 import data.Camp;
 import data.Item;
 import data.event_info.Funding;
+import enums.DistributionType;
 import enums.FundingType;
 import simulation.KPIManager;
 import simulation.State;
@@ -19,14 +20,22 @@ public class FundingEvent implements IEvent {
     public double time;
     public double amount;
 
-    public FundingEvent(Funding funding, InterarrivalGenerator interarrivalGenerator,
-                        QuantityGenerator quantityGenerator, double tNow) {
+    public FundingEvent(Funding funding, QuantityGenerator quantityGenerator, double time) {
         this.funding = funding;
         this.item = funding.getItems();
         this.camp = funding.getCamp();
         this.fundingType = funding.getFundingType();
-        this.time = tNow + interarrivalGenerator.generateFunding(funding);
+        this.time = time;
         this.amount = quantityGenerator.generateFundingAmount(funding);
+    }
+
+    public FundingEvent(Funding funding, double time, double amount) {
+        this.funding = funding;
+        this.item = funding.getItems();
+        this.camp = funding.getCamp();
+        this.fundingType = funding.getFundingType();
+        this.time = time;
+        this.amount = amount;
     }
 
     public int compareTo(IEvent other) {
@@ -37,8 +46,6 @@ public class FundingEvent implements IEvent {
     }
 
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
-        ArrayList<IEvent> returnEvents = new ArrayList<>();
-
         if (state.getKpiManager().isReportEvents())
             System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Amount: " +
                 this.amount);
@@ -50,14 +57,7 @@ public class FundingEvent implements IEvent {
         else {
             state.updateFunds(this.camp, this.item, this.fundingType, this.amount, this.getTime(), this.getTime());
         }
-
-        // Generate Event
-        FundingEvent fundingEvent = new FundingEvent(this.funding, interarrivalGenerator,
-                quantityGenerator, this.getTime());
-
-        returnEvents.add(fundingEvent);
-
-        return returnEvents;
+        return null;
 
     }
 }

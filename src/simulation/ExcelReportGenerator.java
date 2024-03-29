@@ -79,13 +79,13 @@ public class ExcelReportGenerator {
 
         int rowNum = 1;
         Row dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue(kpiManager.totalOrderingCostSum);
-        dataRow.createCell(1).setCellValue(kpiManager.totalDeprivationCostSum);
-        dataRow.createCell(2).setCellValue(kpiManager.totalHoldingCostSum);
-        dataRow.createCell(3).setCellValue(kpiManager.totalReferralCostSum);
+        dataRow.createCell(0).setCellValue(Math.round(kpiManager.totalOrderingCostSum));
+        dataRow.createCell(1).setCellValue(Math.round(kpiManager.totalDeprivationCostSum));
+        dataRow.createCell(2).setCellValue(Math.round(kpiManager.totalHoldingCostSum));
+        dataRow.createCell(3).setCellValue(Math.round(kpiManager.totalReferralCostSum));
         var value = kpiManager.totalOrderingCostSum + kpiManager.totalDeprivationCostSum + kpiManager.totalHoldingCostSum + kpiManager.totalReferralCostSum;
-        dataRow.createCell(4).setCellValue(value);
-        dataRow.createCell(5).setCellValue(kpiManager.totalFundingSpent);
+        dataRow.createCell(4).setCellValue(Math.round(value));
+        dataRow.createCell(5).setCellValue(Math.round(kpiManager.totalFundingSpent));
     }
 
     private void createCentralTable(Sheet sheet, KPIManager kpiManager) {
@@ -100,7 +100,6 @@ public class ExcelReportGenerator {
             colNum++;
         }
 
-        // Data rows
         String[] metrics = {
                 "Total Item Replenishment Cost",
                 "Total Item Purchased",

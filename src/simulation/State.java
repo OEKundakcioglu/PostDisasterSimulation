@@ -9,7 +9,9 @@ import enums.CampExternalDemandSatisfactionType;
 import enums.FundingType;
 import enums.MigrationType;
 import simulation.data.*;
+import simulation.decision.IPolicy;
 import simulation.decision.OrderUpToPolicy;
+import simulation.generator.InterarrivalGenerator;
 
 public class State implements Cloneable {
 
@@ -38,7 +40,7 @@ public class State implements Cloneable {
 
     private KPIManager kpiManager;
 
-    private OrderUpToPolicy orderUpToPolicy;
+    private IPolicy inventoryPolicy;
 
 
     public State () {
@@ -63,7 +65,7 @@ public class State implements Cloneable {
         }
     }
 
-    public void projectInitialState() {
+    public void projectInitialState(InterarrivalGenerator interarrivalGenerator) {
         HashMap<Camp, HashMap<Item, PriorityQueue<InventoryItem>>> newInventory = new HashMap<>();
         HashMap<Item, PriorityQueue<InventoryItem>> newCentralWarehouseInventory = new HashMap<>();
 
@@ -76,16 +78,17 @@ public class State implements Cloneable {
         for (var camp : this.initialInventory.keySet()) {
             newInventory.put(camp, new HashMap<>());
             inventoryPosition.put(camp, new HashMap<>());
-
             for (var item : this.initialInventory.get(camp).keySet()) {
                 PriorityQueue<InventoryItem> newInventoryItem = new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration));
+
                 int quantity = this.initialInventory.get(camp).get(item);
                 double expiration = 0.0;
+
                 newInventory.get(camp).put(item, newInventoryItem);
-                inventoryPosition.get(camp).put(item, quantity); // Initialize inventoryPosition
+                inventoryPosition.get(camp).put(item, quantity);
 
                 if (item.getIsPerishable()){
-                    expiration = item.getDurationData().distParameters.generate(new Random());
+                    expiration = interarrivalGenerator.generateItemDuration(item);
                 }
                 newInventory.get(camp).get(item).offer(new InventoryItem(quantity, expiration, 0.0));
             }
@@ -100,7 +103,7 @@ public class State implements Cloneable {
             newCentralWarehouseInventory.put(item, newInventoryItem);
 
             if (item.getIsPerishable()){
-                expiration = item.getDurationData().distParameters.generate(new Random());
+                expiration = interarrivalGenerator.generateItemDuration(item);
             }
 
             newCentralWarehouseInventory.get(item).offer(new InventoryItem(quantity, expiration, 0.0));
@@ -113,7 +116,7 @@ public class State implements Cloneable {
                 int quantity = this.initialEarmarkedInKind.get(camp).get(item);
                 double expiration = 0.0;
                 if (item.getIsPerishable()){
-                    expiration = item.getDurationData().distParameters.generate(new Random());
+                    expiration = interarrivalGenerator.generateItemDuration(item);
                 }
                 inventory.get(camp).get(item).offer(new InventoryItem(quantity, expiration, 0.0));
             }
@@ -126,59 +129,54 @@ public class State implements Cloneable {
             this.internalPopulation.put(camp, camp.getInitialInternalPopulation());
             this.externalPopulation.put(camp, camp.getInitialExternalPopulation());
         }
-
-
-    }
-
-    public void transshipmentInventory(Camp fromCamp, Camp toCamp, Item item, ArrayList<InventoryItem> inventoryToSend, double time) {
-        // TODO: Implement transshipment
     }
 
     public void transferInventory(Camp camp, Item item, ArrayList<InventoryItem> inventoryToSend, double time) {
-
         var totalCost = kpiManager.campReplenishmentCost.get(camp).get(item);
         for (var inventoryItem : inventoryToSend) {
             totalCost += inventoryItem.getQuantity() * item.getPrice();
         }
-
+        // If replenishment, then update the cost
         kpiManager.campReplenishmentCost.get(camp).put(item, totalCost);
 
         if (!inventory.get(camp).containsKey(item)) {
             inventory.get(camp).put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));
         }
-        // First we need to check depriving population and satisfy the demand immediately
+        // First we need to check depriving population and satisfy the demand immediately!
         while (!inventoryToSend.isEmpty() && !deprivingPopulation.get(camp).get(item).isEmpty()) {
             DeprivingPerson deprivingPerson = deprivingPopulation.get(camp).get(item).peek();
             assert deprivingPerson != null;
-            if (deprivingPerson.getQuantity() <= inventoryToSend.get(0).getQuantity()) {
-                double totalTime = time - deprivingPerson.getArrivalTime();
-                kpiManager.totalDeprivedPopulation.get(camp).put(item, kpiManager.totalDeprivedPopulation.get(camp).get(item) + deprivingPerson.getQuantity());
-                kpiManager.averageDeprivationTime.get(camp).put(item, kpiManager.averageDeprivationTime.get(camp).get(item) + totalTime * deprivingPerson.getQuantity());
 
-                double previousCost = kpiManager.totalDeprivationCost.get(camp).get(item);
-                double currentCost = (Math.exp(totalTime * item.getDeprivationCoefficient()) + 1) * deprivingPerson.getQuantity();
-                kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
+            double totalTime = time - deprivingPerson.getArrivalTime();
+            kpiManager.totalDeprivedPopulation.get(camp).put(item, kpiManager.totalDeprivedPopulation.get(camp).get(item) + deprivingPerson.getQuantity());
+            kpiManager.averageDeprivationTime.get(camp).put(item, kpiManager.averageDeprivationTime.get(camp).get(item) + totalTime * deprivingPerson.getQuantity());
+
+            var previousCost = kpiManager.totalDeprivationCost.get(camp).get(item);
+
+            if (deprivingPerson.getQuantity() <= inventoryToSend.get(0).getQuantity()) {
+                var deprivation = calculateDeprivation(item, deprivingPerson.getQuantity());
+                kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
                 inventoryToSend.get(0).setQuantity(inventoryToSend.get(0).getQuantity() - deprivingPerson.getQuantity());
                 deprivingPopulation.get(camp).get(item).poll();
-            } else {
-                double totalTime = time - deprivingPerson.getArrivalTime();
-                kpiManager.totalDeprivedPopulation.get(camp).put(item, kpiManager.totalDeprivedPopulation.get(camp).get(item) + deprivingPerson.getQuantity());
-                kpiManager.averageDeprivationTime.get(camp).put(item, kpiManager.averageDeprivationTime.get(camp).get(item) + totalTime * deprivingPerson.getQuantity());
-
-                double previousCost = kpiManager.totalDeprivationCost.get(camp).get(item);
-                double currentCost = (Math.exp(totalTime * item.getDeprivationCoefficient()) + 1) * inventoryToSend.get(0).getQuantity();
-                kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
+            }
+            else {
+                // Since we are not able to satisfy all depriving population, we use available inventory
+                var deprivation = calculateDeprivation(item, inventoryToSend.get(0).getQuantity());
+                kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
                 deprivingPerson.setQuantity(deprivingPerson.getQuantity() - inventoryToSend.get(0).getQuantity());
                 inventoryToSend.remove(0);
             }
         }
-        // If there is an available item, lets keep them.
+        // If there is an available item, then transfer it to the camp.
         if (!inventoryToSend.isEmpty()) {
             for (InventoryItem inventoryItem : inventoryToSend) {
                 inventory.get(camp).get(item).offer(inventoryItem);
             }
         }
+    }
 
+    public double calculateDeprivation(Item item, int totalNumberOfPeople){
+        return item.getDeprivationCoefficient() * (Math.exp(item.getDeprivationRate()) - 1) * totalNumberOfPeople;
     }
 
     public void replenishInventory(Item item, ArrayList<InventoryItem> inventoryToSend) {
@@ -195,6 +193,7 @@ public class State implements Cloneable {
     }
 
     public void consumeInventory(Camp camp, Item item, boolean isInternal, int quantity, double tNow) {
+        // Internal consumption
         if (isInternal){
             // Consume from inventory
             if (inventory.containsKey(camp) && inventory.get(camp).containsKey(item)) {
@@ -204,13 +203,13 @@ public class State implements Cloneable {
                     InventoryItem inventoryItem = items.peek();
                     if (inventoryItem.getQuantity() <= quantity) {
                         double totalTime = tNow - inventoryItem.getArrivalTime();
-                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
+                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * inventoryItem.getQuantity()));
                         inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - inventoryItem.getQuantity());
                         quantity -= inventoryItem.getQuantity();
                         items.poll();
                     } else {
                         double totalTime = tNow - inventoryItem.getArrivalTime();
-                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
+                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * quantity));
                         inventoryItem.setQuantity(inventoryItem.getQuantity() - (int) quantity);
                         inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - (int) quantity);
                         quantity = 0; // Exit the loop
@@ -229,11 +228,15 @@ public class State implements Cloneable {
                 inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - (int) quantity);
             }
         }
+        // External consumption
         else {
+            // No need to satisfy the demand
             if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
                 int val = referralPopulation.get(camp).get(item) + quantity;
                 referralPopulation.get(camp).put(item, val);
-            } else if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.FULLY){
+            }
+            // Fully satisfy the demand
+            else if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.FULLY){
                 if (inventory.containsKey(camp) && inventory.get(camp).containsKey(item)) {
                     HashMap<Item, PriorityQueue<InventoryItem>> innerMap = inventory.get(camp);
                     PriorityQueue<InventoryItem> items = innerMap.get(item);
@@ -241,20 +244,21 @@ public class State implements Cloneable {
                         InventoryItem inventoryItem = items.peek();
                         if (inventoryItem.getQuantity() <= quantity) {
                             double totalTime = tNow - inventoryItem.getArrivalTime();
-                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
+                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * inventoryItem.getQuantity()));
                             quantity -= inventoryItem.getQuantity();
                             this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - inventoryItem.getQuantity());
                             items.poll();
-                        } else {
+                        }
+                        else {
                             double totalTime = tNow - inventoryItem.getArrivalTime();
-                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost()));
+                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * quantity));
                             inventoryItem.setQuantity(inventoryItem.getQuantity() - (int) quantity);
                             this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - (int) quantity);
                             quantity = 0; // Exit the loop
                         }
                     }
                 }
-                // If no inventory is available, then add it to the depriving
+                // If no inventory is available, then add it to the referral
                 if (quantity > 0) {
                     if (!referralPopulation.containsKey(camp)) {
                         referralPopulation.put(camp, new HashMap<>());
@@ -266,8 +270,6 @@ public class State implements Cloneable {
                         referralPopulation.get(camp).put(item, val);
                     }
                 }
-            }else {
-
             }
         }
     }
@@ -442,12 +444,12 @@ public class State implements Cloneable {
         this.kpiManager = kpiManager;
     }
 
-    public OrderUpToPolicy getOrderUpToPolicy() {
-        return orderUpToPolicy;
+    public IPolicy getInventoryPolicy() {
+        return inventoryPolicy;
     }
 
-    public void setOrderUpToPolicy(OrderUpToPolicy orderUpToPolicy) {
-        this.orderUpToPolicy = orderUpToPolicy;
+    public void setInventoryPolicy(IPolicy inventoryPolicy) {
+        this.inventoryPolicy = inventoryPolicy;
     }
 
     public HashMap<Camp, HashMap<Item, Integer>> getInventoryPosition() {
