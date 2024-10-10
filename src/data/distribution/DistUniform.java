@@ -3,7 +3,7 @@ package data.distribution;
 import java.util.Random;
 
 public class DistUniform implements IDist {
-    public double min,max, mean;
+    public double min,max,mean;
 
     public DistUniform(){
 

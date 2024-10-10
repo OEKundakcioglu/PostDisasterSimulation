@@ -8,6 +8,7 @@ import enums.CampExternalDemandSatisfactionType;
 import simulation.State;
 import simulation.data.InventoryItem;
 import simulation.data.requests.TransferRequest;
+import simulation.data.requests.TransshipmentRequest;
 import simulation.event.IEvent;
 import simulation.event.ReplenishmentEvent;
 import simulation.event.TransferEvent;
@@ -200,6 +201,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
         return replenishmentEvents;
     }
 
+
     public ArrayList<IEvent> generateTransferEvents(InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator, double time) {
 
         ArrayList<TransferRequest> transferRequest = new ArrayList<>();
@@ -277,7 +279,11 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
         return transferEvents;
     }
 
-
+    // No transshipment in order up to policy.
+    public ArrayList<IEvent> generateTransshipmentEvents(InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator, double time) {
+        ArrayList<IEvent> transshipmentRequest = new ArrayList<>();
+        return transshipmentRequest;
+    }
 
     @Override
     public Object clone() throws CloneNotSupportedException {

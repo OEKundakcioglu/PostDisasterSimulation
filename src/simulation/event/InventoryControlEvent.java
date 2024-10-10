@@ -30,9 +30,10 @@ public class InventoryControlEvent implements IEvent{
             for (IEvent event : replenishmentEvents) {
                 var replenishmentEvent = (ReplenishmentEvent) event;
                 for (InventoryItem inventoryItem : replenishmentEvent.inventoryToSend) {
-                    // increase state.getCentralWarehousePosition().get(replenishmentEvent.item) by inventoryItem.quantity
+
                     int quantity = inventoryItem.getQuantity();
                     var item = replenishmentEvent.item;
+
                     state.getCentralWarehousePosition().put(item, state.getCentralWarehousePosition().get(item) + quantity);
                 }
             }

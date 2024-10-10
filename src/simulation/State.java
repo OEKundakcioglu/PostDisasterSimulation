@@ -134,15 +134,18 @@ public class State implements Cloneable {
 
     public void transferInventory(Camp camp, Item item, ArrayList<InventoryItem> inventoryToSend, double time) {
         var totalCost = kpiManager.campReplenishmentCost.get(camp).get(item);
+
         for (var inventoryItem : inventoryToSend) {
             totalCost += inventoryItem.getQuantity() * item.getPrice();
         }
+
         // If replenishment, then update the cost
         kpiManager.campReplenishmentCost.get(camp).put(item, totalCost);
 
         if (!inventory.get(camp).containsKey(item)) {
             inventory.get(camp).put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));
         }
+
         // First we need to check depriving population and satisfy the demand immediately!
         while (!inventoryToSend.isEmpty() && !deprivingPopulation.get(camp).get(item).isEmpty()) {
             DeprivingPerson deprivingPerson = deprivingPopulation.get(camp).get(item).peek();
@@ -155,14 +158,14 @@ public class State implements Cloneable {
             var previousCost = kpiManager.totalDeprivationCost.get(camp).get(item);
 
             if (deprivingPerson.getQuantity() <= inventoryToSend.get(0).getQuantity()) {
-                var deprivation = calculateDeprivation(item, deprivingPerson.getQuantity());
+                var deprivation = calculateDeprivation(item, deprivingPerson.getQuantity(), time - deprivingPerson.getArrivalTime());
                 kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
                 inventoryToSend.get(0).setQuantity(inventoryToSend.get(0).getQuantity() - deprivingPerson.getQuantity());
                 deprivingPopulation.get(camp).get(item).poll();
             }
             else {
                 // Since we are not able to satisfy all depriving population, we use available inventory
-                var deprivation = calculateDeprivation(item, inventoryToSend.get(0).getQuantity());
+                var deprivation = calculateDeprivation(item, inventoryToSend.get(0).getQuantity(), time - deprivingPerson.getArrivalTime());
                 kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
                 deprivingPerson.setQuantity(deprivingPerson.getQuantity() - inventoryToSend.get(0).getQuantity());
                 inventoryToSend.remove(0);
@@ -176,8 +179,8 @@ public class State implements Cloneable {
         }
     }
 
-    public double calculateDeprivation(Item item, int totalNumberOfPeople){
-        return item.getDeprivationCoefficient() * (Math.exp(item.getDeprivationRate()) - 1) * totalNumberOfPeople;
+    public double calculateDeprivation(Item item, int totalNumberOfPeople, double time){
+        return item.getDeprivationCoefficient() * (Math.exp(item.getDeprivationRate() * time) - 1) * totalNumberOfPeople;
     }
 
     public void replenishInventory(Item item, ArrayList<InventoryItem> inventoryToSend) {

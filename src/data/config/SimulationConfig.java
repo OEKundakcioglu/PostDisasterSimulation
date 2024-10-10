@@ -24,8 +24,8 @@ public class SimulationConfig {
     private boolean reportKPIs;
     private String fileName;
 
-    private double dummy;
-    private double centralDummy;
+    private double campBuffer;
+    private double centralBuffer;
 
 
     public int getSeedDemandTime() {
@@ -164,20 +164,20 @@ public class SimulationConfig {
         this.reportKPIs = reportKPIs;
     }
 
-    public double getDummy() {
-        return dummy;
+    public double getCampBuffer() {
+        return campBuffer;
     }
 
-    public void setDummy(double dummy) {
-        this.dummy = dummy;
+    public void setCampBuffer(double dummy) {
+        this.campBuffer = dummy;
     }
 
-    public double getCentralDummy() {
-        return centralDummy;
+    public double getCentralBuffer() {
+        return centralBuffer;
     }
 
-    public void setCentralDummy(double centralDummy) {
-        this.centralDummy = centralDummy;
+    public void setCentralBuffer(double centralBuffer) {
+        this.centralBuffer = centralBuffer;
     }
 
     public String getFileName() {

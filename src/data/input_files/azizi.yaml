@@ -22,9 +22,9 @@ simulationConfig:
   planningHorizon: 1080
   reportEvents: false
   reportKPIs: true
-  fileName: T3
-  dummy: &dummy 0.0
-  centralDummy: &centralDummy 0.0
+  fileName: C-0.10
+  campBuffer: &campBuffer 0.0
+  centralBuffer: &centralBuffer 0.0
 
 items:
   - &goods
@@ -313,7 +313,7 @@ agencies:
           distributionType: BERNOULLI
           distParameters: !!data.distribution.DistBernoulli
             mean: 1.0
-            arrivalInterval: 360
+            arrivalInterval: 1090
             initialArrival: true
         amountData:
           distributionType: EQUAL_SHARE
@@ -333,29 +333,29 @@ migrations:
 inventoryPolicy: !!simulation.decision.OrderUpToPolicy
   bufferRatios:
     *hatay1:
-      *goods : *dummy
-      *medicine : *dummy
+      *goods : *campBuffer
+      *medicine : *campBuffer
     *hatay2:
-      *goods : *dummy
-      *medicine : *dummy
+      *goods : *campBuffer
+      *medicine : *campBuffer
     *hatay3 :
-      *goods : *dummy
-      *medicine : *dummy
+      *goods : *campBuffer
+      *medicine : *campBuffer
     *adana :
-      *goods : *dummy
-      *medicine : *dummy
+      *goods : *campBuffer
+      *medicine : *campBuffer
     *osmaniye :
-      *goods : *dummy
-      *medicine : *dummy
+      *goods : *campBuffer
+      *medicine : *campBuffer
     *kilis :
-      *goods : *dummy
-      *medicine : *dummy
+      *goods : *campBuffer
+      *medicine : *campBuffer
     *kahramanmaras :
-      *goods : *dummy
-      *medicine : *dummy
+      *goods : *campBuffer
+      *medicine : *campBuffer
   centralBufferRatios:
-    *goods : *centralDummy
-    *medicine : *centralDummy
+    *goods : *centralBuffer
+    *medicine : *centralBuffer
   periodicCounts:
     *hatay1:
       *goods: *period

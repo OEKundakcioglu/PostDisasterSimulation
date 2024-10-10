@@ -32,6 +32,7 @@ public class Main {
         return yaml.loadAs(inputStream, Environment.class);
     }
 
+    // TODO: This method is used to generate a random problem data.
     public static Environment generateRandomEnvironment(Environment environment) throws FileNotFoundException {
         if (environment == null) {
             Yaml yaml = new Yaml();
