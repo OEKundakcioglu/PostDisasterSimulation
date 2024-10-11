@@ -2,6 +2,7 @@ import data.Environment;
 import data.config.RandomConfig;
 import data.config.FilePath;
 
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import simulation.Simulate;
 
@@ -23,7 +24,9 @@ public class Main {
         if (!FilePath.isReadFromInputFile) {
             return null;
         }
-        Yaml yaml = new Yaml();
+        LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setMaxAliasesForCollections(1000); // Increase limit to 1000 or any reasonable value
+        Yaml yaml = new Yaml(loaderOptions);
 
         File file = new File(FilePath.INPUT_CONFIG);
         FileInputStream inputStream = new FileInputStream(file);
@@ -32,7 +35,7 @@ public class Main {
         return yaml.loadAs(inputStream, Environment.class);
     }
 
-    // TODO: This method is used to generate a random problem data.
+    // TODO: This method is used to generate a random problem main.java.data.
     public static Environment generateRandomEnvironment(Environment environment) throws FileNotFoundException {
         if (environment == null) {
             Yaml yaml = new Yaml();

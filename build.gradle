@@ -1,0 +1,18 @@
+plugins {
+    id 'java'
+    id 'application' // Enables the application plugin
+}
+
+repositories {
+    mavenCentral() // Use Maven Central for dependencies
+}
+
+dependencies {
+    implementation 'org.yaml:snakeyaml:1.33' // Example dependency
+    implementation 'org.apache.poi:poi-ooxml:5.3.0' // Example dependency
+    implementation 'org.apache.poi:poi:5.3.0' // Example dependency
+}
+
+application {
+    mainClassName = 'Main' // Specify your main class path
+}
