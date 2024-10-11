@@ -6,7 +6,7 @@
 This repository contains the code and main.java.data associated with the simulation model developed for the paper titled **Disaster Relief Inventory Simulation: Managing Resources in Humanitarian Camps**.
 
 ## 🚀 News
-- **2024-10-21:** The [abstract](https://submissions.mirasmart.com/InformsAnnual2024/Itinerary/PresentationDetail.aspx?evdid=2259) will be presented at the 2024 INFORMS Annual Conference. A presentation summarizing the paper and simulation results can be accessed [here]().
+- **2024-10-21:** The [abstract](https://submissions.mirasmart.com/InformsAnnual2024/Itinerary/PresentationDetail.aspx?evdid=2259) will be presented at the 2024 INFORMS Annual Conference.
 - **2024-09-20:** The paper has been accepted for presentation at the 2024 INFORMS Winter Simulation Conference.
 
 ## Overview
@@ -23,7 +23,7 @@ If you find the simulation engine useful for your research, please consider citi
 @inproceedings{yildiz2024disaster,
   author    = {C. Y. Yildiz and O. E. Kundakcioglu},
   title     = {Disaster Relief Inventory Simulation: Managing Resources in Humanitarian Camps},
-  booktitle = {Proceedings of the 2024 INFORMS Winter Simulation Conference},
+  booktitle = {Proceedings of the 2024 INFORMS Winter Simulation Conference (WSC)},
   year      = {2024},
   organization={IEEE Press}
 }
@@ -31,6 +31,24 @@ If you find the simulation engine useful for your research, please consider citi
 
 > C. Y. Yildiz, and O. E. Kundakcioglu. "Disaster Relief Inventory Simulation: Managing Resources in Humanitarian Camps."
 > *Proceedings of the 2024 INFORMS Winter Simulation Conference*, 2024.
+
+To cite the presentation at the 2024 INFORMS Annual Conference, you can use the following **BibTeX** entry:
+
+```bibtex
+@inproceedings{kundakcioglu2024presentation,
+  author    = {Erhun Kundakcioglu and Cem Yarkin Yildiz},
+  title     = {Disaster Relief Inventory Simulation: Managing Resources in Humanitarian Camps},
+  booktitle = {Proceedings of the INFORMS Annual Meeting},
+  year      = {2024},
+  month     = {October},
+  address   = {Seattle, WA},
+  note      = {Conference Presentation},
+  url       = {https://submissions.mirasmart.com/InformsAnnual2024/Itinerary/PresentationDetail.aspx?evdid=2259}
+}
+```
+> Kundakcioglu, E., & Yildiz, C. Y. (2024, October). Disaster Relief Inventory Simulation: Managing Resources in Humanitarian Camps.
+> [Conference presentation]. INFORMS Annual Meeting, Seattle, WA. https://submissions.mirasmart.com/InformsAnnual2024/Itinerary/PresentationDetail.aspx?evdid=2259.
+
 
 ## 📈 Installation and Usage 
 
