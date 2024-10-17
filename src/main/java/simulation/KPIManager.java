@@ -5,6 +5,8 @@ import data.Environment;
 import data.Item;
 import simulation.data.DeprivingPerson;
 import simulation.data.InventoryItem;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -130,6 +132,83 @@ public class KPIManager {
             }
         }
     }
+    public String generateJSONReport() {
+    KPIData kpiData = new KPIData();
+
+    // Populate camp data
+    for (Camp camp : this.totalDeprivationCost.keySet()) {
+        KPIData.CampKPI campKPI = new KPIData.CampKPI();
+
+        for (Item item : this.totalDeprivationCost.get(camp).keySet()) {
+            String itemName = item.getName();
+
+            // Initialize maps if they are null
+            if (campKPI.deprivationCost == null) campKPI.deprivationCost = new HashMap<>();
+            if (campKPI.replenishmentCost == null) campKPI.replenishmentCost = new HashMap<>();
+            if (campKPI.holdingCost == null) campKPI.holdingCost = new HashMap<>();
+            if (campKPI.referralCost == null) campKPI.referralCost = new HashMap<>();
+            if (campKPI.orderingCost == null) campKPI.orderingCost = new HashMap<>();
+            if (campKPI.averageDeprivationTime == null) campKPI.averageDeprivationTime = new HashMap<>();
+
+            // Get KPI values
+            Double deprivationCost = this.totalDeprivationCost.get(camp).get(item);
+            Double replenishmentCost = this.campReplenishmentCost.get(camp).get(item);
+            Double holdingCost = this.totalHoldingCost.get(camp).get(item);
+            Double referralCost = this.totalReferralCost.get(camp).get(item);
+            Double orderingCost = this.totalOrderingCost.get(item);
+            Integer deprivedPopulation = this.totalDeprivedPopulation.get(camp).get(item);
+            Double averageDeprivationTime = this.averageDeprivationTime.get(camp).get(item);
+
+            // Handle nulls (if any)
+            if (deprivationCost == null) deprivationCost = 0.0;
+            if (replenishmentCost == null) replenishmentCost = 0.0;
+            if (holdingCost == null) holdingCost = 0.0;
+            if (referralCost == null) referralCost = 0.0;
+            if (orderingCost == null) orderingCost = 0.0;
+            if (deprivedPopulation == null) deprivedPopulation = 0;
+            if (averageDeprivationTime == null) averageDeprivationTime = 0.0;
+
+            // Populate campKPI
+            campKPI.deprivationCost.put(itemName, deprivationCost);
+            campKPI.replenishmentCost.put(itemName, replenishmentCost);
+            campKPI.holdingCost.put(itemName, holdingCost);
+            campKPI.referralCost.put(itemName, referralCost);
+            campKPI.orderingCost.put(itemName, orderingCost);
+            campKPI.deprivedPopulation += deprivedPopulation;
+            campKPI.averageDeprivationTime.put(itemName, averageDeprivationTime);
+
+            // Calculate referral population
+            int referralPopulation = (int) (referralCost / item.getReferralCost());
+            campKPI.referralPopulation += referralPopulation;
+        }
+        // Add campKPI to kpiData
+        kpiData.camps.put(camp.getName(), campKPI);
+    }
+
+    // Populate global KPIs
+    kpiData.globalKPIs.totalReplenishmentCostSummation = this.totalFundingSpent;
+    kpiData.globalKPIs.totalOrderingCostSummation = this.totalOrderingCostSum;
+    kpiData.globalKPIs.totalDeprivationCostSummation = this.totalDeprivationCostSum;
+    kpiData.globalKPIs.totalReferralCostSummation = this.totalReferralCostSum;
+    kpiData.globalKPIs.totalHoldingCostSummation = this.totalHoldingCostSum;
+    kpiData.globalKPIs.totalFundingSpent = this.totalFundingSpent;
+
+    // Calculate total deprived population
+    int totalDeprivedPopulation = this.totalDeprivedPopulation.values().stream()
+        .flatMap(map -> map.values().stream())
+        .mapToInt(Integer::intValue)
+        .sum();
+    kpiData.globalKPIs.totalDeprivedPopulation = totalDeprivedPopulation;
+
+    // Use the totalReferralPopulation variable
+    kpiData.globalKPIs.totalReferralPopulation = this.totalReferralPopulation;
+
+    // Serialize to JSON
+    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    return gson.toJson(kpiData);
+}
+
+
 
     public void reportKPIs(Environment environment) {
         if (reportKPIs){
@@ -152,6 +231,10 @@ public class KPIManager {
         System.out.println(Math.round(totalFundingSpent));
 
         ExcelReportGenerator excelReportGenerator = new ExcelReportGenerator(this);
+                // Generate and output JSON
+        String jsonReport = generateJSONReport();
+        System.out.println("JSON_OUTPUT_START");
+        System.out.println(jsonReport);
         }
     }
 
@@ -341,3 +424,4 @@ public class KPIManager {
         return fileName;
     }
 }
+

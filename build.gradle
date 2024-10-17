@@ -11,6 +11,7 @@ dependencies {
     implementation 'org.yaml:snakeyaml:1.33' // Example dependency
     implementation 'org.apache.poi:poi-ooxml:5.3.0' // Example dependency
     implementation 'org.apache.poi:poi:5.3.0' // Example dependency
+    implementation 'com.google.code.gson:gson:2.8.6' // Gson dependency
 }
 
 application {
