@@ -1,0 +1,287 @@
+simulationConfig:
+  seedDemandTime: 10
+  seedDemandQuantity: 15
+
+  seedItemDuration: 14
+
+  seedSupplyDisruptionTime: 11
+  seedSupplyDisruptionDuration: 18
+
+  seedMigrationTime: 13
+  seedMigrationQuantity: 17
+
+  seedFundingTime: 13
+  seedFundingAmount: 16
+
+  seedReplenishmentTime: 14
+  seedTransferTime: 15
+  seedTransshipmentTime: 16
+
+  inventoryControlType: PERIODIC
+  inventoryControlPeriod: 5
+  planningHorizon: 1080
+  reportEvents: false
+  reportKPIs: true
+  fileName: C-0.10
+  campBuffer: 0.0
+  centralBuffer: 0.0
+
+items:
+  - name: HygieneKit
+    isPerishable: false
+    price: 5
+    orderingCost: 1200
+    holdingCost: 1
+    deprivationRate: 0.12
+    deprivationCoefficient: 1
+    referralCost: 2
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters:
+        min: 1
+        mode: 2
+        max: 4
+  - name: Medicine
+    isPerishable: false
+    price: 5
+    orderingCost: 1200
+    holdingCost: 1
+    deprivationRate: 0.12
+    deprivationCoefficient: 1
+    referralCost: 2
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters:
+        min: 1
+        mode: 2
+        max: 4
+
+camps:
+  - name: Kilis
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters:
+        min: 1
+        mode: 2
+        max: 4
+    demands:
+      - item: HygieneKit
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters:
+            mean: 0.033
+        internalRatio: 0.5
+        externalRatio: 0.05
+      - item: Medicine
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters:
+            mean: 0.0167
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: FULLY
+    populationType: REGULAR
+    initialInternalPopulation: 0
+    initialExternalPopulation: 0
+  - name: Osmnaniye
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters:
+        min: 1
+        mode: 2
+        max: 4
+    demands:
+      - item: HygieneKit
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters:
+            mean: 0.033
+        internalRatio: 0.5
+        externalRatio: 0.05
+      - item: Medicine
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters:
+            mean: 0.0167
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: FULLY
+    populationType: REGULAR
+    initialInternalPopulation: 0
+    initialExternalPopulation: 0
+  - name: Kahramanmaraş
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters:
+        min: 1
+        mode: 2
+        max: 4
+    demands:
+      - item: HygieneKit
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters:
+            mean: 0.033
+        internalRatio: 0.5
+        externalRatio: 0.05
+      - item: Medicine
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters:
+            mean: 0.0167
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: FULLY
+    populationType: REGULAR
+    initialInternalPopulation: 0
+    initialExternalPopulation: 0
+
+agencies:
+  - name: Government
+    fundingArray:
+      - fundingType: MONETARY_REGULAR
+        arrivalData:
+          distributionType: BERNOULLI
+          distParameters:
+            mean: 1.0
+            arrivalInterval: 1090
+            initialArrival: true
+        amountData:
+          distributionType: EQUAL_SHARE
+          distParameters:
+            mean: 14900000
+
+migrations:
+  - fromCamp: Hatay-1
+    toCamp: Hatay-2
+    migrationType: INTERNAL_WITHIN_SYSTEM
+    arrivalData:
+      distributionType: FIXED
+      distParameters:
+        mean: 120000
+    migrationRatio: 0.05
+
+inventoryPolicy: !!simulation.decision.OrderUpToPolicy
+  bufferRatios:
+    Hatay-1:
+      HygieneKit: 0.0
+      Medicine: 0.0
+    Hatay-2:
+      HygieneKit: 0.0
+      Medicine: 0.0
+    Hatay-3:
+      HygieneKit: 0.0
+      Medicine: 0.0
+    Adana:
+      HygieneKit: 0.0
+      Medicine: 0.0
+    Osmaniye:
+      HygieneKit: 0.0
+      Medicine: 0.0
+    Kilis:
+      HygieneKit: 0.0
+      Medicine: 0.0
+    Kahramanmaraş:
+      HygieneKit: 0.0
+      Medicine: 0.0
+  centralBufferRatios:
+    HygieneKit: 0.0
+    Medicine: 0.0
+  periodicCounts:
+    Hatay-1:
+      HygieneKit: 5
+      Medicine: 5
+    Hatay-2:
+      HygieneKit: 5
+      Medicine: 5
+    Hatay-3:
+      HygieneKit: 5
+      Medicine: 5
+    Adana:
+      HygieneKit: 5
+      Medicine: 5
+    Osmaniye:
+      HygieneKit: 5
+      Medicine: 5
+    Kilis:
+      HygieneKit: 5
+      Medicine: 5
+    Kahramanmaraş:
+      HygieneKit: 5
+      Medicine: 5
+  centralPeriodicCounts:
+    HygieneKit: 5
+    Medicine: 5
+
+initialState:
+  availableFunds: 0
+  initialInventory:
+    Hatay-1:
+      HygieneKit: 0
+      Medicine: 0
+    Hatay-2:
+      HygieneKit: 0
+      Medicine: 0
+    Hatay-3:
+      HygieneKit: 0
+      Medicine: 0
+    Adana:
+      HygieneKit: 0
+      Medicine: 0
+    Osmaniye:
+      HygieneKit: 0
+      Medicine: 0
+    Kilis:
+      HygieneKit: 0
+      Medicine: 0
+    Kahramanmaraş:
+      HygieneKit: 0
+      Medicine: 0
+  initialCentralWarehouseInventory:
+    HygieneKit: 0
+    Medicine: 0
+  earmarkedFunds:
+    Hatay-1: 0
+    Hatay-2: 0
+    Hatay-3: 0
+    Adana: 0
+    Osmaniye: 0
+    Kilis: 0
+    Kahramanmaraş: 0
+  initialEarmarkedInKind:
+    Hatay-1:
+      HygieneKit: 0
+      Medicine: 0
+    Hatay-2:
+      HygieneKit: 0
+      Medicine: 0
+    Hatay-3:
+      HygieneKit: 0
+      Medicine: 0
+    Adana:
+      HygieneKit: 0
+      Medicine: 0
+    Osmaniye:
+      HygieneKit: 0
+      Medicine: 0
+    Kilis:
+      HygieneKit: 0
+      Medicine: 0
+    Kahramanmaraş:
+      HygieneKit: 0
+      Medicine: 0
+  isItemAvailable:
+    HygieneKit: true
+    Medicine: true

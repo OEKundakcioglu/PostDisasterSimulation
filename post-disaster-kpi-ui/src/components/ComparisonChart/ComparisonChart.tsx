@@ -1,53 +1,97 @@
+// components/ComparisonChart.tsx
+
 "use client";
 
+import React from "react";
 import { Bar } from "react-chartjs-2";
-import { CampKPI } from "../../types/kpiTypes"; // Import the CampKPI type
+import { CampKPI } from "../../types/kpiTypes";
+import { useTheme } from "@mui/material";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
 
-// Define the props interface for the chart component
-interface ChartData {
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+
+interface ComparisonChartProps {
   data: Record<string, CampKPI>;
 }
 
-export const ComparisonChart = ({ data }: ChartData) => {
+const ComparisonChart: React.FC<ComparisonChartProps> = ({ data }) => {
+  const theme = useTheme();
+  const campNames = Object.keys(data);
+
   const chartData = {
-    labels: Object.keys(data), // Camps (e.g., Camp 1, Camp 2)
+    labels: campNames,
     datasets: [
       {
         label: "Replenishment Cost",
-        data: Object.values(data).map(
-          (camp) => camp.replenishmentCost?.total || 0 // Safely access total replenishment cost
-        ),
-        backgroundColor: "rgba(255,99,132,0.2)",
-        borderColor: "rgba(255,99,132,1)",
-        borderWidth: 1,
+        data: campNames.map((camp) => data[camp].replenishmentCost?.total || 0),
+        backgroundColor: theme.palette.primary.main,
       },
       {
         label: "Deprivation Cost",
-        data: Object.values(data).map(
-          (camp) => camp.deprivationCost?.total || 0 // Safely access total deprivation cost
-        ),
-        backgroundColor: "rgba(54,162,235,0.2)",
-        borderColor: "rgba(54,162,235,1)",
-        borderWidth: 1,
+        data: campNames.map((camp) => data[camp].deprivationCost?.total || 0),
+        backgroundColor: theme.palette.secondary.main,
       },
       {
         label: "Deprived Population",
-        data: Object.values(data).map(
-          (camp) => camp.deprivedPopulation || 0 // Safely access deprived population
-        ),
-        backgroundColor: "rgba(75,192,192,0.2)",
-        borderColor: "rgba(75,192,192,1)",
-        borderWidth: 1,
+        data: campNames.map((camp) => data[camp].deprivedPopulation || 0),
+        backgroundColor: theme.palette.warning.main,
       },
     ],
   };
 
   const options = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: {
+          color: theme.palette.text.primary,
+        },
+      },
+      title: {
+        display: true,
+        text: "Camp KPI Comparison",
+        color: theme.palette.text.primary,
+        font: {
+          size: 18,
+        },
+      },
+    },
     scales: {
-      x: { title: { display: true, text: "Camp" } },
-      y: { title: { display: true, text: "Cost / Population" } },
+      x: {
+        ticks: { color: theme.palette.text.secondary },
+        title: {
+          display: true,
+          text: "Camp",
+          color: theme.palette.text.secondary,
+        },
+      },
+      y: {
+        ticks: {
+          color: theme.palette.text.secondary,
+          callback: function (tickValue: string | number) {
+            const value =
+              typeof tickValue === "string" ? parseFloat(tickValue) : tickValue;
+            return value.toLocaleString();
+          },
+        },
+        title: {
+          display: true,
+          text: "Cost / Population",
+          color: theme.palette.text.secondary,
+        },
+      },
     },
   };
 
   return <Bar data={chartData} options={options} />;
 };
+
+export default ComparisonChart;

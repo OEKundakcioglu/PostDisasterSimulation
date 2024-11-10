@@ -1,0 +1,297 @@
+import React from "react";
+import {
+  Typography,
+  Grid,
+  TextField,
+  Paper,
+  Checkbox,
+  FormControlLabel,
+} from "@mui/material";
+
+interface InitialState {
+  availableFunds: string;
+  initialInventory: { [campName: string]: { [itemName: string]: string } };
+  initialCentralWarehouseInventory: { [itemName: string]: string };
+  earmarkedFunds: { [campName: string]: string };
+  initialEarmarkedInKind: {
+    [campName: string]: { [itemName: string]: string };
+  };
+  isItemAvailable: { [itemName: string]: boolean };
+}
+
+interface Camp {
+  name: string;
+}
+
+interface Item {
+  name: string;
+}
+
+interface Props {
+  initialState: InitialState;
+  setInitialState: React.Dispatch<React.SetStateAction<InitialState>>;
+  camps: Camp[];
+  items: Item[];
+}
+
+const InitialStateSection: React.FC<Props> = ({
+  initialState,
+  setInitialState,
+  camps,
+  items,
+}) => {
+  const handleAvailableFundsChange = (value: string) => {
+    setInitialState((prev) => ({
+      ...prev,
+      availableFunds: value,
+    }));
+  };
+
+  const handleInitialInventoryChange = (
+    campName: string,
+    itemName: string,
+    value: string
+  ) => {
+    const newInitialInventory = { ...initialState.initialInventory };
+    if (!newInitialInventory[campName]) {
+      newInitialInventory[campName] = {};
+    }
+    newInitialInventory[campName][itemName] = value;
+    setInitialState((prev) => ({
+      ...prev,
+      initialInventory: newInitialInventory,
+    }));
+  };
+
+  const handleCentralWarehouseInventoryChange = (
+    itemName: string,
+    value: string
+  ) => {
+    const newCentralWarehouseInventory = {
+      ...initialState.initialCentralWarehouseInventory,
+    };
+    newCentralWarehouseInventory[itemName] = value;
+    setInitialState((prev) => ({
+      ...prev,
+      initialCentralWarehouseInventory: newCentralWarehouseInventory,
+    }));
+  };
+
+  const handleEarmarkedFundsChange = (campName: string, value: string) => {
+    const newEarmarkedFunds = { ...initialState.earmarkedFunds };
+    newEarmarkedFunds[campName] = value;
+    setInitialState((prev) => ({
+      ...prev,
+      earmarkedFunds: newEarmarkedFunds,
+    }));
+  };
+
+  const handleInitialEarmarkedInKindChange = (
+    campName: string,
+    itemName: string,
+    value: string
+  ) => {
+    const newInitialEarmarkedInKind = {
+      ...initialState.initialEarmarkedInKind,
+    };
+    if (!newInitialEarmarkedInKind[campName]) {
+      newInitialEarmarkedInKind[campName] = {};
+    }
+    newInitialEarmarkedInKind[campName][itemName] = value;
+    setInitialState((prev) => ({
+      ...prev,
+      initialEarmarkedInKind: newInitialEarmarkedInKind,
+    }));
+  };
+
+  const handleIsItemAvailableChange = (itemName: string, checked: boolean) => {
+    const newIsItemAvailable = { ...initialState.isItemAvailable };
+    newIsItemAvailable[itemName] = checked;
+    setInitialState((prev) => ({
+      ...prev,
+      isItemAvailable: newIsItemAvailable,
+    }));
+  };
+
+  return (
+    <>
+      <Typography variant="h5" gutterBottom sx={{ marginTop: 4 }}>
+        Initial State Configuration
+      </Typography>
+
+      {/* Available Funds */}
+      <Paper sx={{ padding: 2, marginTop: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={4}>
+            <TextField
+              fullWidth
+              label="Available Funds"
+              value={initialState.availableFunds}
+              onChange={(e) => handleAvailableFundsChange(e.target.value)}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Initial Inventory */}
+      <Paper sx={{ padding: 2, marginTop: 4 }}>
+        <Typography variant="h6" sx={{ marginBottom: 2 }}>
+          Initial Inventory
+        </Typography>
+        {camps.map((camp) => (
+          <Paper
+            key={`inventory-${camp.name}`}
+            sx={{ padding: 2, marginTop: 2 }}
+          >
+            <Typography variant="subtitle1" sx={{ marginBottom: 2 }}>
+              {camp.name}
+            </Typography>
+            <Grid container spacing={2}>
+              {items.map((item) => (
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={4}
+                  key={`${camp.name}-${item.name}`}
+                >
+                  <TextField
+                    fullWidth
+                    label={`${item.name} Initial Quantity`}
+                    value={
+                      initialState.initialInventory[camp.name]?.[item.name] ||
+                      "0"
+                    }
+                    onChange={(e) =>
+                      handleInitialInventoryChange(
+                        camp.name,
+                        item.name,
+                        e.target.value
+                      )
+                    }
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        ))}
+      </Paper>
+
+      {/* Initial Central Warehouse Inventory */}
+      <Paper sx={{ padding: 2, marginTop: 4 }}>
+        <Typography variant="h6" sx={{ marginBottom: 2 }}>
+          Initial Central Warehouse Inventory
+        </Typography>
+        <Grid container spacing={2}>
+          {items.map((item) => (
+            <Grid item xs={12} sm={6} md={4} key={`central-${item.name}`}>
+              <TextField
+                fullWidth
+                label={`${item.name} Central Inventory`}
+                value={
+                  initialState.initialCentralWarehouseInventory[item.name] ||
+                  "0"
+                }
+                onChange={(e) =>
+                  handleCentralWarehouseInventoryChange(
+                    item.name,
+                    e.target.value
+                  )
+                }
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
+
+      {/* Earmarked Funds */}
+      <Paper sx={{ padding: 2, marginTop: 4 }}>
+        <Typography variant="h6" sx={{ marginBottom: 2 }}>
+          Earmarked Funds
+        </Typography>
+        <Grid container spacing={2}>
+          {camps.map((camp) => (
+            <Grid item xs={12} sm={6} md={4} key={`earmarked-${camp.name}`}>
+              <TextField
+                fullWidth
+                label={`${camp.name} Earmarked Funds`}
+                value={initialState.earmarkedFunds[camp.name] || "0"}
+                onChange={(e) =>
+                  handleEarmarkedFundsChange(camp.name, e.target.value)
+                }
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
+
+      {/* Initial Earmarked In-Kind */}
+      <Paper sx={{ padding: 2, marginTop: 4 }}>
+        <Typography variant="h6" sx={{ marginBottom: 2 }}>
+          Initial Earmarked In-Kind
+        </Typography>
+        {camps.map((camp) => (
+          <Paper key={`in-kind-${camp.name}`} sx={{ padding: 2, marginTop: 2 }}>
+            <Typography variant="subtitle1" sx={{ marginBottom: 2 }}>
+              {camp.name}
+            </Typography>
+            <Grid container spacing={2}>
+              {items.map((item) => (
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={4}
+                  key={`${camp.name}-${item.name}-in-kind`}
+                >
+                  <TextField
+                    fullWidth
+                    label={`${item.name} In-Kind`}
+                    value={
+                      initialState.initialEarmarkedInKind[camp.name]?.[
+                        item.name
+                      ] || "0"
+                    }
+                    onChange={(e) =>
+                      handleInitialEarmarkedInKindChange(
+                        camp.name,
+                        item.name,
+                        e.target.value
+                      )
+                    }
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        ))}
+      </Paper>
+
+      {/* Is Item Available */}
+      <Paper sx={{ padding: 2, marginTop: 4 }}>
+        <Typography variant="h6" sx={{ marginBottom: 2 }}>
+          Item Availability
+        </Typography>
+        <Grid container spacing={2}>
+          {items.map((item) => (
+            <Grid item xs={12} sm={6} md={4} key={`availability-${item.name}`}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={initialState.isItemAvailable[item.name] || false}
+                    onChange={(e) =>
+                      handleIsItemAvailableChange(item.name, e.target.checked)
+                    }
+                  />
+                }
+                label={`${item.name} Available`}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
+    </>
+  );
+};
+
+export default InitialStateSection;

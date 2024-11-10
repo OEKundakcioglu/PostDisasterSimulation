@@ -1,54 +1,93 @@
+// components/DeprivationCostChart.tsx
+
 "use client";
 
+import React from "react";
+import { Bar } from "react-chartjs-2";
+import { CampKPI } from "../../types/kpiTypes";
+import { useTheme } from "@mui/material/styles"; // Import from @mui/material/styles
 import {
-  Chart,
+  Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  Title,
   Tooltip,
   Legend,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
 
-// Register the necessary Chart.js components
-Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-// Define the structure of Camp KPI data
-interface CampKPI {
-  deprivationCost: {
-    total: number;
-  };
-  // Add other KPI properties if necessary
+interface DeprivationCostChartProps {
+  data: Record<string, CampKPI>;
 }
 
-// Define the structure for the ChartData prop
-interface ChartData {
-  data: Record<string, CampKPI>; // Record of camp names and their respective KPI data
-}
+const DeprivationCostChart: React.FC<DeprivationCostChartProps> = ({
+  data,
+}) => {
+  const theme = useTheme();
+  const campNames = Object.keys(data);
 
-export const DeprivationCostChart = ({ data }: ChartData) => {
   const chartData = {
-    labels: Object.keys(data),
+    labels: campNames,
     datasets: [
       {
         label: "Deprivation Cost",
-        data: Object.values(data).map(
-          (camp) => camp.deprivationCost.total || 0
-        ),
-        backgroundColor: "rgba(255,99,132,0.2)",
-        borderColor: "rgba(255,99,132,1)",
-        borderWidth: 1,
+        data: campNames.map((camp) => data[camp].deprivationCost.total || 0),
+        backgroundColor: theme.palette.customColors.deprivationCost, // Use the custom color
       },
     ],
   };
 
   const options = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: "Deprivation Cost by Camp",
+        color: theme.palette.text.primary,
+        font: {
+          size: 18,
+        },
+      },
+    },
     scales: {
-      x: { title: { display: true, text: "Camp" } },
-      y: { title: { display: true, text: "Deprivation Cost" } },
+      x: {
+        ticks: { color: theme.palette.text.secondary },
+        title: {
+          display: true,
+          text: "Camp",
+          color: theme.palette.text.secondary,
+        },
+      },
+      y: {
+        ticks: {
+          color: theme.palette.text.secondary,
+          callback: function (tickValue: string | number) {
+            const value =
+              typeof tickValue === "string" ? parseFloat(tickValue) : tickValue;
+            return formatCurrency(value);
+          },
+        },
+        title: {
+          display: true,
+          text: "Cost",
+          color: theme.palette.text.secondary,
+        },
+      },
     },
   };
 
   return <Bar data={chartData} options={options} />;
 };
+
+// Utility function to format currency values
+const formatCurrency = (value: number): string => {
+  return value.toLocaleString(undefined, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+};
+
+export default DeprivationCostChart;

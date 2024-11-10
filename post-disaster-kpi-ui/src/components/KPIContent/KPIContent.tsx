@@ -1,4 +1,5 @@
 // components/KPIContent.tsx
+
 import React from "react";
 import { Box, Typography, Grid } from "@mui/material";
 import GlobalKPIItem from "../GlobalKPIItem/GlobalKPIItem";
@@ -12,12 +13,17 @@ interface KPIContentProps {
 const KPIContent: React.FC<KPIContentProps> = ({ kpiData }) => {
   return (
     <Box sx={{ padding: 4 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" gutterBottom color="#000000">
         Simulation KPIs
       </Typography>
 
       {/* Display Global KPIs */}
-      <Typography variant="h5" gutterBottom>
+      <Typography
+        variant="h5"
+        color="#202020"
+        gutterBottom
+        sx={{ marginTop: 4 }}
+      >
         Global KPIs
       </Typography>
       <Grid container spacing={2} sx={{ marginBottom: 4 }}>
@@ -60,7 +66,7 @@ const KPIContent: React.FC<KPIContentProps> = ({ kpiData }) => {
       {/* Display Camp KPIs */}
       {Object.keys(kpiData.camps).map((campName) => (
         <Box key={campName} sx={{ marginBottom: 6 }}>
-          <Typography variant="h5" gutterBottom>
+          <Typography variant="h5" gutterBottom color="#404040">
             {campName}
           </Typography>
           <CampKPITable campKPI={kpiData.camps[campName]} />

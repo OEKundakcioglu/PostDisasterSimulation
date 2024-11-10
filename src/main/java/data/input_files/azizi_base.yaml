@@ -1,22 +1,18 @@
+
+WORKING:
 simulationConfig:
   seedDemandTime: 10
   seedDemandQuantity: 15
-
   seedItemDuration: 14
-
   seedSupplyDisruptionTime: 11
   seedSupplyDisruptionDuration: 18
-
   seedMigrationTime: 13
   seedMigrationQuantity: 17
-
   seedFundingTime: 13
   seedFundingAmount: 16
-
   seedReplenishmentTime: 14
   seedTransferTime: 15
   seedTransshipmentTime: 16
-
   inventoryControlType: PERIODIC
   inventoryControlPeriod: &period 5
   planningHorizon: 1080
@@ -27,7 +23,7 @@ simulationConfig:
   centralBuffer: &centralBuffer 0.0
 
 items:
-  - &goods
+  - &HygieneKit
     name: HygieneKit
     isPerishable: false
     price: 5
@@ -42,200 +38,23 @@ items:
         min: 1
         mode: 2
         max: 4
-
-  - &medicine
+  - &Medicine
     name: Medicine
-    isPerishable: true
+    isPerishable: false
     price: 12
     orderingCost: 2400
     holdingCost: 1
-    referralCost: 4
     deprivationRate: 0.245
     deprivationCoefficient: 1
-    durationData:
-      distributionType: UNIFORM
-      distParameters: !!data.distribution.DistUniform
-        min: 30
-        max: 60
+    referralCost: 4
     leadTimeData:
       distributionType: TRIANGULAR
       distParameters: !!data.distribution.DistTriangular
         min: 1
         mode: 2
         max: 4
-
 camps:
-  - &hatay1
-    name: Hatay-1
-    leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
-    demands:
-      - item: *goods
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.5
-        externalRatio: 0.05
-
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
-        internalRatio: 0.2
-        externalRatio: 0.02
-
-    campExternalDemandSatisfactionType: FULLY
-    populationType: REGULAR
-    initialInternalPopulation: 2142
-    initialExternalPopulation: 144105
-
-  - &hatay2
-    name: Hatay-2
-    leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
-    demands:
-      - item: *goods
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.5
-        externalRatio: 0.05
-
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
-        internalRatio: 0.2
-        externalRatio: 0.02
-
-    campExternalDemandSatisfactionType: FULLY
-    populationType: REGULAR
-    initialInternalPopulation: 3213
-    initialExternalPopulation: 143034
-
-  - &hatay3
-    name: Hatay-3
-    leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
-    demands:
-      - item: *goods
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.5
-        externalRatio: 0.05
-
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
-        internalRatio: 0.2
-        externalRatio: 0.02
-
-    campExternalDemandSatisfactionType: FULLY
-    populationType: REGULAR
-    initialInternalPopulation: 5355
-    initialExternalPopulation: 140892
-
-  - &adana
-    name: Adana
-    leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
-    demands:
-      - item: *goods
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.5
-        externalRatio: 0.05
-
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
-        internalRatio: 0.2
-        externalRatio: 0.02
-
-    campExternalDemandSatisfactionType: FULLY
-    populationType: REGULAR
-    initialInternalPopulation: 21414
-    initialExternalPopulation: 225048
-
-  - &osmaniye
-    name: Osmaniye
-    leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
-    demands:
-      - item: *goods
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.5
-        externalRatio: 0.05
-
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
-        internalRatio: 0.2
-        externalRatio: 0.02
-
-    campExternalDemandSatisfactionType: FULLY
-    populationType: REGULAR
-    initialInternalPopulation: 12418
-    initialExternalPopulation: 37126
-
-  - &kilis
+  - &Kilis
     name: Kilis
     leadTimeData:
       distributionType: TRIANGULAR
@@ -244,201 +63,81 @@ camps:
         mode: 2
         max: 4
     demands:
-      - item: *goods
+      - item: *HygieneKit
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.5
-        externalRatio: 0.05
-
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
+            mean: 0
         internalRatio: 0.2
         externalRatio: 0.02
-
-    campExternalDemandSatisfactionType: FULLY
-    populationType: REGULAR
-    initialInternalPopulation: 8492
-    initialExternalPopulation: 103700
-
-  - &kahramanmaras
-    name: Kahramanmaraş
-    leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 4
-    demands:
-      - item: *goods
+      - item: *Medicine
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.5
-        externalRatio: 0.05
-
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.0167
+            mean: 0
         internalRatio: 0.2
         externalRatio: 0.02
-
     campExternalDemandSatisfactionType: FULLY
     populationType: REGULAR
-    initialInternalPopulation: 10872
-    initialExternalPopulation: 81421
-
+    initialInternalPopulation: 0
+    initialExternalPopulation: 0
 agencies:
   - name: Government
     fundingArray:
-      - items:
-        camps:
-        fundingType: MONETARY_REGULAR
+      - fundingType: MONETARY_REGULAR
         arrivalData:
           distributionType: BERNOULLI
           distParameters: !!data.distribution.DistBernoulli
-            mean: 1.0
+            mean: 1
             arrivalInterval: 1090
             initialArrival: true
         amountData:
           distributionType: EQUAL_SHARE
           distParameters: !!data.distribution.DistEqualShare
             mean: 14900000
-
 migrations:
-  - fromCamp: *hatay1
-    toCamp: *hatay2
+  - fromCamp: *Kilis
+    toCamp: *Kilis
     migrationType: INTERNAL_WITHIN_SYSTEM
     arrivalData:
       distributionType: FIXED
       distParameters: !!data.distribution.DistFixed
         mean: 120000
     migrationRatio: 0.05
-
 inventoryPolicy: !!simulation.decision.OrderUpToPolicy
   bufferRatios:
-    *hatay1:
-      *goods: *campBuffer
-      *medicine: *campBuffer
-    *hatay2:
-      *goods: *campBuffer
-      *medicine: *campBuffer
-    *hatay3:
-      *goods: *campBuffer
-      *medicine: *campBuffer
-    *adana:
-      *goods: *campBuffer
-      *medicine: *campBuffer
-    *osmaniye:
-      *goods: *campBuffer
-      *medicine: *campBuffer
-    *kilis:
-      *goods: *campBuffer
-      *medicine: *campBuffer
-    *kahramanmaras:
-      *goods: *campBuffer
-      *medicine: *campBuffer
+    *Kilis:
+      *HygieneKit: *campBuffer
+      *Medicine: *campBuffer
   centralBufferRatios:
-    *goods: *centralBuffer
-    *medicine: *centralBuffer
+    *HygieneKit: *centralBuffer
+    *Medicine: *centralBuffer
   periodicCounts:
-    *hatay1:
-      *goods: *period
-      *medicine: *period
-    *hatay2:
-      *goods: *period
-      *medicine: *period
-    *hatay3:
-      *goods: *period
-      *medicine: *period
-    *adana:
-      *goods: *period
-      *medicine: *period
-    *osmaniye:
-      *goods: *period
-      *medicine: *period
-    *kilis:
-      *goods: *period
-      *medicine: *period
-    *kahramanmaras:
-      *goods: *period
-      *medicine: *period
+    *Kilis:
+      *HygieneKit: *period
+      *Medicine: *period
   centralPeriodicCounts:
-    *goods: *period
-    *medicine: *period
-
+    *HygieneKit: *period
+    *Medicine: *period
 initialState:
   availableFunds: 0
   initialInventory:
-    *hatay1:
-      *goods: 0
-      *medicine: 0
-    *hatay2:
-      *goods: 0
-      *medicine: 0
-    *hatay3:
-      *goods: 0
-      *medicine: 0
-    *adana:
-      *goods: 0
-      *medicine: 0
-    *osmaniye:
-      *goods: 0
-      *medicine: 0
-    *kilis:
-      *goods: 0
-      *medicine: 0
-    *kahramanmaras:
-      *goods: 0
-      *medicine: 0
+    *Kilis:
+      *HygieneKit: 0
+      *Medicine: 0
   initialCentralWarehouseInventory:
-    *goods: 0
-    *medicine: 0
+    *HygieneKit: 0
+    *Medicine: 0
   earmarkedFunds:
-    *hatay1: 0
-    *hatay2: 0
-    *hatay3: 0
-    *adana: 0
-    *osmaniye: 0
-    *kilis: 0
-    *kahramanmaras: 0
+    *Kilis: 0
   initialEarmarkedInKind:
-    *hatay1:
-      *goods: 0
-      *medicine: 0
-    *hatay2:
-      *goods: 0
-      *medicine: 0
-    *hatay3:
-      *goods: 0
-      *medicine: 0
-    *adana:
-      *goods: 0
-      *medicine: 0
-    *osmaniye:
-      *goods: 0
-      *medicine: 0
-    *kilis:
-      *goods: 0
-      *medicine: 0
-    *kahramanmaras:
-      *goods: 0
-      *medicine: 0
+    *Kilis:
+      *HygieneKit: 0
+      *Medicine: 0
   isItemAvailable:
-    *goods: true
-    *medicine: true
+    *HygieneKit: true
+    *Medicine: true

@@ -1,16 +1,5 @@
 // types/kpiTypes.ts
 
-export interface CampKPI {
-  deprivationCost: Record<string, number>;
-  replenishmentCost: Record<string, number>;
-  holdingCost: Record<string, number>;
-  referralCost: Record<string, number>;
-  orderingCost: Record<string, number>;
-  deprivedPopulation: number;
-  referralPopulation: number;
-  averageDeprivationTime: Record<string, number>;
-}
-
 export interface GlobalKPIs {
   totalReplenishmentCostSummation: number;
   totalOrderingCostSummation: number;
@@ -22,7 +11,18 @@ export interface GlobalKPIs {
   totalFundingSpent: number;
 }
 
+export interface CampKPI {
+  deprivationCost: Record<string, number>;
+  replenishmentCost: Record<string, number>;
+  holdingCost: Record<string, number>;
+  referralCost: Record<string, number>;
+  orderingCost: Record<string, number>;
+  deprivedPopulation: number;
+  referralPopulation: number;
+  averageDeprivationTime: Record<string, number>;
+}
+
 export interface KPIData {
-  camps: Record<string, CampKPI>;
   globalKPIs: GlobalKPIs;
+  camps: Record<string, CampKPI>;
 }

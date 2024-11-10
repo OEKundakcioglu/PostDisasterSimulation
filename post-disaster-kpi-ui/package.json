@@ -19,6 +19,7 @@
     "bcrypt": "^5.1.1",
     "chart.js": "^4.4.5",
     "jose": "^5.9.4",
+    "js-yaml": "^4.1.0",
     "next": "14.2.15",
     "primeflex": "^3.3.1",
     "primeicons": "^7.0.0",
@@ -26,10 +27,12 @@
     "react": "^18",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18",
+    "yaml": "^2.6.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
