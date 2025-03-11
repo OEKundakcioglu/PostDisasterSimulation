@@ -1,13 +1,14 @@
 package simulation;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 import data.Camp;
-import data.Environment;
 import data.Item;
+import data.Environment;
 import simulation.data.DeprivingPerson;
 import simulation.data.InventoryItem;
-
-import java.math.BigDecimal;
-import java.util.HashMap;
 
 public class KPIManager {
 
@@ -38,11 +39,16 @@ public class KPIManager {
 
     boolean reportEvents;
     boolean reportKPIs;
+    boolean useReactUI;
     String fileName;
 
+    private final List<TimeStepLog> timeStepLogs = new ArrayList<>();
 
+    private State state;
 
     public KPIManager(State state){
+        this.state = state;
+        this.useReactUI = false;
         totalReplenishmentCost = new HashMap<>();
         campReplenishmentCost = new HashMap<>();
         totalOrderingCost = new HashMap<>();
@@ -132,6 +138,7 @@ public class KPIManager {
     }
 
     public void reportKPIs(Environment environment) {
+        reportKPIs =true;
         if (reportKPIs){
         System.out.println("""
                 Final KPIs
@@ -339,5 +346,108 @@ public class KPIManager {
 
     public String getFileName() {
         return fileName;
+    }
+
+    public boolean isUseReactUI() {
+        return useReactUI;
+    }
+
+    public void setUseReactUI(boolean useReactUI) {
+        this.useReactUI = useReactUI;
+    }
+
+    public static class StateSnapshot {
+        public String campName;
+        public String itemName;
+        public int quantity;
+        public double price;
+        public double holdingCost;
+        public double replenishmentCost;
+
+        public StateSnapshot(String campName, String itemName, int quantity, double price, double holdingCost, double replenishmentCost) {
+            this.campName = campName;
+            this.itemName = itemName;
+            this.quantity = quantity;
+            this.price = price;
+            this.holdingCost = holdingCost;
+            this.replenishmentCost = replenishmentCost;
+        }
+    }
+
+    public static class TimeStepLog {
+        public double time;  // Simulation time
+        public double planningHorizon;  // Total simulation time
+        public HashMap<String, Double> cumulativeHoldingCosts = new HashMap<>();
+        public HashMap<String, Double> cumulativeReferralCosts = new HashMap<>();
+        public HashMap<String, Double> cumulativeDeprivationCosts = new HashMap<>();
+        public HashMap<String, Double> cumulativeReplenishmentCosts = new HashMap<>();
+        public HashMap<String, HashMap<String, Integer>> itemQuantities = new HashMap<>();
+        public double fundingReceived = 0.0;
+    }
+    
+
+    public void logState(State state, double currentTime, double samplingInterval) {
+        if (!useReactUI) {
+            return;
+        }
+        
+        if (timeStepLogs.isEmpty() || currentTime - timeStepLogs.get(timeStepLogs.size() - 1).time >= samplingInterval) {
+            TimeStepLog log = new TimeStepLog();
+            log.time = currentTime;
+            log.planningHorizon = state.getEnvironment().getSimulationConfig().getPlanningHorizon();
+            log.fundingReceived = state.getLastFundingReceived();
+
+            // Iterate through camps
+            for (var camp : state.getInventory().keySet()) {
+                String campName = camp.getName();
+                
+                // Initialize maps
+                log.cumulativeHoldingCosts.putIfAbsent(campName, 0.0);
+                log.cumulativeReferralCosts.putIfAbsent(campName, 0.0);
+                log.cumulativeDeprivationCosts.putIfAbsent(campName, 0.0);
+                log.cumulativeReplenishmentCosts.putIfAbsent(campName, 0.0);
+                log.itemQuantities.putIfAbsent(campName, new HashMap<>());
+
+                // Calculate costs and quantities for each item
+                for (var itemEntry : state.getInventory().get(camp).entrySet()) {
+                    Item item = itemEntry.getKey();
+                    var inventoryQueue = itemEntry.getValue();
+                    
+                    // Calculate total quantity for this item
+                    int totalQuantity = inventoryQueue.stream()
+                        .mapToInt(InventoryItem::getQuantity)
+                        .sum();
+                    log.itemQuantities.get(campName).put(item.getName(), totalQuantity);
+
+                    // Calculate holding cost
+                    double holdingCost = state.getInventory().get(camp).get(item).stream()
+                            .mapToDouble(inventoryItem -> {
+                                double holdingTime = currentTime - inventoryItem.getArrivalTime();
+                                return holdingTime * inventoryItem.getQuantity() * item.getHoldingCost();
+                            }).sum();
+                    log.cumulativeHoldingCosts.put(campName, log.cumulativeHoldingCosts.get(campName) + holdingCost);
+    
+                    // Accumulate referral and deprivation costs
+                    double referralCost = totalReferralCost.get(camp).get(item);
+                    double deprivationCost = totalDeprivationCost.get(camp).get(item);
+                    log.cumulativeReferralCosts.put(campName, log.cumulativeReferralCosts.get(campName) + referralCost);
+                    log.cumulativeDeprivationCosts.put(campName, log.cumulativeDeprivationCosts.get(campName) + deprivationCost);
+    
+                    // Accumulate replenishment costs
+                    double replenishmentCost = campReplenishmentCost.get(camp).get(item);
+                    log.cumulativeReplenishmentCosts.put(campName, log.cumulativeReplenishmentCosts.get(campName) + replenishmentCost);
+                }
+            }
+            timeStepLogs.add(log);
+        }
+    }
+    
+
+    public List<TimeStepLog> getTimeStepLogs() {
+        return timeStepLogs;
+    }
+
+    public void updateTimeStepLogs(double time) {
+        logState(this.state, time, 10);
     }
 }

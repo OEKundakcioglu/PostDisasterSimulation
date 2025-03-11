@@ -1,18 +1,19 @@
-import data.Environment;
-import data.config.RandomConfig;
-import data.config.FilePath;
-
-import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.Yaml;
-import simulation.Simulate;
-
+package simulation;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-public class Main {
-    public static void main(String[] args) throws IOException, CloneNotSupportedException {
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+
+import data.Environment;
+import data.config.FilePath;
+import data.config.RandomConfig;
+
+
+public class MainBackup {
+    public MainBackup(String[] args) throws IOException, CloneNotSupportedException {
 
         Environment environment = generateEnvironmentFromFile();
         environment = generateRandomEnvironment(environment);

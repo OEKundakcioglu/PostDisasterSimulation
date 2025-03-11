@@ -57,6 +57,7 @@ public class FundingEvent implements IEvent {
         else {
             state.updateFunds(this.camp, this.item, this.fundingType, this.amount, this.getTime(), this.getTime());
         }
+        state.setLastFundingReceived(this.amount);
         return null;
 
     }

@@ -1,37 +1,42 @@
 package simulation;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.PriorityQueue;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import data.Camp;
-import data.Environment;
 import data.Item;
+import data.Environment;
 import enums.CampExternalDemandSatisfactionType;
 import enums.FundingType;
 import enums.MigrationType;
-import simulation.data.*;
+import simulation.data.DeprivingPerson;
+import simulation.data.InventoryItem;
 import simulation.decision.IPolicy;
-import simulation.decision.OrderUpToPolicy;
 import simulation.generator.InterarrivalGenerator;
 
 public class State implements Cloneable {
 
-    private HashMap<Camp, HashMap<Item, Integer>> initialInventory;
-    private HashMap<Camp, HashMap<Item, PriorityQueue<InventoryItem>>> inventory;
-    private HashMap<Camp, HashMap<Item, Integer>> inventoryPosition;
+    private HashMap<Camp, HashMap<Item, Integer>> initialInventory= new HashMap<>();
+    private HashMap<Camp, HashMap<Item, PriorityQueue<InventoryItem>>> inventory= new HashMap<>();
+    private HashMap<Camp, HashMap<Item, Integer>> inventoryPosition= new HashMap<>();
 
-    private HashMap<Item, Integer> initialCentralWarehouseInventory;
-    private HashMap<Item, PriorityQueue<InventoryItem>> centralWarehouseInventory;
-    private HashMap<Item, Integer> centralWarehousePosition;
+    private HashMap<Item, Integer> initialCentralWarehouseInventory= new HashMap<>();
+    private HashMap<Item, PriorityQueue<InventoryItem>> centralWarehouseInventory= new HashMap<>();
+    private HashMap<Item, Integer> centralWarehousePosition= new HashMap<>();
 
     private double availableFunds;
-    private HashMap<Camp, Double> earmarkedFunds;
+    private HashMap<Camp, Double> earmarkedFunds= new HashMap<>();
 
-    private HashMap<Camp, HashMap<Item, Integer>> initialEarmarkedInKind;
+    private HashMap<Camp, HashMap<Item, Integer>> initialEarmarkedInKind= new HashMap<>();
 
-    private HashMap<Camp, HashMap<Item, PriorityQueue<DeprivingPerson>>> deprivingPopulation;
-    private HashMap<Camp, HashMap<Item, Integer>> referralPopulation;
+    private HashMap<Camp, HashMap<Item, PriorityQueue<DeprivingPerson>>> deprivingPopulation= new HashMap<>();
+    private HashMap<Camp, HashMap<Item, Integer>> referralPopulation= new HashMap<>();
 
-    private HashMap<Item, Boolean> isItemAvailable;
+    private HashMap<Item, Boolean> isItemAvailable= new HashMap<>();
 
     private HashMap<Camp, Integer> internalPopulation;
     private HashMap<Camp, Integer> externalPopulation;
@@ -40,18 +45,24 @@ public class State implements Cloneable {
 
     private KPIManager kpiManager;
 
+    @JsonIgnore
     private IPolicy inventoryPolicy;
 
+    private double lastFundingReceived = 0.0;
+
+    private Environment environment;
 
     public State () {
 
     }
 
     public void initialize(Environment environment) {
+        this.environment = environment;
         this.kpiManager = new KPIManager(this);
         this.kpiManager.setReportEvents(environment.getSimulationConfig().isReportEvents());
         this.kpiManager.setReportKPIs(environment.getSimulationConfig().isReportKPIs());
         this.kpiManager.setFileName(environment.getSimulationConfig().getFileName());
+        this.kpiManager.setUseReactUI(environment.getSimulationConfig().isUseReactUI());
 
         this.deprivingPopulation = new HashMap<>();
         this.referralPopulation = new HashMap<>();
@@ -62,6 +73,7 @@ public class State implements Cloneable {
             for (var item : this.initialInventory.get(camp).keySet()) {
                 this.deprivingPopulation.get(camp).put(item, new PriorityQueue<>(Comparator.comparingDouble(DeprivingPerson::getArrivalTime)));
                 this.referralPopulation.get(camp).put(item, 0);
+                System.out.println("Initializing camp: " + camp.getName() + ", item: " + item.getName() + ", quantity: " + initialInventory.get(camp).get(item));
             }
         }
     }
@@ -471,6 +483,22 @@ public class State implements Cloneable {
 
     public void setCentralWarehousePosition(HashMap<Item, Integer> centralWarehousePosition) {
         this.centralWarehousePosition = centralWarehousePosition;
+    }
+
+    public double getLastFundingReceived() {
+        return lastFundingReceived;
+    }
+
+    public void setLastFundingReceived(double amount) {
+        this.lastFundingReceived = amount;
+    }
+
+    public Environment getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
     }
 
 }

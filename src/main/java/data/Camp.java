@@ -1,19 +1,25 @@
 package data;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import data.distribution.ProbabilityData;
 import data.event_info.Demand;
 import enums.CampExternalDemandSatisfactionType;
 import enums.PopulationType;
 
-import java.util.ArrayList;
-
 public class Camp {
+    @JsonProperty("campName")
     private String name;
+
     private Demand[] demands;
     private ProbabilityData leadTimeData;
     private CampExternalDemandSatisfactionType campExternalDemandSatisfactionType;
     private PopulationType populationType;
+
+    @JsonProperty("initialInternalPopulation")
     private int initialInternalPopulation;
+    
+    @JsonProperty("initialExternalPopulation")
     private int initialExternalPopulation;
     private double externalDemandSatisfactionThreshold;
 

@@ -7,10 +7,8 @@ import data.event_info.Migration;
 import data.event_info.SupplyStatusSwitch;
 import simulation.State;
 import simulation.decision.IPolicy;
-import simulation.decision.OrderUpToPolicy;
 
 public class Environment {
-
     private State initialState;
     private Item[] items;
     private Camp[] camps;
@@ -20,14 +18,12 @@ public class Environment {
     private SimulationConfig simulationConfig;
     private IPolicy inventoryPolicy;
 
-
     public Environment() {
-
+        // Initialize the environment.
     }
 
     // TODO: Random environment generation
     public Environment(RandomConfig randomConfig) {
-
     }
 
     public State getInitialState() {
@@ -106,8 +102,9 @@ public class Environment {
     public void setInventoryPolicy(IPolicy inventoryPolicy) {
         this.inventoryPolicy = inventoryPolicy;
     }
-
 }
+
+
 
 
 

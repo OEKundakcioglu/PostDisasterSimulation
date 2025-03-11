@@ -1,10 +1,17 @@
 package data;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import data.distribution.ProbabilityData;
 
+
 public class Item {
+    @JsonProperty("itemName")
     private String name;
+
+    @JsonProperty("itemPrice")
     private double price;
+    
     private double orderingCost;
     private double holdingCost;
     private double deprivationRate;

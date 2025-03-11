@@ -1,7 +1,9 @@
 package data.config;
 
 import enums.InventoryControlType;
+import org.springframework.context.annotation.Configuration;
 
+@Configuration
 public class SimulationConfig {
     private int seedDemandTime;
     private int seedFundingTime;
@@ -22,6 +24,7 @@ public class SimulationConfig {
     private double planningHorizon;
     private boolean reportEvents;
     private boolean reportKPIs;
+    private boolean useReactUI;
     private String fileName;
 
     private double campBuffer;
@@ -188,5 +191,12 @@ public class SimulationConfig {
         this.fileName = fileName;
     }
 
+    public boolean isUseReactUI() {
+        return useReactUI;
+    }
+
+    public void setUseReactUI(boolean useReactUI) {
+        this.useReactUI = useReactUI;
+    }
 
 }

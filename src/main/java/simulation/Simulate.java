@@ -1,8 +1,14 @@
 package simulation;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.PriorityQueue;
+
 import data.Agency;
 import data.Camp;
-import data.Environment;
 import data.Item;
+import data.Environment;
 import data.event_info.Demand;
 import data.event_info.Funding;
 import data.event_info.Migration;
@@ -12,11 +18,15 @@ import enums.InventoryControlType;
 import enums.MigrationType;
 import simulation.data.InventoryItem;
 import simulation.decision.IPolicy;
-import simulation.event.*;
+import simulation.event.DemandEvent;
+import simulation.event.FundingEvent;
+import simulation.event.IEvent;
+import simulation.event.InventoryControlEvent;
+import simulation.event.MigrationEvent;
+import simulation.event.SupplyDisruptionEvent;
+import simulation.event.SupplyRecoveryEvent;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
-
-import java.util.*;
 
 
 public class Simulate {
@@ -43,6 +53,7 @@ public class Simulate {
         this.run();
         this.state.getKpiManager().calculateFinalCosts(this.environment, this.state);
         this.state.getKpiManager().reportKPIs(this.environment);
+
     }
 
 
@@ -53,6 +64,8 @@ public class Simulate {
             IEvent event = this.eventQueue.poll();
             deleteExpiredItems(this.state, event.getTime());
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
+
+            state.getKpiManager().logState(state, event.getTime(), 10);
 
             // If population changes, generate new demand events with the new population, deleting the old demand events
             if (event.getClass().getSimpleName().equals("MigrationEvent")) {
@@ -97,8 +110,12 @@ public class Simulate {
                 }
                 this.eventQueue.offer(e);
             }
+
+            // Update KPIs after each step
+            state.getKpiManager().updateTimeStepLogs(event.getTime());
         }
     }
+
 
     public void deleteExpiredItems(State state, double currentTime) {
         // Delete from camp inventory
@@ -154,8 +171,12 @@ public class Simulate {
         }
     }
 
+    public Environment getEnvironment() {
+        return this.environment;
+    }
+
     private void generateFundingEvents() {
-        if (this.environment.getAgencies() == null){
+         if (this.environment.getAgencies() == null){
             return;
         }
         for (Agency agency : this.environment.getAgencies()) {
@@ -312,6 +333,9 @@ public class Simulate {
                 }
             }
         }
+    }
+    public State getState() {
+        return this.state;
     }
 
 }
