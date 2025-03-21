@@ -18,6 +18,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(simulationWebSocketHandler(), "/ws")
-               .setAllowedOrigins("http://localhost:3000", "http://localhost:8080"); // Allow both React dev server and Node.js server
+                .setAllowedOrigins("http://localhost:3000", "http://localhost:8080", "http://localhost:8083");
     }
 } 
