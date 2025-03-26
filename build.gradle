@@ -18,6 +18,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'com.google.code.gson:gson:2.8.6' // Gson dependency
 }
 
 springBoot {

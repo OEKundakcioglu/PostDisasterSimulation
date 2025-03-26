@@ -1,7 +1,12 @@
 {
-  "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/api/runSimulation/route": "app/api/runSimulation/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/api/getKPIData/route": "app/api/getKPIData/route.js",
-  "/home/InputParameters/page": "app/home/InputParameters/page.js",
-  "/home/KPIPage/page": "app/home/KPIPage/page.js"
+  "/api/runSimulation/route": "app/api/runSimulation/route.js",
+  "/api/stopSimulation/route": "app/api/stopSimulation/route.js",
+  "/page": "app/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/api/downloadYaml/route": "app/api/downloadYaml/route.js",
+  "/home/KPIPage/page": "app/home/KPIPage/page.js",
+  "/home/RealTimeVisualization/page": "app/home/RealTimeVisualization/page.js",
+  "/home/InputParameters/page": "app/home/InputParameters/page.js"
 }

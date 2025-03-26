@@ -1,1 +1,16 @@
-{}
+{
+  "app/home/RealTimeVisualization/page.tsx -> ../../../components/SimulationVisualizer/SimulationVisualizer": {
+    "id": 5667,
+    "files": [
+      "static/chunks/419-c12b7e4560ecac4b.js",
+      "static/chunks/667.403aeb2f0849a793.js"
+    ]
+  },
+  "components/SimulationVisualizer/SimulationVisualizer.tsx -> react-plotly.js": {
+    "id": 3161,
+    "files": [
+      "static/chunks/f2d0f643.7ee5540cf1fb620a.js",
+      "static/chunks/584.d99c16230993f7b7.js"
+    ]
+  }
+}

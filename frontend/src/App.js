@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import styled from '@emotion/styled';
-import Plot from 'react-plotly.js';
+import React, { useState, useEffect } from "react";
+import styled from "@emotion/styled";
+import Plot from "react-plotly.js";
+import YamlUpload from "./components/YamlUpload";
 
 const Container = styled.div`
   max-width: 1800px;
@@ -33,6 +34,13 @@ const CostList = styled.div`
   position: relative;
 `;
 
+const COST_TYPE_COLORS = {
+  "Holding Cost": "#FF9800",
+  "Referral Cost": "#2196F3",
+  "Deprivation Cost": "#F44336",
+  "Replenishment Cost": "#4CAF50",
+};
+
 const CostItem = styled.div`
   display: flex;
   align-items: center;
@@ -45,8 +53,9 @@ const CostItem = styled.div`
   width: calc(100% - 24px);
   left: 0;
   transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1);
-  border-left: 2px solid ${props => COST_TYPE_COLORS[props.costType] || '#ddd'};
-  transform: translateY(${props => props.index * 40}px);
+  border-left: 2px solid
+    ${(props) => COST_TYPE_COLORS[props.costType] || "#ddd"};
+  transform: translateY(${(props) => props.index * 40}px);
 
   &:hover {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -54,16 +63,14 @@ const CostItem = styled.div`
 
   &.moving {
     z-index: 2;
-    background: linear-gradient(to right, ${props => props.costType ? `${COST_TYPE_COLORS[props.costType]}08` : '#e6ffe6'}, white);
+    background: linear-gradient(
+      to right,
+      ${(props) =>
+        props.costType ? `${COST_TYPE_COLORS[props.costType]}08` : "#e6ffe6"},
+      white
+    );
   }
 `;
-
-const COST_TYPE_COLORS = {
-  'Holding Cost': '#FF9800',
-  'Referral Cost': '#2196F3',
-  'Deprivation Cost': '#F44336',
-  'Replenishment Cost': '#4CAF50'
-};
 
 const CampName = styled.span`
   font-weight: 500;
@@ -73,7 +80,7 @@ const CampName = styled.span`
 `;
 
 const CostType = styled.span`
-  color: ${props => COST_TYPE_COLORS[props.costType]};
+  color: ${(props) => COST_TYPE_COLORS[props.costType]};
   margin-right: 12px;
   font-size: 11px;
   font-weight: 500;
@@ -115,22 +122,26 @@ const LoadingSpinner = styled.div`
   margin-right: 10px;
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 `;
 
 const CAMP_COLORS = {
-  'Camp A': '#1f77b4',  // blue
-  'Camp B': '#ff7f0e',  // orange
-  'Camp C': '#2ca02c',  // green
-  'Camp D': '#d62728',  // red
-  'Camp E': '#9467bd',  // purple
-  'Camp F': '#8c564b',  // brown
-  'Camp G': '#e377c2',  // pink
-  'Camp H': '#7f7f7f',  // gray
-  'Camp I': '#bcbd22',  // olive
-  'Camp J': '#17becf'   // cyan
+  "Camp A": "#1f77b4", // blue
+  "Camp B": "#ff7f0e", // orange
+  "Camp C": "#2ca02c", // green
+  "Camp D": "#d62728", // red
+  "Camp E": "#9467bd", // purple
+  "Camp F": "#8c564b", // brown
+  "Camp G": "#e377c2", // pink
+  "Camp H": "#7f7f7f", // gray
+  "Camp I": "#bcbd22", // olive
+  "Camp J": "#17becf", // cyan
 };
 
 const CampSection = styled.div`
@@ -203,21 +214,22 @@ const PlotsSection = styled.div`
 
 const calculateGlobalRanges = (timeSeriesData, costTypes) => {
   const ranges = {};
-  
+
   // Initialize ranges for each cost type
-  costTypes.forEach(costType => {
+  costTypes.forEach((costType) => {
     ranges[costType] = {
       min: Infinity,
-      max: -Infinity
+      max: -Infinity,
     };
   });
 
   if (timeSeriesData.length > 0) {
-    timeSeriesData.forEach(data => {
+    timeSeriesData.forEach((data) => {
       Object.entries(data.costs).forEach(([camp, costs]) => {
-        costTypes.forEach(costType => {
+        costTypes.forEach((costType) => {
           const cost = costs[costType] || 0;
-          if (cost > 0) { // Only consider positive values
+          if (cost > 0) {
+            // Only consider positive values
             ranges[costType].min = Math.min(ranges[costType].min, cost);
             ranges[costType].max = Math.max(ranges[costType].max, cost);
           }
@@ -227,7 +239,7 @@ const calculateGlobalRanges = (timeSeriesData, costTypes) => {
   }
 
   // Set default values if no valid data found
-  costTypes.forEach(costType => {
+  costTypes.forEach((costType) => {
     if (ranges[costType].min === Infinity) {
       ranges[costType].min = 0;
     }
@@ -241,16 +253,16 @@ const calculateGlobalRanges = (timeSeriesData, costTypes) => {
 
 function App() {
   const [costs, setCosts] = useState(() => {
-    const savedCosts = localStorage.getItem('costs');
+    const savedCosts = localStorage.getItem("costs");
     return savedCosts ? JSON.parse(savedCosts) : [];
   });
   const [prevRanks, setPrevRanks] = useState({});
   const [timeSeriesData, setTimeSeriesData] = useState(() => {
-    const savedData = localStorage.getItem('timeSeriesData');
+    const savedData = localStorage.getItem("timeSeriesData");
     return savedData ? JSON.parse(savedData) : [];
   });
   const [funding, setFunding] = useState(() => {
-    const savedFunding = localStorage.getItem('funding');
+    const savedFunding = localStorage.getItem("funding");
     return savedFunding ? parseFloat(savedFunding) : 0;
   });
   const [connected, setConnected] = useState(false);
@@ -261,9 +273,9 @@ function App() {
   const [totalDays, setTotalDays] = useState(0);
 
   useEffect(() => {
-    localStorage.setItem('costs', JSON.stringify(costs));
-    localStorage.setItem('timeSeriesData', JSON.stringify(timeSeriesData));
-    localStorage.setItem('funding', funding.toString());
+    localStorage.setItem("costs", JSON.stringify(costs));
+    localStorage.setItem("timeSeriesData", JSON.stringify(timeSeriesData));
+    localStorage.setItem("funding", funding.toString());
   }, [costs, timeSeriesData, funding]);
 
   useEffect(() => {
@@ -271,16 +283,16 @@ function App() {
     let reconnectTimeout;
 
     const connectWebSocket = () => {
-      ws = new WebSocket('ws://localhost:8083/ws');
-      
+      ws = new WebSocket("ws://localhost:8083/ws");
+
       ws.onopen = () => {
-        console.log('Connected to Spring Boot WebSocket');
+        console.log("Connected to Spring Boot WebSocket");
         setConnected(true);
         setIsLoading(false);
       };
 
       ws.onclose = () => {
-        console.log('Disconnected from WebSocket');
+        console.log("Disconnected from WebSocket");
         setConnected(false);
         reconnectTimeout = setTimeout(connectWebSocket, 3000);
       };
@@ -288,9 +300,9 @@ function App() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('Received data:', data);
+          console.log("Received data:", data);
           setIsLoading(false);
-          
+
           // Update current day and total days from simulation data
           if (data.time !== undefined) {
             setCurrentDay(Math.floor(data.time));
@@ -298,21 +310,21 @@ function App() {
           if (data.planningHorizon !== undefined) {
             setTotalDays(Math.floor(data.planningHorizon));
           }
-          
+
           // Store previous ranks before updating (for rankings tab)
           const oldRanks = {};
           costs.forEach((item, index) => {
             oldRanks[`${item.camp}-${item.costType}`] = index;
           });
           setPrevRanks(oldRanks);
-          
+
           // Process costs for rankings
           const newCosts = [];
           const costTypes = {
-            cumulativeHoldingCosts: 'Holding Cost',
-            cumulativeReferralCosts: 'Referral Cost',
-            cumulativeDeprivationCosts: 'Deprivation Cost',
-            cumulativeReplenishmentCosts: 'Replenishment Cost'
+            cumulativeHoldingCosts: "Holding Cost",
+            cumulativeReferralCosts: "Referral Cost",
+            cumulativeDeprivationCosts: "Deprivation Cost",
+            cumulativeReplenishmentCosts: "Replenishment Cost",
           };
 
           Object.entries(costTypes).forEach(([dataKey, costType]) => {
@@ -320,7 +332,7 @@ function App() {
               newCosts.push({
                 camp,
                 costType,
-                cost
+                cost,
               });
             });
           });
@@ -331,15 +343,15 @@ function App() {
 
           // Update funding
           if (data.fundingReceived !== undefined) {
-            setFunding(prev => prev + data.fundingReceived);
+            setFunding((prev) => prev + data.fundingReceived);
           }
 
           // Update plot data
           if (data.time !== undefined) {
-            setPlotData(prevData => {
+            setPlotData((prevData) => {
               const newDataPoint = {
                 time: data.time,
-                costs: {}
+                costs: {},
               };
 
               Object.entries(costTypes).forEach(([dataKey, costType]) => {
@@ -358,12 +370,12 @@ function App() {
               }
               return updatedData;
             });
-            
+
             // Increment plot revision to force update
-            setPlotRevision(prev => prev + 1);
+            setPlotRevision((prev) => prev + 1);
           }
         } catch (e) {
-          console.error('Error processing message:', e);
+          console.error("Error processing message:", e);
         }
       };
     };
@@ -381,11 +393,11 @@ function App() {
   }, []);
 
   const formatCost = (cost) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(cost);
   };
 
@@ -400,22 +412,22 @@ function App() {
     }
 
     const sortedCosts = [...costs].sort((a, b) => b.cost - a.cost);
-    
+
     // Calculate the total height needed for the list
-    const totalHeight = sortedCosts.length * 40;  // Updated to match new item height
+    const totalHeight = sortedCosts.length * 40; // Updated to match new item height
 
     return (
-      <CostList style={{ height: totalHeight + 'px' }}>
+      <CostList style={{ height: totalHeight + "px" }}>
         {sortedCosts.map((item, index) => {
           const key = `${item.camp}-${item.costType}`;
           const prevRank = prevRanks[key];
           const isMoving = prevRank !== undefined && prevRank !== index;
-          
+
           return (
-            <CostItem 
+            <CostItem
               key={key}
               costType={item.costType}
-              className={isMoving ? 'moving' : ''}
+              className={isMoving ? "moving" : ""}
               index={index}
             >
               <CampName>{item.camp}</CampName>
@@ -438,93 +450,107 @@ function App() {
       );
     }
 
-    const camps = [...new Set(costs.map(item => item.camp))];
-    const costTypes = ['Holding Cost', 'Referral Cost', 'Deprivation Cost', 'Replenishment Cost'];
-    
+    const camps = [...new Set(costs.map((item) => item.camp))];
+    const costTypes = [
+      "Holding Cost",
+      "Referral Cost",
+      "Deprivation Cost",
+      "Replenishment Cost",
+    ];
+
     // Find global max across all cost types and camps
-    const allCosts = plotData.flatMap(data => 
-      Object.values(data.costs).flatMap(campCosts => 
-        Object.values(campCosts).filter(cost => typeof cost === 'number' && cost > 0)
+    const allCosts = plotData.flatMap((data) =>
+      Object.values(data.costs).flatMap((campCosts) =>
+        Object.values(campCosts).filter(
+          (cost) => typeof cost === "number" && cost > 0
+        )
       )
     );
-    
+
     const globalMax = Math.max(1, ...allCosts);
     const ymax = globalMax * 1.1; // Add 10% padding
 
     // Get the full time range
-    const timeMin = Math.min(...plotData.map(d => d.time));
-    const timeMax = Math.max(...plotData.map(d => d.time));
+    const timeMin = Math.min(...plotData.map((d) => d.time));
+    const timeMax = Math.max(...plotData.map((d) => d.time));
 
     return (
       <div>
-        {camps.map(camp => (
+        <YamlUpload />
+        {camps.map((camp) => (
           <CampSection key={camp}>
             <CampHeader>
               <CampTitle>{camp}</CampTitle>
             </CampHeader>
 
             <CostPlotsGrid>
-              {costTypes.map(costType => {
+              {costTypes.map((costType) => {
                 const plotPoints = plotData
-                  .filter(d => d.costs[camp] && typeof d.costs[camp][costType] === 'number')
-                  .map(d => ({
+                  .filter(
+                    (d) =>
+                      d.costs[camp] &&
+                      typeof d.costs[camp][costType] === "number"
+                  )
+                  .map((d) => ({
                     time: d.time,
-                    cost: d.costs[camp][costType]
+                    cost: d.costs[camp][costType],
                   }))
                   .sort((a, b) => a.time - b.time);
 
                 return (
                   <Plot
                     key={`${camp}-${costType}-${plotRevision}`}
-                    data={[{
-                      x: plotPoints.map(d => d.time),
-                      y: plotPoints.map(d => d.cost),
-                      type: 'scatter',
-                      mode: 'lines',
-                      line: {
-                        color: COST_TYPE_COLORS[costType],
-                        width: 2,
-                        shape: 'linear'
+                    data={[
+                      {
+                        x: plotPoints.map((d) => d.time),
+                        y: plotPoints.map((d) => d.cost),
+                        type: "scatter",
+                        mode: "lines",
+                        line: {
+                          color: COST_TYPE_COLORS[costType],
+                          width: 2,
+                          shape: "linear",
+                        },
+                        name: costType,
                       },
-                      name: costType
-                    }]}
+                    ]}
                     layout={{
                       title: {
                         text: costType,
                         font: {
                           size: 14,
-                          color: COST_TYPE_COLORS[costType]
-                        }
+                          color: COST_TYPE_COLORS[costType],
+                        },
                       },
                       xaxis: {
-                        title: 'Time',
+                        title: "Time",
                         showgrid: true,
-                        gridcolor: '#f0f0f0',
-                        tickformat: '.0f',
-                        range: [timeMin, timeMax + 5]
+                        gridcolor: "#f0f0f0",
+                        tickformat: ".0f",
+                        range: [timeMin, timeMax + 5],
                       },
                       yaxis: {
-                        title: 'Cost',
+                        title: "Cost",
                         showgrid: true,
-                        gridcolor: '#f0f0f0',
+                        gridcolor: "#f0f0f0",
                         range: [0, ymax],
-                        tickformat: '.2s'
+                        tickformat: ".2s",
                       },
-                      paper_bgcolor: 'white',
-                      plot_bgcolor: 'white',
+                      paper_bgcolor: "white",
+                      plot_bgcolor: "white",
                       height: 250,
                       margin: { t: 30, l: 60, r: 30, b: 40 },
                       showlegend: false,
-                      hovermode: 'closest',
-                      uirevision: 'static'
+                      hovermode: "closest",
+                      uirevision: "static",
                     }}
                     config={{
                       responsive: true,
                       displayModeBar: false,
-                      staticPlot: false
+                      staticPlot: false,
                     }}
                     useResizeHandler={true}
-                    style={{ width: '100%', height: '100%' }}
+                    style={{ width: "100%", height: "100%" }}
                   />
                 );
               })}
@@ -540,23 +566,19 @@ function App() {
       <Header>
         <Title>Refugee Camp Cost Visualization</Title>
       </Header>
-      
+
       <SimulationProgress>
         <ProgressText>
           Simulation Day: {Math.floor(currentDay)} / {Math.floor(totalDays)}
         </ProgressText>
       </SimulationProgress>
-      
+
       <MainGrid>
-        <RankingsSection>
-          {renderRankings()}
-        </RankingsSection>
-        <PlotsSection>
-          {renderPlots()}
-        </PlotsSection>
+        <RankingsSection>{renderRankings()}</RankingsSection>
+        <PlotsSection>{renderPlots()}</PlotsSection>
       </MainGrid>
     </Container>
   );
 }
 
-export default App; 
+export default App;
