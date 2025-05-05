@@ -261,8 +261,117 @@ const MigrationsSection: React.FC<Props> = ({
           </>
         );
 
-      // Other cases (TRIANGULAR, UNIFORM, BERNOULLI) remain the same
-      // ...existing code...
+      case "TRIANGULAR":
+        return (
+          <>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label={`Minimum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                value={params.min || ""}
+                onChange={(e) => {
+                  handleMigrationChange(
+                    migrationIndex,
+                    dataType,
+                    e.target.value,
+                    "distParameters",
+                    "min"
+                  );
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label={`Mode ${dataType === "arrivalData" ? "(days)" : ""}`}
+                value={params.mode || ""}
+                onChange={(e) => {
+                  handleMigrationChange(
+                    migrationIndex,
+                    dataType,
+                    e.target.value,
+                    "distParameters",
+                    "mode"
+                  );
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label={`Maximum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                value={params.max || ""}
+                onChange={(e) => {
+                  handleMigrationChange(
+                    migrationIndex,
+                    dataType,
+                    e.target.value,
+                    "distParameters",
+                    "max"
+                  );
+                }}
+              />
+            </Grid>
+          </>
+        );
+
+      case "UNIFORM":
+        return (
+          <>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label={`Minimum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                value={params.min || ""}
+                onChange={(e) => {
+                  handleMigrationChange(
+                    migrationIndex,
+                    dataType,
+                    e.target.value,
+                    "distParameters",
+                    "min"
+                  );
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label={`Maximum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                value={params.max || ""}
+                onChange={(e) => {
+                  handleMigrationChange(
+                    migrationIndex,
+                    dataType,
+                    e.target.value,
+                    "distParameters",
+                    "max"
+                  );
+                }}
+              />
+            </Grid>
+          </>
+        );
+
+      case "BERNOULLI":
+        return (
+          <Grid item xs={12} sm={6} md={4}>
+            <TextField
+              fullWidth
+              label="Mean (probability)"
+              value={params.mean || ""}
+              onChange={(e) => {
+                handleMigrationChange(
+                  migrationIndex,
+                  dataType,
+                  e.target.value,
+                  "distParameters",
+                  "mean"
+                );
+              }}
+            />
+          </Grid>
+        );
 
       default:
         return null;
@@ -271,10 +380,6 @@ const MigrationsSection: React.FC<Props> = ({
 
   return (
     <>
-      <Typography variant="h5" gutterBottom sx={{ marginTop: 4 }}>
-        Migrations Configuration
-      </Typography>
-
       {migrations.map((migration, migrationIndex) => (
         <NestedCollapsibleSection
           key={`migration-${migrationIndex}`}

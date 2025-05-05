@@ -1,6 +1,6 @@
 {
-  "app/home/RealTimeVisualization/page.tsx -> ../../../components/SimulationVisualizer/SimulationVisualizer": {
-    "id": "app/home/RealTimeVisualization/page.tsx -> ../../../components/SimulationVisualizer/SimulationVisualizer",
+  "app/home/RealTimeVisualization/page.tsx -> @/components/SimulationVisualizer/SimulationVisualizer": {
+    "id": "app/home/RealTimeVisualization/page.tsx -> @/components/SimulationVisualizer/SimulationVisualizer",
     "files": [
       "static/chunks/_app-pages-browser_src_components_SimulationVisualizer_SimulationVisualizer_tsx.js"
     ]

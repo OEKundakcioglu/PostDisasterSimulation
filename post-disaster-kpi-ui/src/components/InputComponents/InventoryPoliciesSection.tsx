@@ -138,10 +138,6 @@ const InventoryPoliciesSection: React.FC<Props> = ({
 
   return (
     <>
-      <Typography variant="h5" gutterBottom sx={{ marginTop: 4 }}>
-        Inventory Policies
-      </Typography>
-
       {/* Buffer Ratios Section */}
       <NestedCollapsibleSection title="Buffer Ratios" level="secondary">
         {camps.map((camp) => (

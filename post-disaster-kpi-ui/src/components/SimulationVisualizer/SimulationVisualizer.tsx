@@ -1,682 +1,334 @@
+/* /components/SimulationVisualizer/SimulationVisualizer.tsx */
 "use client";
 
 import React, {
   useState,
   useEffect,
-  useCallback,
+  useMemo,
   useRef,
-  useLayoutEffect,
+  useCallback,
 } from "react";
-import { styled } from "@mui/material/styles";
 import {
   Box,
+  Paper,
   Typography,
   Grid,
-  Paper,
-  CircularProgress, // Added missing import
+  CircularProgress,
+  alpha,
 } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import dynamic from "next/dynamic";
-
 import { debounce } from "lodash";
-const Plot = dynamic(
-  () =>
-    import("react-plotly.js").catch((err) => {
-      console.error("Failed to load Plotly:", err);
-      const ErrorComponent = () => <div>Failed to load chart component</div>;
-      ErrorComponent.displayName = "PlotErrorFallback";
-      return ErrorComponent;
-    }),
-  {
-    ssr: false,
-    loading: () => (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-        <CircularProgress />
-      </Box>
-    ),
-  }
-);
 
-const COST_TYPE_COLORS: Record<string, string> = {
+/* -------- Plotly (client‑only) ------------------------------------- */
+const Plot = dynamic(() => import("react-plotly.js"), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ py: 6, display: "flex", justifyContent: "center" }}>
+      <CircularProgress />
+    </Box>
+  ),
+});
+
+/* -------- colours & order ----------------------------------------- */
+const COST_COLOUR: Record<string, string> = {
+  "Replenishment Cost": "#4CAF50",
+  "Deprivation Cost": "#F44336",
   "Holding Cost": "#FF9800",
   "Referral Cost": "#2196F3",
-  "Deprivation Cost": "#F44336",
-  "Replenishment Cost": "#4CAF50",
 };
+/* order for 2 × 2 grid */
+const PLOT_ORDER = [
+  "Replenishment Cost",
+  "Deprivation Cost",
+  "Holding Cost",
+  "Referral Cost",
+] as const;
 
-const CostList = styled("div")(({ theme }) => ({
-  display: "flex",
-  flexDirection: "column",
-  gap: "4px",
-  position: "relative",
-}));
+/* -------- sidebar styles ------------------------------------------ */
+const RankBox = styled(Box)({
+  maxHeight: "calc(100vh - 160px)", // fill column, then scroll
+  overflowY: "auto",
+  pr: 1,
+});
 
-interface CostItemProps {
-  costType: string;
-  index: number;
-  isMoving: boolean;
-}
-
-const CostItem = styled("div", {
-  shouldForwardProp: (prop) =>
-    prop !== "costType" && prop !== "index" && prop !== "isMoving",
-})<CostItemProps>(({ theme, costType, index, isMoving }) => ({
-  display: "flex",
+const RankItem = styled("div")<{
+  $colour: string;
+}>(({ $colour }) => ({
+  display: "grid",
+  gridTemplateColumns: "23px minmax(70px,1fr) 80px 80px",
   alignItems: "center",
-  padding: "8px 12px",
-  margin: "1px 0",
+  gap: 6,
+  padding: "6px 10px",
+  marginBottom: 2,
   background: "white",
-  borderRadius: "6px",
-  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
-  position: "absolute",
-  width: "calc(100% - 24px)",
-  left: 0,
-  transition: "transform 0.6s cubic-bezier(0.33, 1, 0.68, 1)",
-  borderLeft: `2px solid ${COST_TYPE_COLORS[costType] || "#ddd"}`,
-  transform: `translateY(${index * 40}px)`,
-  "&:hover": {
-    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+  borderLeft: `4px solid ${$colour}`,
+  borderRadius: 4,
+  fontSize: 12.5,
+  fontWeight: 500,
+  "& .camp": {
+    overflow: "hidden",
+    display: "-webkit-box",
+    WebkitLineClamp: 2, // wrap to max‑two lines then ellipsis
+    WebkitBoxOrient: "vertical",
   },
-  ...(isMoving && {
-    zIndex: 2,
-    background: `linear-gradient(to right, ${
-      COST_TYPE_COLORS[costType] ? `${COST_TYPE_COLORS[costType]}08` : "#e6ffe6"
-    }, white)`,
-  }),
 }));
 
-const CampName = styled(Typography)(({ theme }) => ({
-  fontWeight: 500,
-  fontSize: "11.5px",
-  flex: 1,
-  color: theme.palette.primary.dark,
-}));
-
-interface CostTypeProps {
-  costtype: string;
+/* -------- types ---------------------------------------------------- */
+interface IncomingPacket {
+  time?: number;
+  planningHorizon?: number;
+  cumulativeHoldingCosts?: Record<string, number>;
+  cumulativeReferralCosts?: Record<string, number>;
+  cumulativeDeprivationCosts?: Record<string, number>;
+  cumulativeReplenishmentCosts?: Record<string, number>;
 }
-
-const CostType = styled(Typography, {
-  shouldForwardProp: (prop) => prop !== "costtype",
-})<CostTypeProps>(({ theme, costtype }) => ({
-  color: COST_TYPE_COLORS[costtype] || theme.palette.text.primary,
-  marginRight: "12px",
-  fontSize: "11px",
-  fontWeight: 500,
-  opacity: 0.85,
-}));
-
-const CostValue = styled(Typography)(({ theme }) => ({
-  fontWeight: 600,
-  fontSize: "11.5px",
-  color: theme.palette.primary.dark,
-  minWidth: "100px",
-  textAlign: "right",
-}));
-
-const SimulationProgress = styled(Paper)(({ theme }) => ({
-  background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-  padding: "12px",
-  borderRadius: "8px",
-  color: "white",
-  textAlign: "center",
-  marginBottom: "20px",
-  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-}));
-
-const ProgressText = styled(Typography)(({ theme }) => ({
-  fontSize: "1.1em",
-  fontWeight: 500,
-  letterSpacing: "0.5px",
-}));
-
-const LoadingOverlay = styled(Box)(({ theme }) => ({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "20px",
-  background: "rgba(255, 255, 255, 0.8)",
-  borderRadius: "8px",
-  margin: "10px 0",
-}));
-
-const PlotFallback: React.FC<{ title: string; data: any[] }> = ({
-  title,
-  data,
-}) => {
-  return (
-    <Paper
-      sx={{
-        p: 2,
-        height: "250px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Typography variant="h6" color={COST_TYPE_COLORS[title] || "primary"}>
-        {title}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {data.length > 0
-          ? `Latest value: ${new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: "USD",
-            }).format(data[data.length - 1].cost)}`
-          : "No data available"}
-      </Typography>
-    </Paper>
-  );
-};
-
-interface SimulationVisualizerProps {
-  onConnectionChange?: (connected: boolean) => void;
-  onLoadingChange?: (loading: boolean) => void;
+interface Point {
+  t: number;
+  cost: number;
 }
-
-interface CostItem {
+interface CostEntry {
   camp: string;
-  costType: string;
+  type: string;
   cost: number;
 }
 
-interface PlotDataPoint {
-  time: number;
-  costs: {
-    [camp: string]: {
-      [costType: string]: number;
-    };
-  };
-}
+/* =================================================================== */
+const SimulationVisualizer: React.FC = () => {
+  const wsRef = useRef<WebSocket | null>(null);
 
-const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
-  onConnectionChange,
-  onLoadingChange,
-}) => {
-  const scrollPositionRef = useRef({ x: 0, y: 0 });
-  const saveScrollPosition = () => {
-    scrollPositionRef.current = {
-      x: window.scrollX,
-      y: window.scrollY,
-    };
-  };
-  const restoreScrollPosition = () => {
-    window.scrollTo(scrollPositionRef.current.x, scrollPositionRef.current.y);
-  };
-  const [costs, setCosts] = useState<CostItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedCosts = localStorage.getItem("costs");
-        return savedCosts ? JSON.parse(savedCosts) : [];
-      } catch (e) {
-        console.error("Error reading costs from localStorage:", e);
-        return [];
-      }
-    }
-    return [];
-  });
+  const [ready, setReady] = useState(false);
+  const [day, setDay] = useState<number | null>(null);
+  const [horizon, setHorizon] = useState<number | null>(null);
 
-  const [prevRanks, setPrevRanks] = useState<Record<string, number>>({});
+  const [ranking, setRanking] = useState<CostEntry[]>([]);
+  const [ts, setTs] = useState<Record<string, Record<string, Point[]>>>({}); // camp → type → series
 
-  const [timeSeriesData, setTimeSeriesData] = useState<any[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedData = localStorage.getItem("timeSeriesData");
-        return savedData ? JSON.parse(savedData) : [];
-      } catch (e) {
-        console.error("Error reading timeSeriesData from localStorage:", e);
-        return [];
-      }
-    }
-    return [];
-  });
-
-  const [funding, setFunding] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedFunding = localStorage.getItem("funding");
-        return savedFunding ? parseFloat(savedFunding) : 0;
-      } catch (e) {
-        console.error("Error reading funding from localStorage:", e);
-        return 0;
-      }
-    }
-    return 0;
-  });
-
-  const [connected, setConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [plotRevision, setPlotRevision] = useState(0);
-  const [plotData, setPlotData] = useState<PlotDataPoint[]>([]);
-  const [currentDay, setCurrentDay] = useState(0);
-  const [totalDays, setTotalDays] = useState(0);
-
+  /* -------- websocket --------------------------------------------- */
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("costs", JSON.stringify(costs));
-        localStorage.setItem("timeSeriesData", JSON.stringify(timeSeriesData));
-        localStorage.setItem("funding", funding.toString());
-      } catch (e) {
-        console.error("Error saving data to localStorage:", e);
-      }
-    }
-  }, [costs, timeSeriesData, funding]);
-
-  useEffect(() => {
-    if (onConnectionChange) {
-      onConnectionChange(connected);
-    }
-  }, [connected, onConnectionChange]);
-
-  useEffect(() => {
-    if (onLoadingChange) {
-      onLoadingChange(isLoading);
-    }
-  }, [isLoading, onLoadingChange]);
-
-  const processWebSocketData = useCallback(
-    debounce((data: any) => {
-      console.log("Processing WebSocket data:", data);
-
-      saveScrollPosition();
-
-      if (!data || Object.keys(data).length === 0) {
-        console.warn("Received empty data packet");
-        return;
-      }
-
-      try {
-        if (data.time !== undefined) {
-          setCurrentDay(Math.floor(data.time));
+    const connect = () => {
+      wsRef.current = new WebSocket("ws://localhost:8083/ws");
+      wsRef.current.onopen = () => setReady(true);
+      wsRef.current.onmessage = (evt) => {
+        try {
+          const pkt: IncomingPacket = JSON.parse(evt.data);
+          onPacket(pkt);
+        } catch (e) {
+          console.warn("WS parse error", e);
         }
-        if (data.planningHorizon !== undefined) {
-          setTotalDays(Math.floor(data.planningHorizon));
-        }
+      };
+      wsRef.current.onclose = () => {
+        setReady(false);
+        setTimeout(connect, 3000);
+      };
+    };
+    connect();
+    return () => wsRef.current?.close(1000, "unmount");
+  }, []);
 
-        const oldRanks: Record<string, number> = {};
-        costs.forEach((item, index) => {
-          oldRanks[`${item.camp}-${item.costType}`] = index;
-        });
-        setPrevRanks(oldRanks);
+  /* -------- packet handler (debounced) ---------------------------- */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const onPacket = useCallback(
+    debounce((pkt: IncomingPacket) => {
+      if (pkt.time !== undefined) setDay(pkt.time);
+      if (pkt.planningHorizon !== undefined) setHorizon(pkt.planningHorizon);
 
-        const newCosts: CostItem[] = [];
-        const costTypes = {
-          cumulativeHoldingCosts: "Holding Cost",
-          cumulativeReferralCosts: "Referral Cost",
-          cumulativeDeprivationCosts: "Deprivation Cost",
-          cumulativeReplenishmentCosts: "Replenishment Cost",
-        };
-
-        Object.entries(costTypes).forEach(([dataKey, costType]) => {
-          Object.entries(data[dataKey] || {}).forEach(([camp, cost]) => {
-            newCosts.push({
+      const make = (obj: Record<string, number> | undefined, label: string) =>
+        obj
+          ? Object.entries(obj).map<CostEntry>(([camp, cost]) => ({
               camp,
-              costType,
-              cost: cost as number,
-            });
+              type: label,
+              cost,
+            }))
+          : [];
+
+      const entries: CostEntry[] = [
+        ...make(pkt.cumulativeReplenishmentCosts, "Replenishment Cost"),
+        ...make(pkt.cumulativeDeprivationCosts, "Deprivation Cost"),
+        ...make(pkt.cumulativeHoldingCosts, "Holding Cost"),
+        ...make(pkt.cumulativeReferralCosts, "Referral Cost"),
+      ];
+
+      // ranking
+      setRanking(
+        entries.sort((a, b) => b.cost - a.cost || a.camp.localeCompare(b.camp))
+      );
+
+      // timeseries
+      if (pkt.time !== undefined) {
+        setTs((prev) => {
+          const next = { ...prev };
+          entries.forEach(({ camp, type, cost }) => {
+            if (!next[camp]) next[camp] = {};
+            if (!next[camp][type]) next[camp][type] = [];
+            next[camp][type].push({ t: pkt.time!, cost });
+            if (next[camp][type].length > 100) next[camp][type].shift();
           });
+          return next;
         });
-
-        newCosts.sort((a, b) => b.cost - a.cost);
-        setCosts(newCosts);
-
-        if (data.fundingReceived !== undefined) {
-          setFunding((prev) => prev + data.fundingReceived);
-        }
-
-        if (data.time !== undefined) {
-          setPlotData((prevData) => {
-            const newDataPoint: PlotDataPoint = {
-              time: data.time,
-              costs: {},
-            };
-
-            Object.entries(costTypes).forEach(([dataKey, costType]) => {
-              Object.entries(data[dataKey] || {}).forEach(([camp, cost]) => {
-                if (!newDataPoint.costs[camp]) {
-                  newDataPoint.costs[camp] = {};
-                }
-                newDataPoint.costs[camp][costType] = cost as number;
-              });
-            });
-
-            // Keep only last 100 points per camp/cost type
-            const updatedData = [...prevData, newDataPoint];
-            if (updatedData.length > 100) {
-              return updatedData.slice(-100);
-            }
-            return updatedData;
-          });
-
-          setPlotRevision((prev) => prev + 1);
-        }
-        setTimeout(restoreScrollPosition, 0);
-      } catch (e) {
-        console.error("Error processing data:", e);
       }
-    }, 500),
-    [costs]
+    }, 250),
+    []
   );
 
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
-    let reconnectAttempts = 0;
-    const MAX_RECONNECT_ATTEMPTS = 5;
-    const RECONNECT_DELAY = 3000;
+  /* -------- derived ---------------------------------------------- */
+  const topCamps = useMemo(
+    () => Array.from(new Set(ranking.map((e) => e.camp))).slice(0, 4),
+    [ranking]
+  );
 
-    const connectWebSocket = () => {
-      if (typeof window !== "undefined") {
-        try {
-          if (ws) {
-            ws.close();
-          }
+  const headline =
+    day === null || horizon === null
+      ? "Awaiting data …"
+      : `Day ${Math.floor(day)} of ${Math.floor(horizon)}`;
 
-          console.log("Attempting to connect to WebSocket...");
-          ws = new WebSocket("ws://localhost:8083/ws");
-
-          ws.onopen = () => {
-            console.log("Connected to Spring Boot WebSocket");
-            setConnected(true);
-            setIsLoading(false);
-            reconnectAttempts = 0;
-          };
-
-          ws.onclose = (event) => {
-            console.log(
-              `WebSocket closed: ${event.code} - ${
-                event.reason || "No reason provided"
-              }`
-            );
-            setConnected(false);
-
-            if (
-              event.code !== 1000 &&
-              reconnectAttempts < MAX_RECONNECT_ATTEMPTS
-            ) {
-              reconnectAttempts++;
-              console.log(
-                `Reconnecting... Attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`
-              );
-              reconnectTimeout = setTimeout(connectWebSocket, RECONNECT_DELAY);
-            } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-              console.log("Max reconnection attempts reached");
-            }
-          };
-
-          ws.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              console.log("Received WebSocket data:", data);
-              setIsLoading(false);
-              processWebSocketData(data);
-            } catch (e) {
-              console.error("Error processing WebSocket message:", e);
-            }
-          };
-
-          ws.onerror = (error) => {
-            console.error("WebSocket error:", error);
-          };
-        } catch (error) {
-          console.error("Failed to connect to WebSocket:", error);
-
-          if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttempts++;
-            console.log(
-              `Reconnecting... Attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`
-            );
-            reconnectTimeout = setTimeout(connectWebSocket, RECONNECT_DELAY);
-          }
-        }
-      }
-    };
-
-    connectWebSocket();
-
-    return () => {
-      if (ws) {
-        ws.close(1000, "Component unmounted");
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-    };
-  }, [processWebSocketData]);
-
-  const formatCost = (cost: number): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(cost);
-  };
-
-  const renderRankings = () => {
-    if (isLoading && costs.length === 0) {
-      return (
-        <LoadingOverlay>
-          <CircularProgress size={40} sx={{ marginRight: 2 }} />
-          <Typography>Loading data...</Typography>
-        </LoadingOverlay>
-      );
-    }
-
-    const sortedCosts = [...costs].sort((a, b) => b.cost - a.cost);
-    const totalHeight = sortedCosts.length * 40;
-
-    return (
-      <CostList sx={{ height: `${totalHeight}px` }}>
-        {sortedCosts.map((item, index) => {
-          const key = `${item.camp}-${item.costType}`;
-          const prevRank = prevRanks[key];
-          const isMoving = prevRank !== undefined && prevRank !== index;
-
-          return (
-            <CostItem
-              key={key}
-              costType={item.costType}
-              index={index}
-              isMoving={isMoving}
-            >
-              <CampName>{item.camp}</CampName>
-              <CostType costtype={item.costType}>{item.costType}</CostType>
-              <CostValue>{formatCost(item.cost)}</CostValue>
-            </CostItem>
-          );
-        })}
-      </CostList>
-    );
-  };
-
-  const renderPlots = () => {
-    if (!connected) {
-      return (
-        <LoadingOverlay>
-          <CircularProgress size={40} sx={{ marginRight: 2 }} />
-          <Typography></Typography>
-        </LoadingOverlay>
-      );
-    }
-
-    if (plotData.length === 0) {
-      return (
-        <LoadingOverlay>
-          <CircularProgress size={40} sx={{ marginRight: 2 }} />
-          <Typography>
-            Connected to server. Waiting for simulation data...
-          </Typography>
-        </LoadingOverlay>
-      );
-    }
-    if (plotData.length === 0) {
-      return (
-        <LoadingOverlay>
-          <CircularProgress size={40} sx={{ marginRight: 2 }} />
-          <Typography>Waiting for time series data...</Typography>
-        </LoadingOverlay>
-      );
-    }
-
-    const camps = Array.from(new Set(costs.map((item) => item.camp)));
-    const costTypes = [
-      "Holding Cost",
-      "Referral Cost",
-      "Deprivation Cost",
-      "Replenishment Cost",
-    ];
-
-    const allCosts = plotData.flatMap((data) =>
-      Object.values(data.costs).flatMap((campCosts) =>
-        Object.values(campCosts).filter(
-          (cost) => typeof cost === "number" && cost > 0
-        )
-      )
-    );
-
-    const globalMax = Math.max(1, ...allCosts);
-    const ymax = globalMax * 1.1;
-
-    const timeMin = Math.min(...plotData.map((d) => d.time));
-    const timeMax = Math.max(...plotData.map((d) => d.time));
-
-    return (
-      <Box>
-        {camps.map((camp) => (
-          <Paper
-            key={camp}
-            sx={{
-              margin: "0 0 20px 0",
-              padding: "15px",
-              borderRadius: "10px",
-            }}
-          >
-            <Box sx={{ marginBottom: "20px", textAlign: "center" }}>
-              <Typography
-                variant="h5"
-                sx={{ fontWeight: "bold", color: "#333", marginBottom: "20px" }}
-              >
-                {camp}
-              </Typography>
-            </Box>
-
-            <Grid container spacing={2}>
-              {costTypes.map((costType) => {
-                const plotPoints = plotData
-                  .filter(
-                    (d) =>
-                      d.costs[camp] &&
-                      typeof d.costs[camp][costType] === "number"
-                  )
-                  .map((d) => ({
-                    time: d.time,
-                    cost: d.costs[camp][costType],
-                  }))
-                  .sort((a, b) => a.time - b.time);
-
-                return (
-                  <Grid
-                    item
-                    xs={12}
-                    md={6}
-                    key={`${camp}-${costType}-${plotRevision}`}
-                  >
-                    {typeof window !== "undefined" && Plot ? (
-                      <Plot
-                        data={[
-                          {
-                            x: plotPoints.map((d) => d.time),
-                            y: plotPoints.map((d) => d.cost),
-                            type: "scatter",
-                            mode: "lines",
-                            line: {
-                              color: COST_TYPE_COLORS[costType],
-                              width: 2,
-                              shape: "linear",
-                            },
-                            name: costType,
-                          },
-                        ]}
-                        layout={{
-                          title: {
-                            text: costType,
-                            font: {
-                              size: 14,
-                              color: COST_TYPE_COLORS[costType],
-                            },
-                          },
-                          xaxis: {
-                            title: "Time",
-                            showgrid: true,
-                            gridcolor: "#f0f0f0",
-                            tickformat: ".0f",
-                            range: [timeMin, timeMax + 5],
-                          },
-                          yaxis: {
-                            title: "Cost",
-                            showgrid: true,
-                            gridcolor: "#f0f0f0",
-                            range: [0, ymax],
-                            tickformat: ".2s",
-                          },
-                          paper_bgcolor: "white",
-                          plot_bgcolor: "white",
-                          height: 250,
-                          margin: { t: 30, l: 60, r: 30, b: 40 },
-                          showlegend: false,
-                          hovermode: "closest",
-                          uirevision: "static",
-                        }}
-                        config={{
-                          responsive: true,
-                          displayModeBar: false,
-                          staticPlot: false,
-                        }}
-                        useResizeHandler={true}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    ) : (
-                      <PlotFallback title={costType} data={plotPoints} />
-                    )}
-                  </Grid>
-                );
-              })}
-            </Grid>
-          </Paper>
-        ))}
-      </Box>
-    );
-  };
-
+  /* -------- render ------------------------------------------------ */
   return (
     <Box>
-      <SimulationProgress>
-        <ProgressText>
-          Simulation Day: {Math.floor(currentDay)} / {Math.floor(totalDays)}
-        </ProgressText>
-      </SimulationProgress>
+      {/* banner */}
+      <Paper
+        sx={{
+          mb: 3,
+          p: 2,
+          color: "primary.contrastText",
+          background: (t) =>
+            `linear-gradient(135deg, ${t.palette.primary.dark} 0%, ${t.palette.primary.main} 100%)`,
+        }}
+      >
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {headline}
+        </Typography>
+      </Paper>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4} lg={3}>
-          <Paper sx={{ padding: 2, borderRadius: "10px" }}>
-            <Typography variant="h6" sx={{ marginBottom: 2 }}>
-              Cost Rankings
-            </Typography>
-            {renderRankings()}
-          </Paper>
-        </Grid>
+      {!ready && (
+        <Box sx={{ py: 6, textAlign: "center" }}>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>Connecting …</Typography>
+        </Box>
+      )}
 
-        <Grid item xs={12} md={8} lg={9}>
-          <Paper sx={{ padding: 2, borderRadius: "10px" }}>
-            <Typography variant="h6" sx={{ marginBottom: 2 }}>
-              Cost Visualization
-            </Typography>
-            {renderPlots()}
-          </Paper>
+      {ready && (
+        <Grid container spacing={3}>
+          {/* -------- sidebar ------------------------------------- */}
+          <Grid item xs={12} md={4} lg={3}>
+            <Paper sx={{ p: 2, height: "100%" }}>
+              <RankBox>
+                {ranking.map(({ camp, type, cost }, idx) => (
+                  <RankItem key={`${camp}-${type}`} $colour={COST_COLOUR[type]}>
+                    <span>{idx + 1}.</span>
+                    <span className="camp" title={camp}>
+                      {camp}
+                    </span>
+                    <span
+                      style={{
+                        color: COST_COLOUR[type],
+                        fontWeight: 600,
+                      }}
+                    >
+                      {type}
+                    </span>
+                    <span style={{ textAlign: "right" }}>
+                      {cost.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                        maximumFractionDigits: 0,
+                      })}
+                    </span>
+                  </RankItem>
+                ))}
+              </RankBox>
+            </Paper>
+          </Grid>
+
+          {/* -------- plots --------------------------------------- */}
+          <Grid item xs={12} md={8} lg={9}>
+            <Paper sx={{ p: 2 }}>
+              {topCamps.length === 0 ? (
+                <Box sx={{ py: 6, textAlign: "center" }}>
+                  <Typography color="text.secondary">
+                    Waiting for simulation …
+                  </Typography>
+                </Box>
+              ) : (
+                topCamps.map((camp) => (
+                  <Box key={camp} sx={{ mb: 4 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: 600, mb: 1 }}
+                    >
+                      {camp}
+                    </Typography>
+
+                    <Grid container spacing={2}>
+                      {PLOT_ORDER.map((type) => {
+                        const series = ts[camp]?.[type] || [];
+                        return (
+                          <Grid item xs={12} md={6} key={type}>
+                            {series.length === 0 ? (
+                              <Box
+                                sx={{
+                                  height: 200,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  border: "1px dashed #ddd",
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <Typography color="text.secondary">
+                                  No {type} data yet
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Plot
+                                data={[
+                                  {
+                                    x: series.map((p) => p.t),
+                                    y: series.map((p) => p.cost),
+                                    type: "scatter",
+                                    mode: "lines",
+                                    line: {
+                                      width: 2,
+                                      color: COST_COLOUR[type],
+                                    },
+                                    name: type,
+                                  },
+                                ]}
+                                layout={{
+                                  height: 220,
+                                  margin: { t: 25, l: 50, r: 10, b: 40 },
+                                  title: {
+                                    text: type,
+                                    font: {
+                                      size: 14,
+                                      color: COST_COLOUR[type],
+                                    },
+                                  },
+                                  xaxis: { title: "Day" },
+                                  yaxis: { title: "Cost" },
+                                  paper_bgcolor: "white",
+                                  plot_bgcolor: "white",
+                                  showlegend: false,
+                                }}
+                                config={{
+                                  responsive: true,
+                                  displayModeBar: false,
+                                }}
+                                useResizeHandler
+                                style={{ width: "100%" }}
+                              />
+                            )}
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+                  </Box>
+                ))
+              )}
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
     </Box>
   );
 };
