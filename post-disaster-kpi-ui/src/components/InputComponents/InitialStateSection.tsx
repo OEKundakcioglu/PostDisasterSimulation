@@ -3,10 +3,10 @@ import {
   Typography,
   Grid,
   TextField,
-  Paper,
   Checkbox,
   FormControlLabel,
 } from "@mui/material";
+import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
 interface InitialState {
   availableFunds: string;
@@ -115,12 +115,8 @@ const InitialStateSection: React.FC<Props> = ({
 
   return (
     <>
-      <Typography variant="h5" gutterBottom sx={{ marginTop: 4 }}>
-        Initial State Configuration
-      </Typography>
-
       {/* Available Funds */}
-      <Paper sx={{ padding: 2, marginTop: 2 }}>
+      <NestedCollapsibleSection title="Available Funds" level="secondary">
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={4}>
             <TextField
@@ -131,21 +127,16 @@ const InitialStateSection: React.FC<Props> = ({
             />
           </Grid>
         </Grid>
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Initial Inventory */}
-      <Paper sx={{ padding: 2, marginTop: 4 }}>
-        <Typography variant="h6" sx={{ marginBottom: 2 }}>
-          Initial Inventory
-        </Typography>
+      <NestedCollapsibleSection title="Initial Inventory" level="secondary">
         {camps.map((camp) => (
-          <Paper
+          <NestedCollapsibleSection
             key={`inventory-${camp.name}`}
-            sx={{ padding: 2, marginTop: 2 }}
+            title={`Camp: ${camp.name}`}
+            level="tertiary"
           >
-            <Typography variant="subtitle1" sx={{ marginBottom: 2 }}>
-              {camp.name}
-            </Typography>
             <Grid container spacing={2}>
               {items.map((item) => (
                 <Grid
@@ -173,15 +164,15 @@ const InitialStateSection: React.FC<Props> = ({
                 </Grid>
               ))}
             </Grid>
-          </Paper>
+          </NestedCollapsibleSection>
         ))}
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Initial Central Warehouse Inventory */}
-      <Paper sx={{ padding: 2, marginTop: 4 }}>
-        <Typography variant="h6" sx={{ marginBottom: 2 }}>
-          Initial Central Warehouse Inventory
-        </Typography>
+      <NestedCollapsibleSection
+        title="Initial Central Warehouse Inventory"
+        level="secondary"
+      >
         <Grid container spacing={2}>
           {items.map((item) => (
             <Grid item xs={12} sm={6} md={4} key={`central-${item.name}`}>
@@ -202,13 +193,10 @@ const InitialStateSection: React.FC<Props> = ({
             </Grid>
           ))}
         </Grid>
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Earmarked Funds */}
-      <Paper sx={{ padding: 2, marginTop: 4 }}>
-        <Typography variant="h6" sx={{ marginBottom: 2 }}>
-          Earmarked Funds
-        </Typography>
+      <NestedCollapsibleSection title="Earmarked Funds" level="secondary">
         <Grid container spacing={2}>
           {camps.map((camp) => (
             <Grid item xs={12} sm={6} md={4} key={`earmarked-${camp.name}`}>
@@ -223,18 +211,19 @@ const InitialStateSection: React.FC<Props> = ({
             </Grid>
           ))}
         </Grid>
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Initial Earmarked In-Kind */}
-      <Paper sx={{ padding: 2, marginTop: 4 }}>
-        <Typography variant="h6" sx={{ marginBottom: 2 }}>
-          Initial Earmarked In-Kind
-        </Typography>
+      <NestedCollapsibleSection
+        title="Initial Earmarked In-Kind"
+        level="secondary"
+      >
         {camps.map((camp) => (
-          <Paper key={`in-kind-${camp.name}`} sx={{ padding: 2, marginTop: 2 }}>
-            <Typography variant="subtitle1" sx={{ marginBottom: 2 }}>
-              {camp.name}
-            </Typography>
+          <NestedCollapsibleSection
+            key={`in-kind-${camp.name}`}
+            title={`Camp: ${camp.name}`}
+            level="tertiary"
+          >
             <Grid container spacing={2}>
               {items.map((item) => (
                 <Grid
@@ -263,15 +252,12 @@ const InitialStateSection: React.FC<Props> = ({
                 </Grid>
               ))}
             </Grid>
-          </Paper>
+          </NestedCollapsibleSection>
         ))}
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Is Item Available */}
-      <Paper sx={{ padding: 2, marginTop: 4 }}>
-        <Typography variant="h6" sx={{ marginBottom: 2 }}>
-          Item Availability
-        </Typography>
+      <NestedCollapsibleSection title="Item Availability" level="secondary">
         <Grid container spacing={2}>
           {items.map((item) => (
             <Grid item xs={12} sm={6} md={4} key={`availability-${item.name}`}>
@@ -289,7 +275,7 @@ const InitialStateSection: React.FC<Props> = ({
             </Grid>
           ))}
         </Grid>
-      </Paper>
+      </NestedCollapsibleSection>
     </>
   );
 };

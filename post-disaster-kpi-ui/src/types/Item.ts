@@ -7,20 +7,27 @@ export interface Item {
   deprivationRate: string;
   deprivationCoefficient: string;
   referralCost: string;
-  durationData?: {
-    distributionType: string;
-    distParameters: {
-      min: string;
-      max: string;
-    };
-  };
   leadTimeData: {
-    distributionType: string;
-    distParameters: {
-      min?: string;
-      mode?: string;
-      max?: string;
-      mean?: string;
-    };
+    distributionType:
+      | "TRIANGULAR"
+      | "EXPONENTIAL"
+      | "BERNOULLI"
+      | "FIXED"
+      | "NORMAL"
+      | "EQUAL_SHARE"
+      | "UNIFORM";
+    distParameters: DistParameters;
+  };
+  durationData?: {
+    distributionType: "UNIFORM" | "NORMAL";
+    distParameters: DistParameters;
   };
 }
+
+// Create a discriminated union type for different distribution parameters
+export type DistParameters =
+  | { min: string; mode: string; max: string } // TRIANGULAR
+  | { mean: string } // EXPONENTIAL, FIXED, EQUAL_SHARE
+  | { mean: string; arrivalInterval: string; initialArrival: boolean } // BERNOULLI
+  | { min: string; max: string } // UNIFORM
+  | { mean: string; stdDev: string }; // NORMAL

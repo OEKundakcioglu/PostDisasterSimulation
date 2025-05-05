@@ -1,16 +1,16 @@
 simulationConfig:
-  seedDemandTime: 10
-  seedDemandQuantity: 15
-  seedItemDuration: 14
-  seedSupplyDisruptionTime: 11
-  seedSupplyDisruptionDuration: 18
-  seedMigrationTime: 13
-  seedMigrationQuantity: 17
-  seedFundingTime: 13
-  seedFundingAmount: 16
-  seedReplenishmentTime: 14
-  seedTransferTime: 15
-  seedTransshipmentTime: 16
+  seedDemandTime: 0
+  seedDemandQuantity: 0
+  seedItemDuration: 0
+  seedSupplyDisruptionTime: 0
+  seedSupplyDisruptionDuration: 0
+  seedMigrationTime: 0
+  seedMigrationQuantity: 0
+  seedFundingTime: 0
+  seedFundingAmount: 0
+  seedReplenishmentTime: 0
+  seedTransferTime: 0
+  seedTransshipmentTime: 0
   inventoryControlType: PERIODIC
   inventoryControlPeriod: &period 5
   planningHorizon: 1080
@@ -20,7 +20,7 @@ simulationConfig:
   campBuffer: &campBuffer 0
   centralBuffer: &centralBuffer 0
 items:
-  - &goods
+  - &hygienekit
     name: HygieneKit
     isPerishable: false
     price: 5
@@ -56,7 +56,7 @@ items:
         mode: 2
         max: 4
 camps:
-  - &hatay1
+  - &hatay-1
     name: Hatay-1
     leadTimeData:
       distributionType: TRIANGULAR
@@ -65,7 +65,7 @@ camps:
         mode: 2
         max: 4
     demands:
-      - item: *goods
+      - item: *hygienekit
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
         arrivalData:
@@ -87,7 +87,7 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 2142
     initialExternalPopulation: 144105
-  - &hatay2
+  - &hatay-2
     name: Hatay-2
     leadTimeData:
       distributionType: TRIANGULAR
@@ -96,7 +96,7 @@ camps:
         mode: 2
         max: 4
     demands:
-      - item: *goods
+      - item: *hygienekit
         demandTimingType: SPORADIC
         demandQuantityType: SINGLE
         arrivalData:
@@ -118,37 +118,6 @@ camps:
     populationType: REGULAR
     initialInternalPopulation: 2142
     initialExternalPopulation: 144105
-  - &birrr
-    name: birrr
-    leadTimeData:
-      distributionType: TRIANGULAR
-      distParameters: !!data.distribution.DistTriangular
-        min: 1
-        mode: 2
-        max: 3
-    demands:
-      - item: *goods
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
-      - item: *medicine
-        demandTimingType: SPORADIC
-        demandQuantityType: SINGLE
-        arrivalData:
-          distributionType: EXPONENTIAL
-          distParameters: !!data.distribution.DistExponential
-            mean: 0.033
-        internalRatio: 0.2
-        externalRatio: 0.02
-    campExternalDemandSatisfactionType: FULLY
-    populationType: REGULAR
-    initialInternalPopulation: 0
-    initialExternalPopulation: 0
 agencies:
   - name: Government
     fundingArray:
@@ -164,9 +133,9 @@ agencies:
           distParameters: !!data.distribution.DistEqualShare
             mean: 14900000
 migrations:
-  - fromCamp: *hatay1
-    toCamp: *hatay2
-    migrationType: INTERNAL_WITHIN_SYSTEM
+  - migrationType: INTERNAL_WITHIN_SYSTEM
+    fromCamp: *hatay-1
+    toCamp: *hatay-2
     arrivalData:
       distributionType: FIXED
       distParameters: !!data.distribution.DistFixed
@@ -174,60 +143,47 @@ migrations:
     migrationRatio: 0.05
 inventoryPolicy: !!simulation.decision.OrderUpToPolicy
   bufferRatios:
-    *hatay1:
-      *goods: *campBuffer
+    *hatay-1:
+      *hygienekit: *campBuffer
       *medicine: *campBuffer
-    *hatay2:
-      *goods: *campBuffer
-      *medicine: *campBuffer
-    *birrr:
-      *goods: *campBuffer
+    *hatay-2:
+      *hygienekit: *campBuffer
       *medicine: *campBuffer
   centralBufferRatios:
-    *goods: *centralBuffer
+    *hygienekit: *centralBuffer
     *medicine: *centralBuffer
   periodicCounts:
-    *hatay1:
-      *goods: *period
+    *hatay-1:
+      *hygienekit: *period
       *medicine: *period
-    *hatay2:
-      *goods: *period
-      *medicine: *period
-    *birrr:
-      *goods: *period
+    *hatay-2:
+      *hygienekit: *period
       *medicine: *period
   centralPeriodicCounts:
-    *goods: *period
+    *hygienekit: *period
     *medicine: *period
 initialState:
   availableFunds: 0
   initialInventory:
-    *hatay1:
-      *goods: 0
+    *hatay-1:
+      *hygienekit: 0
       *medicine: 0
-    *hatay2:
-      *goods: 0
-      *medicine: 0
-    *birrr:
-      *goods: 0
+    *hatay-2:
+      *hygienekit: 0
       *medicine: 0
   initialCentralWarehouseInventory:
-    *goods: 0
+    *hygienekit: 0
     *medicine: 0
   earmarkedFunds:
-    *hatay1: 0
-    *hatay2: 0
-    *birrr: 0
+    *hatay-1: 0
+    *hatay-2: 0
   initialEarmarkedInKind:
-    *hatay1:
-      *goods: 0
+    *hatay-1:
+      *hygienekit: 0
       *medicine: 0
-    *hatay2:
-      *goods: 0
-      *medicine: 0
-    *birrr:
-      *goods: 0
+    *hatay-2:
+      *hygienekit: 0
       *medicine: 0
   isItemAvailable:
-    *goods: true
+    *hygienekit: true
     *medicine: true

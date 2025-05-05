@@ -1,4 +1,4 @@
-// File: /Users/enestanrikulu/Desktop/Jupyter/PostDisasterSimulation/post-disaster-kpi-ui/src/app/home/InputParameters/page.tsx
+// File: /Users/enestanrikulu/Desktop/everything/Jupyter/PostDisasterSimulation/post-disaster-kpi-ui/src/app/home/InputParameters/page.tsx
 import * as entry from '../../../../../src/app/home/InputParameters/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

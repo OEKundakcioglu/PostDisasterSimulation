@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -10,6 +10,12 @@ import {
   Alert,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
+
+// Import collapsible components
+import {
+  CollapsibleSection,
+  NestedCollapsibleSection,
+} from "../../../components/CollapsibleSections/CollapsibleSections";
 
 // Import subcomponents
 import SimulationConfigSection from "../../../components/InputComponents/SimulationConfigSection";
@@ -21,6 +27,7 @@ import InventoryPoliciesSection from "../../../components/InputComponents/Invent
 import InitialStateSection from "../../../components/InputComponents/InitialStateSection";
 import { Item } from "../../../types/Item";
 
+// All interface definitions remain the same
 interface SimulationConfig {
   [key: string]: string | boolean;
 }
@@ -118,18 +125,18 @@ const InputParameters = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [simulationConfig, setSimulationConfig] = useState<SimulationConfig>({
-    seedDemandTime: "10",
-    seedDemandQuantity: "15",
-    seedItemDuration: "14",
-    seedSupplyDisruptionTime: "11",
-    seedSupplyDisruptionDuration: "18",
-    seedMigrationTime: "13",
-    seedMigrationQuantity: "17",
-    seedFundingTime: "13",
-    seedFundingAmount: "16",
-    seedReplenishmentTime: "14",
-    seedTransferTime: "15",
-    seedTransshipmentTime: "16",
+    seedDemandTime: "0",
+    seedDemandQuantity: "0",
+    seedItemDuration: "0",
+    seedSupplyDisruptionTime: "0",
+    seedSupplyDisruptionDuration: "0",
+    seedMigrationTime: "0",
+    seedMigrationQuantity: "0",
+    seedFundingTime: "0",
+    seedFundingAmount: "0",
+    seedReplenishmentTime: "0",
+    seedTransferTime: "0",
+    seedTransshipmentTime: "0",
     inventoryControlType: "PERIODIC",
     inventoryControlPeriod: "5",
     planningHorizon: "1080",
@@ -334,6 +341,162 @@ const InputParameters = () => {
     },
   });
 
+  // Create ref at component level
+  const prevItemsRef = React.useRef<Item[]>([]);
+
+  // Replace the existing useEffect that handles items changes with this one
+  useEffect(() => {
+    // Find newly added items by comparing current items with previous items
+    const newItems = items.filter(
+      (item) =>
+        item.name &&
+        !prevItemsRef.current.some((prevItem) => prevItem.name === item.name)
+    );
+
+    if (newItems.length > 0) {
+      // For each new item, add it as a demand to all camps but only if they don't already have it
+      const updatedCamps = camps.map((camp) => {
+        // Create a copy of the camp
+        const updatedCamp = { ...camp };
+        const campItemNames = new Set(
+          updatedCamp.demands.map((demand) => demand.item)
+        );
+
+        // For each new item, create a new demand ONLY if it doesn't exist already
+        newItems.forEach((newItem) => {
+          if (newItem.name && !campItemNames.has(newItem.name)) {
+            // Only add if item has a name AND camp doesn't already have this item
+            updatedCamp.demands.push({
+              item: newItem.name,
+              demandTimingType: "SPORADIC",
+              demandQuantityType: "SINGLE",
+              arrivalData: {
+                distributionType: "EXPONENTIAL",
+                distParameters: { mean: "0.033" },
+              },
+              internalRatio: "0.2",
+              externalRatio: "0.02",
+            });
+          }
+        });
+
+        return updatedCamp;
+      });
+
+      // Update camps without triggering the effect again
+      setCamps(updatedCamps);
+    }
+
+    // Clean up deleted items from camps - only if items were actually deleted
+    const itemNames = new Set(items.map((item) => item.name).filter(Boolean));
+    const itemsDeleted = prevItemsRef.current.some(
+      (prevItem) => prevItem.name && !itemNames.has(prevItem.name)
+    );
+
+    if (itemsDeleted) {
+      const updatedCamps = camps.map((camp) => {
+        const updatedDemands = camp.demands.filter((demand) => {
+          return !demand.item || itemNames.has(demand.item);
+        });
+
+        return {
+          ...camp,
+          demands: updatedDemands,
+        };
+      });
+
+      setCamps(updatedCamps);
+    }
+
+    // Update initialState's isItemAvailable mapping
+    const newIsItemAvailable: { [itemName: string]: boolean } = {};
+    items.forEach((item) => {
+      if (item.name) {
+        newIsItemAvailable[item.name] =
+          initialState.isItemAvailable[item.name] !== undefined
+            ? initialState.isItemAvailable[item.name]
+            : true;
+      }
+    });
+
+    setInitialState((prev) => ({
+      ...prev,
+      isItemAvailable: newIsItemAvailable,
+    }));
+
+    // Update our ref for the next run
+    prevItemsRef.current = JSON.parse(JSON.stringify(items));
+  }, [items]); // Remove camps from dependency array to prevent infinite loops
+
+  // Add this effect to load saved configuration
+  useEffect(() => {
+    try {
+      // Check if we have saved configuration data
+      const savedInputData = localStorage.getItem("simulationInputData");
+      if (savedInputData) {
+        const parsedData = JSON.parse(savedInputData);
+
+        // Restore all configuration from saved data
+        if (parsedData.simulationConfig)
+          setSimulationConfig(parsedData.simulationConfig);
+        if (parsedData.items) setItems(parsedData.items);
+        if (parsedData.camps) setCamps(parsedData.camps);
+        if (parsedData.agencies) setAgencies(parsedData.agencies);
+        if (parsedData.migrations) setMigrations(parsedData.migrations);
+        if (parsedData.inventoryPolicy)
+          setInventoryPolicy(parsedData.inventoryPolicy);
+        if (parsedData.initialState) setInitialState(parsedData.initialState);
+
+        // Show success message
+        setSuccessMessage("Previous configuration loaded successfully!");
+        // Clear message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+    } catch (error) {
+      console.error("Error loading saved configuration:", error);
+    }
+  }, []);
+
+  // In InputParameters/page.tsx in the existing useEffect
+  useEffect(() => {
+    try {
+      // Check if we were redirected from the visualization page
+      const preserveLastConfig = localStorage.getItem("preserveLastConfig");
+
+      if (preserveLastConfig === "true") {
+        // Clear the flag
+        localStorage.removeItem("preserveLastConfig");
+
+        // Get saved input data
+        const savedInputData = localStorage.getItem("simulationInputData");
+        if (savedInputData) {
+          try {
+            const parsedData = JSON.parse(savedInputData);
+
+            // Restore all configuration from saved data
+            if (parsedData.simulationConfig)
+              setSimulationConfig(parsedData.simulationConfig);
+            if (parsedData.items) setItems(parsedData.items);
+            if (parsedData.camps) setCamps(parsedData.camps);
+            if (parsedData.agencies) setAgencies(parsedData.agencies);
+            if (parsedData.migrations) setMigrations(parsedData.migrations);
+            if (parsedData.inventoryPolicy)
+              setInventoryPolicy(parsedData.inventoryPolicy);
+            if (parsedData.initialState)
+              setInitialState(parsedData.initialState);
+
+            setSuccessMessage("Previous configuration restored successfully!");
+            setTimeout(() => setSuccessMessage(null), 3000);
+          } catch (parseError) {
+            console.error("Error parsing saved configuration:", parseError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error loading saved configuration:", error);
+    }
+  }, []);
+
   const handleSubmit = async () => {
     try {
       setIsLoading(true);
@@ -349,6 +512,9 @@ const InputParameters = () => {
         inventoryPolicy,
         initialState,
       };
+
+      // Save it to localStorage so we can retrieve it later
+      localStorage.setItem("currentSimulationData", JSON.stringify(dataToSend));
 
       const response = await fetch("/api/runSimulation", {
         method: "POST",
@@ -401,48 +567,60 @@ const InputParameters = () => {
       )}
 
       <Paper sx={{ padding: 4 }}>
-        {/* Simulation Configuration Section */}
-        <SimulationConfigSection
-          simulationConfig={simulationConfig}
-          setSimulationConfig={setSimulationConfig}
-        />
+        {/* Sections reordered as requested */}
+        <CollapsibleSection title="Items">
+          <ItemsSection items={items} setItems={setItems} />
+        </CollapsibleSection>
 
-        {/* Items Section */}
-        <ItemsSection items={items} setItems={setItems} />
+        <CollapsibleSection title="Camps">
+          <CampsSection camps={camps} setCamps={setCamps} items={items} />
+        </CollapsibleSection>
 
-        {/* Camps Section */}
-        <CampsSection camps={camps} setCamps={setCamps} items={items} />
+        <CollapsibleSection title="Agencies">
+          <AgenciesSection
+            agencies={agencies}
+            setAgencies={setAgencies}
+            items={items}
+          />
+        </CollapsibleSection>
 
-        {/* Agencies Section */}
-        <AgenciesSection agencies={agencies} setAgencies={setAgencies} />
+        <CollapsibleSection title="Migrations">
+          <MigrationsSection
+            migrations={migrations}
+            setMigrations={setMigrations}
+            camps={camps}
+          />
+        </CollapsibleSection>
 
-        {/* Migrations Section */}
-        <MigrationsSection
-          migrations={migrations}
-          setMigrations={setMigrations}
-          camps={camps}
-        />
+        <CollapsibleSection title="Inventory Policies">
+          <InventoryPoliciesSection
+            inventoryPolicy={inventoryPolicy}
+            setInventoryPolicy={setInventoryPolicy}
+            camps={camps}
+            items={items}
+            campBuffer={String(simulationConfig.campBuffer)}
+            centralBuffer={String(simulationConfig.centralBuffer)}
+            inventoryControlPeriod={String(
+              simulationConfig.inventoryControlPeriod
+            )}
+          />
+        </CollapsibleSection>
 
-        {/* Inventory Policies Section */}
-        <InventoryPoliciesSection
-          inventoryPolicy={inventoryPolicy}
-          setInventoryPolicy={setInventoryPolicy}
-          camps={camps}
-          items={items}
-          campBuffer={String(simulationConfig.campBuffer)}
-          centralBuffer={String(simulationConfig.centralBuffer)}
-          inventoryControlPeriod={String(
-            simulationConfig.inventoryControlPeriod
-          )}
-        />
+        <CollapsibleSection title="Initial State">
+          <InitialStateSection
+            initialState={initialState}
+            setInitialState={setInitialState}
+            camps={camps}
+            items={items}
+          />
+        </CollapsibleSection>
 
-        {/* Initial State Section */}
-        <InitialStateSection
-          initialState={initialState}
-          setInitialState={setInitialState}
-          camps={camps}
-          items={items}
-        />
+        <CollapsibleSection title="Simulation Configuration">
+          <SimulationConfigSection
+            simulationConfig={simulationConfig}
+            setSimulationConfig={setSimulationConfig}
+          />
+        </CollapsibleSection>
 
         {/* Submit Button with Loading State */}
         <Box sx={{ mt: 4, display: "flex", alignItems: "center" }}>

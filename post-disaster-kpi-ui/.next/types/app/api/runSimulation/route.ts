@@ -1,4 +1,4 @@
-// File: /Users/enestanrikulu/Desktop/Jupyter/PostDisasterSimulation/post-disaster-kpi-ui/src/app/api/runSimulation/route.ts
+// File: /Users/enestanrikulu/Desktop/everything/Jupyter/PostDisasterSimulation/post-disaster-kpi-ui/src/app/api/runSimulation/route.ts
 import * as entry from '../../../../../src/app/api/runSimulation/route.js'
 import type { NextRequest } from 'next/server.js'
 

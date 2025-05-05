@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Typography, Grid, TextField, Paper } from "@mui/material";
-import { Item } from "../../types/Item"; // Adjust path if needed
+import { Typography, Grid, TextField } from "@mui/material";
+import { Item } from "../../types/Item";
+import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
 interface InventoryPolicy {
   bufferRatios: { [campName: string]: { [itemName: string]: string } };
@@ -32,7 +33,7 @@ const InventoryPoliciesSection: React.FC<Props> = ({
   centralBuffer,
   inventoryControlPeriod,
 }) => {
-  // **New state to track manual edits**
+  // State to track manual edits
   const [hasManualEdits, setHasManualEdits] = useState(false);
 
   useEffect(() => {
@@ -77,7 +78,12 @@ const InventoryPoliciesSection: React.FC<Props> = ({
     items,
     setInventoryPolicy,
     hasManualEdits,
-  ]); // eslint-disable-next-line react-hooks/exhaustive-deps
+    inventoryPolicy.bufferRatios,
+    inventoryPolicy.centralBufferRatios,
+    inventoryPolicy.periodicCounts,
+    inventoryPolicy.centralPeriodicCounts,
+  ]);
+
   const handleBufferRatioChange = (
     campName: string,
     itemName: string,
@@ -137,13 +143,13 @@ const InventoryPoliciesSection: React.FC<Props> = ({
       </Typography>
 
       {/* Buffer Ratios Section */}
-      <Paper sx={{ padding: 2, marginTop: 2 }}>
-        <Typography variant="h6">Buffer Ratios</Typography>
+      <NestedCollapsibleSection title="Buffer Ratios" level="secondary">
         {camps.map((camp) => (
-          <Paper key={`buffer-${camp.name}`} sx={{ padding: 2, marginTop: 4 }}>
-            <Typography variant="subtitle1" sx={{ marginBottom: 2 }}>
-              {camp.name}
-            </Typography>
+          <NestedCollapsibleSection
+            key={`buffer-${camp.name}`}
+            title={`${camp.name} Buffer Ratios`}
+            level="tertiary"
+          >
             <Grid container spacing={2}>
               {items.map((item) => (
                 <Grid
@@ -171,15 +177,12 @@ const InventoryPoliciesSection: React.FC<Props> = ({
                 </Grid>
               ))}
             </Grid>
-          </Paper>
+          </NestedCollapsibleSection>
         ))}
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Central Buffer Ratios Section */}
-      <Paper sx={{ padding: 2, marginTop: 4 }}>
-        <Typography variant="h6" sx={{ marginBottom: 2 }}>
-          Central Buffer Ratios
-        </Typography>
+      <NestedCollapsibleSection title="Central Buffer Ratios" level="secondary">
         <Grid container spacing={2}>
           {items.map((item) => (
             <Grid
@@ -201,19 +204,16 @@ const InventoryPoliciesSection: React.FC<Props> = ({
             </Grid>
           ))}
         </Grid>
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Periodic Counts Section */}
-      <Paper sx={{ padding: 2, marginTop: 2 }}>
-        <Typography variant="h6">Periodic Counts</Typography>
+      <NestedCollapsibleSection title="Periodic Counts" level="secondary">
         {camps.map((camp) => (
-          <Paper
+          <NestedCollapsibleSection
             key={`periodic-${camp.name}`}
-            sx={{ padding: 2, marginTop: 4 }}
+            title={`${camp.name} Periodic Counts`}
+            level="tertiary"
           >
-            <Typography variant="subtitle1" sx={{ marginBottom: 2 }}>
-              {camp.name}
-            </Typography>
             <Grid container spacing={2}>
               {items.map((item) => (
                 <Grid
@@ -242,15 +242,15 @@ const InventoryPoliciesSection: React.FC<Props> = ({
                 </Grid>
               ))}
             </Grid>
-          </Paper>
+          </NestedCollapsibleSection>
         ))}
-      </Paper>
+      </NestedCollapsibleSection>
 
       {/* Central Periodic Counts Section */}
-      <Paper sx={{ padding: 2, marginTop: 4 }}>
-        <Typography variant="h6" sx={{ marginBottom: 2 }}>
-          Central Periodic Counts
-        </Typography>
+      <NestedCollapsibleSection
+        title="Central Periodic Counts"
+        level="secondary"
+      >
         <Grid container spacing={2}>
           {items.map((item) => (
             <Grid
@@ -272,7 +272,7 @@ const InventoryPoliciesSection: React.FC<Props> = ({
             </Grid>
           ))}
         </Grid>
-      </Paper>
+      </NestedCollapsibleSection>
     </>
   );
 };

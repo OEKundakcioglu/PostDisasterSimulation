@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 
+// Fields that should be treated as integers in the YAML output
 const integerFields = new Set([
   // Simulation Config
   "seedDemandTime",
@@ -19,20 +19,17 @@ const integerFields = new Set([
   "seedTransshipmentTime",
   "inventoryControlPeriod",
   "planningHorizon",
-  // Counts
-  "periodicCounts",
-  "centralPeriodicCounts",
   // Populations
   "initialInternalPopulation",
   "initialExternalPopulation",
-  // Inventory Levels
-  "initialInventory",
-  "initialCentralWarehouseInventory",
-  "earmarkedFunds",
-  "initialEarmarkedInKind",
 ]);
 
+/**
+ * Format values appropriately for YAML output
+ */
 function formatValue(key: string, value: any): string {
+  if (value === undefined || value === null) return "";
+
   if (typeof value === "boolean") {
     return value.toString();
   }
@@ -50,66 +47,36 @@ function formatValue(key: string, value: any): string {
 
 /**
  * Generates the YAML content based on the user inputs.
- * @param data - The data object containing all simulation parameters.
- * @returns A string representing the generated YAML content.
  */
 function generateYAML(data: any): string {
   let yamlContent = "";
 
   // Create maps for item and camp anchors
   const itemAnchorMap = new Map<string, string>();
+  const campAnchorMap = new Map<string, string>();
+
+  // Generate item anchors (used for references throughout the YAML)
   data.items.forEach((item: any) => {
-    let itemAnchor = "";
-    if (item.name === "HygieneKit") {
-      itemAnchor = "goods";
-    } else if (item.name === "Medicine") {
-      itemAnchor = "medicine";
-    } else {
-      itemAnchor = item.name.replace(/\s+/g, "_");
-    }
+    // Clean name for anchor use
+    let itemAnchor = item.name.replace(/\s+/g, "_").toLowerCase();
     itemAnchorMap.set(item.name, itemAnchor);
   });
 
-  // Assign anchors to camps with custom names
-  const campAnchorMap = new Map<string, string>();
+  // Generate camp anchors
   data.camps.forEach((camp: any) => {
-    let campAnchor = "";
-    switch (camp.name) {
-      case "Hatay-1":
-        campAnchor = "hatay1";
-        break;
-      case "Hatay-2":
-        campAnchor = "hatay2";
-        break;
-      case "Hatay-3":
-        campAnchor = "hatay3";
-        break;
-      case "Adana":
-        campAnchor = "adana";
-        break;
-      case "Osmaniye":
-        campAnchor = "osmaniye";
-        break;
-      case "Kilis":
-        campAnchor = "kilis";
-        break;
-      case "Kahramanmaraş":
-        campAnchor = "kahramanmaras";
-        break;
-      default:
-        campAnchor = camp.name.replace(/\s+/g, "_");
-    }
+    // Clean name for anchor use
+    let campAnchor = camp.name.replace(/\s+/g, "_").toLowerCase();
     campAnchorMap.set(camp.name, campAnchor);
   });
 
-  // **Define Anchored Fields**
+  // Define anchored fields used throughout YAML
   const anchoredFields: { [key: string]: string } = {
     inventoryControlPeriod: "&period",
     campBuffer: "&campBuffer",
     centralBuffer: "&centralBuffer",
   };
 
-  // **Update SimulationConfig**
+  // SIMULATION CONFIG SECTION
   yamlContent += "simulationConfig:\n";
   for (const [key, value] of Object.entries(data.simulationConfig)) {
     if (key in anchoredFields) {
@@ -122,14 +89,15 @@ function generateYAML(data: any): string {
     }
   }
 
-  // items
+  // ITEMS SECTION
   yamlContent += "items:\n";
   for (const item of data.items) {
+    if (!item.name) continue; // Skip items without names
+
     const itemAnchor = itemAnchorMap.get(item.name);
     yamlContent += `  - &${itemAnchor}\n`;
     yamlContent += `    name: ${item.name}\n`;
     yamlContent += `    isPerishable: ${item.isPerishable}\n`;
-    // Numeric fields
     yamlContent += `    price: ${formatValue("price", item.price)}\n`;
     yamlContent += `    orderingCost: ${formatValue(
       "orderingCost",
@@ -152,229 +120,395 @@ function generateYAML(data: any): string {
       item.referralCost
     )}\n`;
 
-    // Include durationData if the item is perishable
-    if (item.isPerishable) {
-      if (!item.durationData) {
-        console.error(
-          `Item "${item.name}" is perishable but durationData is missing.`
-        );
-        throw new Error(
-          `Item "${item.name}" is perishable but durationData is missing.`
-        );
-      }
-
+    // Duration data (only for perishable items)
+    if (item.isPerishable && item.durationData) {
       yamlContent += `    durationData:\n`;
       yamlContent += `      distributionType: ${item.durationData.distributionType}\n`;
       yamlContent += `      distParameters: !!data.distribution.${getDistTypeTag(
         item.durationData.distributionType
       )}\n`;
-      yamlContent += formatDistParameters(item.durationData.distParameters, 8);
+      yamlContent += formatDistParameters(
+        item.durationData.distParameters,
+        8,
+        item.durationData.distributionType
+      );
     }
 
-    // leadTimeData
+    // Lead time data
     yamlContent += `    leadTimeData:\n`;
     yamlContent += `      distributionType: ${item.leadTimeData.distributionType}\n`;
     yamlContent += `      distParameters: !!data.distribution.${getDistTypeTag(
       item.leadTimeData.distributionType
     )}\n`;
-    yamlContent += formatDistParameters(item.leadTimeData.distParameters, 8);
+    yamlContent += formatDistParameters(
+      item.leadTimeData.distParameters,
+      8,
+      item.leadTimeData.distributionType
+    );
   }
 
-  // camps
+  // CAMPS SECTION
   yamlContent += "camps:\n";
   for (const camp of data.camps) {
+    if (!camp.name) continue; // Skip camps without names
+
     const campAnchor = campAnchorMap.get(camp.name);
     yamlContent += `  - &${campAnchor}\n`;
     yamlContent += `    name: ${camp.name}\n`;
 
-    // leadTimeData
+    // Lead time data
     yamlContent += `    leadTimeData:\n`;
     yamlContent += `      distributionType: ${camp.leadTimeData.distributionType}\n`;
     yamlContent += `      distParameters: !!data.distribution.${getDistTypeTag(
       camp.leadTimeData.distributionType
     )}\n`;
-    yamlContent += formatDistParameters(camp.leadTimeData.distParameters, 8);
-
-    // demands
-    yamlContent += `    demands:\n`;
-    for (const demand of camp.demands) {
-      const itemAnchor = itemAnchorMap.get(demand.item);
-      yamlContent += `      - item: *${itemAnchor}\n`;
-      yamlContent += `        demandTimingType: ${demand.demandTimingType}\n`;
-      yamlContent += `        demandQuantityType: ${demand.demandQuantityType}\n`;
-
-      yamlContent += `        arrivalData:\n`;
-      yamlContent += `          distributionType: ${demand.arrivalData.distributionType}\n`;
-      yamlContent += `          distParameters: !!data.distribution.${getDistTypeTag(
-        demand.arrivalData.distributionType
-      )}\n`;
-      yamlContent += formatDistParameters(
-        demand.arrivalData.distParameters,
-        12
-      );
-
-      yamlContent += `        internalRatio: ${Number(demand.internalRatio)}\n`;
-      yamlContent += `        externalRatio: ${Number(demand.externalRatio)}\n`;
-    }
-
-    yamlContent += `    campExternalDemandSatisfactionType: ${camp.campExternalDemandSatisfactionType}\n`;
-    yamlContent += `    populationType: ${camp.populationType}\n`;
-    yamlContent += `    initialInternalPopulation: ${Number(
-      camp.initialInternalPopulation
-    )}\n`;
-    yamlContent += `    initialExternalPopulation: ${Number(
-      camp.initialExternalPopulation
-    )}\n`;
-  }
-
-  // agencies
-  yamlContent += "agencies:\n";
-  for (const agency of data.agencies) {
-    yamlContent += `  - name: ${agency.name}\n`;
-    yamlContent += `    fundingArray:\n`;
-    for (const funding of agency.fundingArray) {
-      yamlContent += `      - fundingType: ${funding.fundingType}\n`;
-
-      // arrivalData
-      yamlContent += `        arrivalData:\n`;
-      yamlContent += `          distributionType: ${funding.arrivalData.distributionType}\n`;
-      yamlContent += `          distParameters: !!data.distribution.${getDistTypeTag(
-        funding.arrivalData.distributionType
-      )}\n`;
-      yamlContent += formatDistParameters(
-        funding.arrivalData.distParameters,
-        12
-      );
-
-      // amountData
-      yamlContent += `        amountData:\n`;
-      yamlContent += `          distributionType: ${funding.amountData.distributionType}\n`;
-      yamlContent += `          distParameters: !!data.distribution.${getDistTypeTag(
-        funding.amountData.distributionType
-      )}\n`;
-      yamlContent += formatDistParameters(
-        funding.amountData.distParameters,
-        12
-      );
-    }
-  }
-
-  // migrations
-  yamlContent += "migrations:\n";
-  for (const migration of data.migrations) {
-    const fromCampAnchor = campAnchorMap.get(migration.fromCamp);
-    const toCampAnchor = campAnchorMap.get(migration.toCamp);
-    yamlContent += `  - fromCamp: *${fromCampAnchor}\n`;
-    yamlContent += `    toCamp: *${toCampAnchor}\n`;
-    yamlContent += `    migrationType: ${migration.migrationType}\n`;
-    yamlContent += `    arrivalData:\n`;
-    yamlContent += `      distributionType: ${migration.arrivalData.distributionType}\n`;
-    yamlContent += `      distParameters: !!data.distribution.${getDistTypeTag(
-      migration.arrivalData.distributionType
-    )}\n`;
     yamlContent += formatDistParameters(
-      migration.arrivalData.distParameters,
-      8
+      camp.leadTimeData.distParameters,
+      8,
+      camp.leadTimeData.distributionType
     );
-    yamlContent += `    migrationRatio: ${Number(migration.migrationRatio)}\n`;
+
+    // Demands
+    if (camp.demands && camp.demands.length > 0) {
+      yamlContent += `    demands:\n`;
+      for (const demand of camp.demands) {
+        if (!demand.item) continue; // Skip demands without items
+
+        const itemAnchor = itemAnchorMap.get(demand.item);
+        yamlContent += `      - item: *${itemAnchor}\n`;
+        yamlContent += `        demandTimingType: ${demand.demandTimingType}\n`;
+        yamlContent += `        demandQuantityType: ${demand.demandQuantityType}\n`;
+
+        // Arrival data
+        yamlContent += `        arrivalData:\n`;
+        yamlContent += `          distributionType: ${demand.arrivalData.distributionType}\n`;
+        yamlContent += `          distParameters: !!data.distribution.${getDistTypeTag(
+          demand.arrivalData.distributionType
+        )}\n`;
+        yamlContent += formatDistParameters(
+          demand.arrivalData.distParameters,
+          12,
+          demand.arrivalData.distributionType
+        );
+
+        // Ratios
+        yamlContent += `        internalRatio: ${parseFloat(
+          demand.internalRatio || "0"
+        )}\n`;
+        yamlContent += `        externalRatio: ${parseFloat(
+          demand.externalRatio || "0"
+        )}\n`;
+      }
+    }
+
+    // Camp properties
+    yamlContent += `    campExternalDemandSatisfactionType: ${camp.campExternalDemandSatisfactionType}\n`;
+
+    // Add threshold only if needed
+    if (
+      camp.campExternalDemandSatisfactionType === "THRESHOLD" &&
+      camp.externalDemandSatisfactionThreshold
+    ) {
+      yamlContent += `    externalDemandSatisfactionThreshold: ${parseFloat(
+        camp.externalDemandSatisfactionThreshold
+      )}\n`;
+    }
+
+    yamlContent += `    populationType: ${camp.populationType}\n`;
+    yamlContent += `    initialInternalPopulation: ${parseInt(
+      camp.initialInternalPopulation || "0"
+    )}\n`;
+    yamlContent += `    initialExternalPopulation: ${parseInt(
+      camp.initialExternalPopulation || "0"
+    )}\n`;
   }
 
-  // **Update InventoryPolicy**
+  // AGENCIES SECTION
+  if (data.agencies && data.agencies.length > 0) {
+    yamlContent += "agencies:\n";
+    for (const agency of data.agencies) {
+      if (!agency.name) continue; // Skip agencies without names
+
+      yamlContent += `  - name: ${agency.name}\n`;
+
+      // Funding array
+      if (agency.fundingArray && agency.fundingArray.length > 0) {
+        yamlContent += `    fundingArray:\n`;
+        for (const funding of agency.fundingArray) {
+          yamlContent += `      - fundingType: ${funding.fundingType}\n`;
+
+          // Add item reference for in-kind donations
+          if (
+            (funding.fundingType === "INKIND_REGULAR" ||
+              funding.fundingType === "INKIND_EARMARKED") &&
+            funding.item
+          ) {
+            const itemAnchor = itemAnchorMap.get(funding.item);
+            if (itemAnchor) {
+              // Change from "item:" to "items:" to match Java getter/setter name
+              yamlContent += `        items: *${itemAnchor}\n`;
+            }
+          }
+
+          // Add earmarked camp for earmarked funding
+          if (
+            (funding.fundingType === "MONETARY_EARMARKED" ||
+              funding.fundingType === "INKIND_EARMARKED") &&
+            funding.earmarkedFor
+          ) {
+            const campAnchor = campAnchorMap.get(funding.earmarkedFor);
+            if (campAnchor) {
+              yamlContent += `        camp: *${campAnchor}\n`;
+            }
+          }
+
+          // Arrival data
+          yamlContent += `        arrivalData:\n`;
+          yamlContent += `          distributionType: ${funding.arrivalData.distributionType}\n`;
+          yamlContent += `          distParameters: !!data.distribution.${getDistTypeTag(
+            funding.arrivalData.distributionType
+          )}\n`;
+          yamlContent += formatDistParameters(
+            funding.arrivalData.distParameters,
+            12,
+            funding.arrivalData.distributionType
+          );
+
+          // Amount data
+          yamlContent += `        amountData:\n`;
+          yamlContent += `          distributionType: ${funding.amountData.distributionType}\n`;
+          yamlContent += `          distParameters: !!data.distribution.${getDistTypeTag(
+            funding.amountData.distributionType
+          )}\n`;
+          yamlContent += formatDistParameters(
+            funding.amountData.distParameters,
+            12,
+            funding.amountData.distributionType
+          );
+        }
+      }
+    }
+  }
+
+  // MIGRATIONS SECTION
+  if (data.migrations && data.migrations.length > 0) {
+    yamlContent += "migrations:\n";
+    for (const migration of data.migrations) {
+      // Skip migrations with missing source/destination camps when needed
+      if (
+        (!migration.fromCamp &&
+          !migration.migrationType.includes("_TO_SYSTEM")) ||
+        (!migration.toCamp && !migration.migrationType.includes("_FROM_SYSTEM"))
+      ) {
+        continue;
+      }
+
+      yamlContent += `  - migrationType: ${migration.migrationType}\n`;
+
+      // Add fromCamp only if applicable
+      if (
+        !migration.migrationType.includes("_TO_SYSTEM") &&
+        migration.fromCamp
+      ) {
+        const fromCampAnchor = campAnchorMap.get(migration.fromCamp);
+        if (fromCampAnchor) {
+          yamlContent += `    fromCamp: *${fromCampAnchor}\n`;
+        }
+      }
+
+      // Add toCamp only if applicable
+      if (
+        !migration.migrationType.includes("_FROM_SYSTEM") &&
+        migration.toCamp
+      ) {
+        const toCampAnchor = campAnchorMap.get(migration.toCamp);
+        if (toCampAnchor) {
+          yamlContent += `    toCamp: *${toCampAnchor}\n`;
+        }
+      }
+
+      // Arrival data
+      yamlContent += `    arrivalData:\n`;
+      yamlContent += `      distributionType: ${migration.arrivalData.distributionType}\n`;
+      yamlContent += `      distParameters: !!data.distribution.${getDistTypeTag(
+        migration.arrivalData.distributionType
+      )}\n`;
+      yamlContent += formatDistParameters(
+        migration.arrivalData.distParameters,
+        8,
+        migration.arrivalData.distributionType
+      );
+
+      // Add quantity data only for *_TO_SYSTEM migration types
+      if (
+        migration.migrationType.includes("_TO_SYSTEM") &&
+        migration.quantityData
+      ) {
+        yamlContent += `    quantityData:\n`;
+        yamlContent += `      distributionType: ${migration.quantityData.distributionType}\n`;
+        yamlContent += `      distParameters: !!data.distribution.${getDistTypeTag(
+          migration.quantityData.distributionType
+        )}\n`;
+        yamlContent += formatDistParameters(
+          migration.quantityData.distParameters,
+          8,
+          migration.quantityData.distributionType
+        );
+      }
+
+      // Migration ratio
+      yamlContent += `    migrationRatio: ${parseFloat(
+        migration.migrationRatio || "0.05"
+      )}\n`;
+    }
+  }
+
+  // INVENTORY POLICY SECTION
   yamlContent += "inventoryPolicy: !!simulation.decision.OrderUpToPolicy\n";
 
-  // bufferRatios
+  // Buffer ratios (using parameters from simulation config)
   yamlContent += "  bufferRatios:\n";
   for (const camp of data.camps) {
+    if (!camp.name) continue;
+
     const campAnchor = campAnchorMap.get(camp.name);
     yamlContent += `    *${campAnchor}:\n`;
     for (const item of data.items) {
+      if (!item.name) continue;
+
       const itemAnchor = itemAnchorMap.get(item.name);
-      yamlContent += `      *${itemAnchor}: *campBuffer\n`;
+      // Use either specific value from inventoryPolicy or the global campBuffer
+      const bufferValue =
+        data.inventoryPolicy?.bufferRatios?.[camp.name]?.[item.name] ||
+        "*campBuffer";
+      yamlContent += `      *${itemAnchor}: ${bufferValue}\n`;
     }
   }
 
-  // centralBufferRatios
+  // Central buffer ratios
   yamlContent += "  centralBufferRatios:\n";
   for (const item of data.items) {
+    if (!item.name) continue;
+
     const itemAnchor = itemAnchorMap.get(item.name);
-    yamlContent += `    *${itemAnchor}: *centralBuffer\n`;
+    // Use either specific value from inventoryPolicy or the global centralBuffer
+    const bufferValue =
+      data.inventoryPolicy?.centralBufferRatios?.[item.name] ||
+      "*centralBuffer";
+    yamlContent += `    *${itemAnchor}: ${bufferValue}\n`;
   }
 
-  // periodicCounts
+  // Periodic counts
   yamlContent += "  periodicCounts:\n";
   for (const camp of data.camps) {
+    if (!camp.name) continue;
+
     const campAnchor = campAnchorMap.get(camp.name);
     yamlContent += `    *${campAnchor}:\n`;
     for (const item of data.items) {
+      if (!item.name) continue;
+
       const itemAnchor = itemAnchorMap.get(item.name);
-      yamlContent += `      *${itemAnchor}: *period\n`;
+      // Use either specific value from inventoryPolicy or the global inventory control period
+      const periodValue =
+        data.inventoryPolicy?.periodicCounts?.[camp.name]?.[item.name] ||
+        "*period";
+      yamlContent += `      *${itemAnchor}: ${periodValue}\n`;
     }
   }
 
-  // centralPeriodicCounts
+  // Central periodic counts
   yamlContent += "  centralPeriodicCounts:\n";
   for (const item of data.items) {
+    if (!item.name) continue;
+
     const itemAnchor = itemAnchorMap.get(item.name);
-    yamlContent += `    *${itemAnchor}: *period\n`;
+    // Use either specific value from inventoryPolicy or the global inventory control period
+    const periodValue =
+      data.inventoryPolicy?.centralPeriodicCounts?.[item.name] || "*period";
+    yamlContent += `    *${itemAnchor}: ${periodValue}\n`;
   }
 
-  // **Update InitialState**
+  // INITIAL STATE SECTION
   yamlContent += "initialState:\n";
   yamlContent += `  availableFunds: ${parseInt(
-    data.initialState.availableFunds
+    data.initialState.availableFunds || "0"
   )}\n`;
 
-  // initialInventory
+  // Initial inventory
   yamlContent += "  initialInventory:\n";
   for (const camp of data.camps) {
+    if (!camp.name) continue;
+
     const campAnchor = campAnchorMap.get(camp.name);
     yamlContent += `    *${campAnchor}:\n`;
     for (const item of data.items) {
+      if (!item.name) continue;
+
       const itemAnchor = itemAnchorMap.get(item.name);
-      yamlContent += `      *${itemAnchor}: 0\n`;
+      const inventoryValue =
+        data.initialState.initialInventory?.[camp.name]?.[item.name] || "0";
+      yamlContent += `      *${itemAnchor}: ${parseInt(inventoryValue)}\n`;
     }
   }
 
-  // initialCentralWarehouseInventory
+  // Initial central warehouse inventory
   yamlContent += "  initialCentralWarehouseInventory:\n";
   for (const item of data.items) {
+    if (!item.name) continue;
+
     const itemAnchor = itemAnchorMap.get(item.name);
-    yamlContent += `    *${itemAnchor}: 0\n`;
+    const inventoryValue =
+      data.initialState.initialCentralWarehouseInventory?.[item.name] || "0";
+    yamlContent += `    *${itemAnchor}: ${parseInt(inventoryValue)}\n`;
   }
 
-  // earmarkedFunds
+  // Earmarked funds
   yamlContent += "  earmarkedFunds:\n";
   for (const camp of data.camps) {
+    if (!camp.name) continue;
+
     const campAnchor = campAnchorMap.get(camp.name);
-    yamlContent += `    *${campAnchor}: 0\n`;
+    const fundsValue = data.initialState.earmarkedFunds?.[camp.name] || "0";
+    yamlContent += `    *${campAnchor}: ${parseInt(fundsValue)}\n`;
   }
 
-  // initialEarmarkedInKind
+  // Initial earmarked in-kind
   yamlContent += "  initialEarmarkedInKind:\n";
   for (const camp of data.camps) {
+    if (!camp.name) continue;
+
     const campAnchor = campAnchorMap.get(camp.name);
     yamlContent += `    *${campAnchor}:\n`;
     for (const item of data.items) {
+      if (!item.name) continue;
+
       const itemAnchor = itemAnchorMap.get(item.name);
-      yamlContent += `      *${itemAnchor}: 0\n`;
+      const inKindValue =
+        data.initialState.initialEarmarkedInKind?.[camp.name]?.[item.name] ||
+        "0";
+      yamlContent += `      *${itemAnchor}: ${parseInt(inKindValue)}\n`;
     }
   }
 
-  // isItemAvailable
+  // Item availability
   yamlContent += "  isItemAvailable:\n";
   for (const item of data.items) {
+    if (!item.name) continue;
+
     const itemAnchor = itemAnchorMap.get(item.name);
-    yamlContent += `    *${itemAnchor}: true\n`;
+    const isAvailable =
+      data.initialState.isItemAvailable?.[item.name] !== undefined
+        ? data.initialState.isItemAvailable[item.name]
+        : true;
+    yamlContent += `    *${itemAnchor}: ${isAvailable}\n`;
   }
 
-  console.log("Generated YAML Content:\n", yamlContent);
   return yamlContent;
 }
 
 /**
  * Returns the distribution type tag based on the distribution type.
- * @param distType - The distribution type.
- * @returns The distribution type tag.
  */
 function getDistTypeTag(distType: string): string {
   switch (distType) {
@@ -390,37 +524,54 @@ function getDistTypeTag(distType: string): string {
       return "DistFixed";
     case "UNIFORM":
       return "DistUniform";
-    // Add other distribution types as needed
+    case "NORMAL":
+      return "DistNormal";
     default:
-      return "";
+      console.warn(`Unknown distribution type: ${distType}`);
+      return "DistFixed"; // Default to fixed distribution
   }
 }
 
 /**
- * Formats the distribution parameters into a YAML-formatted string with correct indentation.
- * @param distParams - The distribution parameters object.
- * @param indentLevel - The number of spaces to indent.
- * @returns A formatted string representing the distribution parameters.
+ * Formats the distribution parameters into a YAML-formatted string with proper constructor handling.
  */
-function formatDistParameters(distParams: any, indentLevel: number): string {
+function formatDistParameters(
+  distParams: any,
+  indentLevel: number,
+  distributionType?: string
+): string {
+  if (!distParams) return "";
+
   let formatted = "";
   const indent = " ".repeat(indentLevel);
+
+  // Special handling for DistNormal which needs constructor parameters
+  if (distributionType === "NORMAL") {
+    const mean = distParams.mean || "0";
+    const stdDev = distParams.stdDev || "1";
+    return `${indent}[${mean}, ${stdDev}]\n`; // Only return the parameter array, not the tag
+  }
+
+  // Standard parameter formatting for other distribution types
   for (const [key, value] of Object.entries(distParams)) {
-    if (typeof value === "boolean") {
+    if (key === "initialArrival" && typeof value === "boolean") {
       formatted += `${indent}${key}: ${value}\n`;
-    } else {
+    } else if (value !== undefined && value !== null) {
       formatted += `${indent}${key}: ${formatValue(key, value)}\n`;
     }
   }
+
   return formatted;
 }
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    console.log("Received Data:", JSON.stringify(data, null, 2));
+    console.log("Processing simulation input data");
 
     const yamlContent = generateYAML(data);
 
+    // Define path to YAML file
     const yamlFilePath = path.join(
       process.cwd(),
       "..",
@@ -432,16 +583,23 @@ export async function POST(request: NextRequest) {
       "input.yaml"
     );
 
+    // Write the YAML file
     fs.writeFileSync(yamlFilePath, yamlContent, "utf8");
+    console.log(`YAML file written to ${yamlFilePath}`);
 
+    // Get API URL from environment
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
-      console.error("NEXT_PUBLIC_API_URL is not defined. Skipping API call.");
+      console.warn(
+        "NEXT_PUBLIC_API_URL is not defined. Simulation will run without visualization."
+      );
     }
-    const springBootUrl = apiUrl ? `${apiUrl}/simulate/logs` : "";
-    console.log("Calling Spring Boot API at:", springBootUrl);
 
-    if (apiUrl) {
+    // Call Spring Boot API
+    const springBootUrl = apiUrl ? `${apiUrl}/simulate/logs` : "";
+    if (springBootUrl) {
+      console.log("Starting simulation via API at:", springBootUrl);
+
       try {
         const springBootResponse = await fetch(springBootUrl, {
           method: "GET",
@@ -455,7 +613,7 @@ export async function POST(request: NextRequest) {
             `Spring Boot API returned ${springBootResponse.status}. Continuing with visualization anyway.`
           );
         } else {
-          console.log("Spring Boot API call successful");
+          console.log("Simulation started successfully");
         }
       } catch (apiError) {
         console.error("Error calling Spring Boot API:", apiError);
@@ -463,6 +621,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Return success response
     return NextResponse.json({
       success: true,
       redirectToVisualization: true,

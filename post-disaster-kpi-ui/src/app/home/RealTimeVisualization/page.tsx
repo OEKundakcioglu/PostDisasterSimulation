@@ -90,6 +90,16 @@ function RealTimeVisualization() {
         console.log("✅ Backend confirmed simulation stopped successfully");
       }
 
+      // Get the current configuration from the server
+      const configResponse = await fetch("/api/downloadConfig");
+      if (configResponse.ok) {
+        const yamlConfig = await configResponse.text();
+        localStorage.setItem("lastSimulationConfig", yamlConfig);
+
+        // Instead of trying to use undefined variables, mark that we need to preserve the last config
+        localStorage.setItem("preserveLastConfig", "true");
+      }
+
       console.log("🔄 Redirecting to input page in 1 second...");
       setTimeout(() => {
         router.push("/home/InputParameters");
