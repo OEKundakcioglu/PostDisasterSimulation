@@ -67,6 +67,20 @@ const MigrationsSection: React.FC<Props> = ({
   ) => {
     const newMigrations = [...migrations];
 
+    // Validate migrationRatio
+    if (field === "migrationRatio") {
+      // Only allow values between 0-1 and in decimal format
+      if (
+        typeof value === "string" &&
+        (value === "" || /^0*\.?\d*$/.test(value))
+      ) {
+        if (value === "" || parseFloat(value) <= 1) {
+          newMigrations[index][field] = value;
+        }
+        return;
+      }
+    }
+
     // Handle migration type change - add or remove quantityData as needed
     if (field === "migrationType") {
       const newType = value as string;

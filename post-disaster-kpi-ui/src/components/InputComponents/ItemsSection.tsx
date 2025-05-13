@@ -102,6 +102,31 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
     }
   };
 
+  // Determine if a field should only accept numeric input
+  const isNumericField = (
+    field: keyof Item,
+    subField?: string,
+    subSubField?: string
+  ): boolean => {
+    // Fields that should be numbers
+    const numericFields: (keyof Item)[] = [
+      "price",
+      "orderingCost",
+      "holdingCost",
+      "deprivationRate",
+      "deprivationCoefficient",
+      "referralCost",
+    ];
+
+    if (subSubField) {
+      // All distribution parameters are numeric except initialArrival which is boolean
+      return subSubField !== "initialArrival";
+    }
+
+    return numericFields.includes(field);
+  };
+
+  // Enhance handleItemChange to ensure consistent numeric validation
   const handleItemChange = (
     index: number,
     field: keyof Item,
@@ -116,13 +141,31 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
     // Validate numeric input for number fields
     if (
       typeof value === "string" &&
-      isNumericField(field, subField, subSubField) &&
+      isNumericField(field, subField as string, subSubField) &&
       value !== ""
     ) {
-      // Only allow valid numeric input
-      const numericRegex = /^-?\d*\.?\d*$/;
-      if (!numericRegex.test(value)) {
-        return; // Skip update if not a valid number
+      // For decimals (price, rates, etc.)
+      if (
+        field === "price" ||
+        field === "orderingCost" ||
+        field === "holdingCost" ||
+        field === "deprivationRate" ||
+        field === "deprivationCoefficient" ||
+        field === "referralCost" ||
+        (subSubField &&
+          (subSubField === "mean" ||
+            subSubField === "min" ||
+            subSubField === "max" ||
+            subSubField === "mode" ||
+            subSubField === "stdDev"))
+      ) {
+        if (!/^-?\d*\.?\d*$/.test(value)) {
+          return; // Invalid decimal format
+        }
+      }
+      // For integers
+      else if (!/^-?\d*$/.test(value)) {
+        return; // Invalid integer format
       }
     }
 
@@ -257,30 +300,6 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
     }
 
     setItems(newItems);
-  };
-
-  // Determine if a field should only accept numeric input
-  const isNumericField = (
-    field: keyof Item,
-    subField?: string,
-    subSubField?: string
-  ): boolean => {
-    // Fields that should be numbers
-    const numericFields: (keyof Item)[] = [
-      "price",
-      "orderingCost",
-      "holdingCost",
-      "deprivationRate",
-      "deprivationCoefficient",
-      "referralCost",
-    ];
-
-    if (subSubField) {
-      // All distribution parameters are numeric except initialArrival which is boolean
-      return subSubField !== "initialArrival";
-    }
-
-    return numericFields.includes(field);
   };
 
   // Custom label with units

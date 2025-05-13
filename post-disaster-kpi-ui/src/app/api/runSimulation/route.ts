@@ -245,18 +245,18 @@ function generateYAML(data: any): string {
           ) {
             const itemAnchor = itemAnchorMap.get(funding.item);
             if (itemAnchor) {
-              // Change from "item:" to "items:" to match Java getter/setter name
-              yamlContent += `        items: *${itemAnchor}\n`;
+              // Use "item:" to match Java property name
+              yamlContent += `        item: *${itemAnchor}\n`;
             }
           }
 
-          // Add earmarked camp for earmarked funding
+          // Add camp reference for earmarked funding
           if (
             (funding.fundingType === "MONETARY_EARMARKED" ||
               funding.fundingType === "INKIND_EARMARKED") &&
-            funding.earmarkedFor
+            funding.camp
           ) {
-            const campAnchor = campAnchorMap.get(funding.earmarkedFor);
+            const campAnchor = campAnchorMap.get(funding.camp);
             if (campAnchor) {
               yamlContent += `        camp: *${campAnchor}\n`;
             }

@@ -73,13 +73,29 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
     subSubField?: keyof Camp["leadTimeData"]["distParameters"]
   ) => {
     const newCamps = [...camps];
-    if (subField && subSubField) {
+
+    // Add validation for numeric fields
+    if (
+      field === "initialInternalPopulation" ||
+      field === "initialExternalPopulation"
+    ) {
+      // Only allow non-negative integers for population
+      if (typeof value === "string" && (value === "" || /^\d*$/.test(value))) {
+        newCamps[index][field] = value;
+      } else {
+        return; // Skip update if invalid
+      }
+    } else if (subField && subSubField) {
+      // Handle nested subField and subSubField
       (newCamps[index][field] as any)[subField][subSubField] = value;
     } else if (subField) {
+      // Handle nested subField
       (newCamps[index][field] as any)[subField] = value;
     } else {
+      // Default handling
       newCamps[index][field] = value;
     }
+
     setCamps(newCamps);
   };
 
@@ -254,6 +270,8 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                     <TextField
                       fullWidth
                       label="Initial Internal Population"
+                      type="number"
+                      inputProps={{ min: 0, step: 1 }}
                       value={camp.initialInternalPopulation}
                       onChange={(e) =>
                         handleCampChange(
@@ -269,6 +287,8 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                     <TextField
                       fullWidth
                       label="Initial External Population"
+                      type="number"
+                      inputProps={{ min: 0, step: 1 }}
                       value={camp.initialExternalPopulation}
                       onChange={(e) =>
                         handleCampChange(

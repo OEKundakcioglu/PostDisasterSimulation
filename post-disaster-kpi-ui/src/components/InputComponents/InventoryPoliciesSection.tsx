@@ -45,6 +45,12 @@ const InventoryPoliciesSection: React.FC<Props> = ({
     const newCentralPeriodicCounts = {
       ...inventoryPolicy.centralPeriodicCounts,
     };
+
+    // Ensure values are strings
+    const campBufferStr = campBuffer.toString();
+    const centralBufferStr = centralBuffer.toString();
+    const inventoryControlPeriodStr = inventoryControlPeriod.toString();
+
     camps.forEach((camp) => {
       if (!newBufferRatios[camp.name]) {
         newBufferRatios[camp.name] = {};
@@ -53,14 +59,14 @@ const InventoryPoliciesSection: React.FC<Props> = ({
         newPeriodicCounts[camp.name] = {};
       }
       items.forEach((item) => {
-        newBufferRatios[camp.name][item.name] = campBuffer;
-        newPeriodicCounts[camp.name][item.name] = inventoryControlPeriod;
+        newBufferRatios[camp.name][item.name] = campBufferStr;
+        newPeriodicCounts[camp.name][item.name] = inventoryControlPeriodStr;
       });
     });
 
     items.forEach((item) => {
-      newCentralBufferRatios[item.name] = centralBuffer;
-      newCentralPeriodicCounts[item.name] = inventoryControlPeriod;
+      newCentralBufferRatios[item.name] = centralBufferStr;
+      newCentralPeriodicCounts[item.name] = inventoryControlPeriodStr;
     });
 
     setInventoryPolicy((prev) => ({
@@ -89,22 +95,28 @@ const InventoryPoliciesSection: React.FC<Props> = ({
     itemName: string,
     value: string
   ) => {
-    setHasManualEdits(true);
-    setInventoryPolicy((prev) => ({
-      ...prev,
-      bufferRatios: {
-        ...prev.bufferRatios,
-        [campName]: { ...prev.bufferRatios[campName], [itemName]: value },
-      },
-    }));
+    // Validate that input is a valid number
+    if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+      setHasManualEdits(true);
+      setInventoryPolicy((prev) => ({
+        ...prev,
+        bufferRatios: {
+          ...prev.bufferRatios,
+          [campName]: { ...prev.bufferRatios[campName], [itemName]: value },
+        },
+      }));
+    }
   };
 
   const handleCentralBufferRatioChange = (itemName: string, value: string) => {
-    setHasManualEdits(true);
-    setInventoryPolicy((prev) => ({
-      ...prev,
-      centralBufferRatios: { ...prev.centralBufferRatios, [itemName]: value },
-    }));
+    // Validate that input is a valid number
+    if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+      setHasManualEdits(true);
+      setInventoryPolicy((prev) => ({
+        ...prev,
+        centralBufferRatios: { ...prev.centralBufferRatios, [itemName]: value },
+      }));
+    }
   };
 
   const handlePeriodicCountChange = (
@@ -112,28 +124,34 @@ const InventoryPoliciesSection: React.FC<Props> = ({
     itemName: string,
     value: string
   ) => {
-    setHasManualEdits(true);
-    setInventoryPolicy((prev) => ({
-      ...prev,
-      periodicCounts: {
-        ...prev.periodicCounts,
-        [campName]: { ...prev.periodicCounts[campName], [itemName]: value },
-      },
-    }));
+    // Validate that input is a valid integer
+    if (value === "" || /^-?\d*$/.test(value)) {
+      setHasManualEdits(true);
+      setInventoryPolicy((prev) => ({
+        ...prev,
+        periodicCounts: {
+          ...prev.periodicCounts,
+          [campName]: { ...prev.periodicCounts[campName], [itemName]: value },
+        },
+      }));
+    }
   };
 
   const handleCentralPeriodicCountChange = (
     itemName: string,
     value: string
   ) => {
-    setHasManualEdits(true);
-    setInventoryPolicy((prev) => ({
-      ...prev,
-      centralPeriodicCounts: {
-        ...prev.centralPeriodicCounts,
-        [itemName]: value,
-      },
-    }));
+    // Validate that input is a valid integer
+    if (value === "" || /^-?\d*$/.test(value)) {
+      setHasManualEdits(true);
+      setInventoryPolicy((prev) => ({
+        ...prev,
+        centralPeriodicCounts: {
+          ...prev.centralPeriodicCounts,
+          [itemName]: value,
+        },
+      }));
+    }
   };
 
   return (
@@ -159,6 +177,8 @@ const InventoryPoliciesSection: React.FC<Props> = ({
                     fullWidth
                     label={`${item.name} Buffer Ratio`}
                     placeholder={campBuffer}
+                    type="number"
+                    inputProps={{ step: 0.01, min: 0 }}
                     value={
                       inventoryPolicy.bufferRatios[camp.name]?.[item.name] || ""
                     }
@@ -192,6 +212,8 @@ const InventoryPoliciesSection: React.FC<Props> = ({
                 fullWidth
                 label={`${item.name} Central Buffer Ratio`}
                 placeholder={centralBuffer}
+                type="number"
+                inputProps={{ step: 0.01, min: 0 }}
                 value={inventoryPolicy.centralBufferRatios[item.name] || ""}
                 onChange={(e) =>
                   handleCentralBufferRatioChange(item.name, e.target.value)
@@ -223,6 +245,8 @@ const InventoryPoliciesSection: React.FC<Props> = ({
                     fullWidth
                     label={`${item.name} Periodic Count`}
                     placeholder={inventoryControlPeriod}
+                    type="number"
+                    inputProps={{ step: 1, min: 0 }}
                     value={
                       inventoryPolicy.periodicCounts[camp.name]?.[item.name] ||
                       ""
@@ -260,6 +284,8 @@ const InventoryPoliciesSection: React.FC<Props> = ({
                 fullWidth
                 label={`${item.name} Central Periodic Count`}
                 placeholder={inventoryControlPeriod}
+                type="number"
+                inputProps={{ step: 1, min: 0 }}
                 value={inventoryPolicy.centralPeriodicCounts[item.name] || ""}
                 onChange={(e) =>
                   handleCentralPeriodicCountChange(item.name, e.target.value)

@@ -41,10 +41,12 @@ const InitialStateSection: React.FC<Props> = ({
   items,
 }) => {
   const handleAvailableFundsChange = (value: string) => {
-    setInitialState((prev) => ({
-      ...prev,
-      availableFunds: value,
-    }));
+    if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+      setInitialState((prev) => ({
+        ...prev,
+        availableFunds: value,
+      }));
+    }
   };
 
   const handleInitialInventoryChange = (
@@ -52,38 +54,44 @@ const InitialStateSection: React.FC<Props> = ({
     itemName: string,
     value: string
   ) => {
-    const newInitialInventory = { ...initialState.initialInventory };
-    if (!newInitialInventory[campName]) {
-      newInitialInventory[campName] = {};
+    if (value === "" || /^\d*$/.test(value)) {
+      const newInitialInventory = { ...initialState.initialInventory };
+      if (!newInitialInventory[campName]) {
+        newInitialInventory[campName] = {};
+      }
+      newInitialInventory[campName][itemName] = value;
+      setInitialState((prev) => ({
+        ...prev,
+        initialInventory: newInitialInventory,
+      }));
     }
-    newInitialInventory[campName][itemName] = value;
-    setInitialState((prev) => ({
-      ...prev,
-      initialInventory: newInitialInventory,
-    }));
   };
 
   const handleCentralWarehouseInventoryChange = (
     itemName: string,
     value: string
   ) => {
-    const newCentralWarehouseInventory = {
-      ...initialState.initialCentralWarehouseInventory,
-    };
-    newCentralWarehouseInventory[itemName] = value;
-    setInitialState((prev) => ({
-      ...prev,
-      initialCentralWarehouseInventory: newCentralWarehouseInventory,
-    }));
+    if (value === "" || /^\d*$/.test(value)) {
+      const newCentralWarehouseInventory = {
+        ...initialState.initialCentralWarehouseInventory,
+      };
+      newCentralWarehouseInventory[itemName] = value;
+      setInitialState((prev) => ({
+        ...prev,
+        initialCentralWarehouseInventory: newCentralWarehouseInventory,
+      }));
+    }
   };
 
   const handleEarmarkedFundsChange = (campName: string, value: string) => {
-    const newEarmarkedFunds = { ...initialState.earmarkedFunds };
-    newEarmarkedFunds[campName] = value;
-    setInitialState((prev) => ({
-      ...prev,
-      earmarkedFunds: newEarmarkedFunds,
-    }));
+    if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+      const newEarmarkedFunds = { ...initialState.earmarkedFunds };
+      newEarmarkedFunds[campName] = value;
+      setInitialState((prev) => ({
+        ...prev,
+        earmarkedFunds: newEarmarkedFunds,
+      }));
+    }
   };
 
   const handleInitialEarmarkedInKindChange = (
@@ -91,17 +99,19 @@ const InitialStateSection: React.FC<Props> = ({
     itemName: string,
     value: string
   ) => {
-    const newInitialEarmarkedInKind = {
-      ...initialState.initialEarmarkedInKind,
-    };
-    if (!newInitialEarmarkedInKind[campName]) {
-      newInitialEarmarkedInKind[campName] = {};
+    if (value === "" || /^\d*$/.test(value)) {
+      const newInitialEarmarkedInKind = {
+        ...initialState.initialEarmarkedInKind,
+      };
+      if (!newInitialEarmarkedInKind[campName]) {
+        newInitialEarmarkedInKind[campName] = {};
+      }
+      newInitialEarmarkedInKind[campName][itemName] = value;
+      setInitialState((prev) => ({
+        ...prev,
+        initialEarmarkedInKind: newInitialEarmarkedInKind,
+      }));
     }
-    newInitialEarmarkedInKind[campName][itemName] = value;
-    setInitialState((prev) => ({
-      ...prev,
-      initialEarmarkedInKind: newInitialEarmarkedInKind,
-    }));
   };
 
   const handleIsItemAvailableChange = (itemName: string, checked: boolean) => {
@@ -122,6 +132,8 @@ const InitialStateSection: React.FC<Props> = ({
             <TextField
               fullWidth
               label="Available Funds"
+              type="number"
+              inputProps={{ step: 0.01, min: 0 }}
               value={initialState.availableFunds}
               onChange={(e) => handleAvailableFundsChange(e.target.value)}
             />
@@ -149,6 +161,8 @@ const InitialStateSection: React.FC<Props> = ({
                   <TextField
                     fullWidth
                     label={`${item.name} Initial Quantity`}
+                    type="number"
+                    inputProps={{ step: 1, min: 0 }}
                     value={
                       initialState.initialInventory[camp.name]?.[item.name] ||
                       "0"
@@ -179,6 +193,8 @@ const InitialStateSection: React.FC<Props> = ({
               <TextField
                 fullWidth
                 label={`${item.name} Central Inventory`}
+                type="number"
+                inputProps={{ step: 1, min: 0 }}
                 value={
                   initialState.initialCentralWarehouseInventory[item.name] ||
                   "0"
@@ -203,6 +219,8 @@ const InitialStateSection: React.FC<Props> = ({
               <TextField
                 fullWidth
                 label={`${camp.name} Earmarked Funds`}
+                type="number"
+                inputProps={{ step: 0.01, min: 0 }}
                 value={initialState.earmarkedFunds[camp.name] || "0"}
                 onChange={(e) =>
                   handleEarmarkedFundsChange(camp.name, e.target.value)
@@ -236,6 +254,8 @@ const InitialStateSection: React.FC<Props> = ({
                   <TextField
                     fullWidth
                     label={`${item.name} In-Kind`}
+                    type="number"
+                    inputProps={{ step: 1, min: 0 }}
                     value={
                       initialState.initialEarmarkedInKind[camp.name]?.[
                         item.name

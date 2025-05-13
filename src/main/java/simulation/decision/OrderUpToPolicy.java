@@ -1,5 +1,10 @@
 package simulation.decision;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.stream.Collectors;
+
 import data.Camp;
 import data.Environment;
 import data.Item;
@@ -8,17 +13,11 @@ import enums.CampExternalDemandSatisfactionType;
 import simulation.State;
 import simulation.data.InventoryItem;
 import simulation.data.requests.TransferRequest;
-import simulation.data.requests.TransshipmentRequest;
 import simulation.event.IEvent;
 import simulation.event.ReplenishmentEvent;
 import simulation.event.TransferEvent;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.stream.Collectors;
 
 public class OrderUpToPolicy implements IPolicy, Cloneable {
     private Environment environment;
@@ -78,8 +77,36 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                 if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
                     externalPopulation = 0;
                 }
-                var bufferRatio = bufferRatios.get(camp).get(item);
-                var periodicCount = periodicCounts.get(camp).get(item);
+                Object bufferRatioObj = bufferRatios.get(camp).get(item);
+                Object periodicCountObj = periodicCounts.get(camp).get(item);
+                
+                // Convert buffer ratio to double regardless of whether it's Integer or Double
+                double bufferRatio = 0.0;
+                if (bufferRatioObj instanceof Integer) {
+                    bufferRatio = ((Integer) bufferRatioObj).doubleValue();
+                } else if (bufferRatioObj instanceof Double) {
+                    bufferRatio = (Double) bufferRatioObj;
+                } else if (bufferRatioObj instanceof String) {
+                    try {
+                        bufferRatio = Double.parseDouble((String) bufferRatioObj);
+                    } catch (NumberFormatException e) {
+                        bufferRatio = 0.0;
+                    }
+                }
+                
+                // Convert periodic count to integer
+                int periodicCount = 0;
+                if (periodicCountObj instanceof Integer) {
+                    periodicCount = (Integer) periodicCountObj;
+                } else if (periodicCountObj instanceof Double) {
+                    periodicCount = ((Double) periodicCountObj).intValue();
+                } else if (periodicCountObj instanceof String) {
+                    try {
+                        periodicCount = Integer.parseInt((String) periodicCountObj);
+                    } catch (NumberFormatException e) {
+                        periodicCount = 0;
+                    }
+                }
 
                 reorderPoints.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (leadTime) * (1 + bufferRatio)));
                 orderUpToLevels.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (periodicCount + leadTime) * (1 + bufferRatio)));
@@ -112,8 +139,38 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                 totalDemand += (this.environment.getCorrespondingDemand(item, camp).getArrivalData().getDistParameters().getMean() * population);
             }
 
-            centralReorderPoints.put(item, (int) (totalDemand * leadTime * (1 + centralBufferRatios.get(item))));
-            centralOrderUpToLevels.put(item, (int) (totalDemand * (centralPeriodicCounts.get(item) + leadTime) * (1 + centralBufferRatios.get(item))));
+            // Safe conversion for central buffer ratio
+            Object bufferRatioObj = centralBufferRatios.get(item);
+            double bufferRatio = 0.0;
+            if (bufferRatioObj instanceof Integer) {
+                bufferRatio = ((Integer) bufferRatioObj).doubleValue();
+            } else if (bufferRatioObj instanceof Double) {
+                bufferRatio = (Double) bufferRatioObj;
+            } else if (bufferRatioObj instanceof String) {
+                try {
+                    bufferRatio = Double.parseDouble((String) bufferRatioObj);
+                } catch (NumberFormatException e) {
+                    bufferRatio = 0.0;
+                }
+            }
+            
+            // Safe conversion for central periodic count
+            Object periodicCountObj = centralPeriodicCounts.get(item);
+            int periodicCount = 0;
+            if (periodicCountObj instanceof Integer) {
+                periodicCount = (Integer) periodicCountObj;
+            } else if (periodicCountObj instanceof Double) {
+                periodicCount = ((Double) periodicCountObj).intValue();
+            } else if (periodicCountObj instanceof String) {
+                try {
+                    periodicCount = Integer.parseInt((String) periodicCountObj);
+                } catch (NumberFormatException e) {
+                    periodicCount = 0;
+                }
+            }
+
+            centralReorderPoints.put(item, (int) (totalDemand * leadTime * (1 + bufferRatio)));
+            centralOrderUpToLevels.put(item, (int) (totalDemand * (periodicCount + leadTime) * (1 + bufferRatio)));
         }
     }
 

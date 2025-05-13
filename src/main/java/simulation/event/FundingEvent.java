@@ -1,15 +1,13 @@
 package simulation.event;
+import java.util.ArrayList;
+
 import data.Camp;
 import data.Item;
 import data.event_info.Funding;
-import enums.DistributionType;
 import enums.FundingType;
-import simulation.KPIManager;
 import simulation.State;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
-
-import java.util.ArrayList;
 
 public class FundingEvent implements IEvent {
 
@@ -22,7 +20,7 @@ public class FundingEvent implements IEvent {
 
     public FundingEvent(Funding funding, QuantityGenerator quantityGenerator, double time) {
         this.funding = funding;
-        this.item = funding.getItems();
+        this.item = funding.getItem();
         this.camp = funding.getCamp();
         this.fundingType = funding.getFundingType();
         this.time = time;
@@ -31,7 +29,7 @@ public class FundingEvent implements IEvent {
 
     public FundingEvent(Funding funding, double time, double amount) {
         this.funding = funding;
-        this.item = funding.getItems();
+        this.item = funding.getItem();
         this.camp = funding.getCamp();
         this.fundingType = funding.getFundingType();
         this.time = time;
@@ -50,6 +48,15 @@ public class FundingEvent implements IEvent {
             System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Amount: " +
                 this.amount);
 
+        // Add validation for earmarked funding
+        if ((this.fundingType == FundingType.MONETARY_EARMARKED || this.fundingType == FundingType.INKIND_EARMARKED) 
+            && this.camp == null) {
+            System.out.println("Warning: Earmarked funding without a target camp. Treating as regular funding.");
+            // Modify funding type to regular if camp is null
+            this.fundingType = this.fundingType == FundingType.MONETARY_EARMARKED ? 
+                               FundingType.MONETARY_REGULAR : FundingType.INKIND_REGULAR;
+        }
+
         // Update the state
         if (this.fundingType == FundingType.INKIND_EARMARKED || this.fundingType == FundingType.INKIND_REGULAR) {
             state.updateFunds(this.camp, this.item, this.fundingType, this.amount, this.getTime(), this.getTime());
@@ -59,6 +66,5 @@ public class FundingEvent implements IEvent {
         }
         state.setLastFundingReceived(this.amount);
         return null;
-
     }
 }

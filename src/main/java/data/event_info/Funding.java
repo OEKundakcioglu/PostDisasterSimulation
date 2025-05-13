@@ -1,5 +1,7 @@
 package data.event_info;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import data.Camp;
 import data.Item;
 import data.distribution.ProbabilityData;
@@ -7,28 +9,37 @@ import enums.FundingType;
 
 
 public class Funding {
+    @JsonProperty("item")
     private Item item;
+    
+    @JsonProperty("camp")
     private Camp camp;
+    
+    @JsonProperty("fundingType")
     private FundingType fundingType;
+    
+    @JsonProperty("arrivalData")
     private ProbabilityData arrivalData;
+    
+    @JsonProperty("amountData")
     private ProbabilityData amountData;
 
     public Funding() {
     }
 
-    public Item getItems() {
+    public Item getItem() {
         return item;
     }
 
-    public void setItems(Item items) {
-        this.item = items;
+    public void setItem(Item item) {
+        this.item = item;
     }
 
     public Camp getCamp() {
         return camp;
     }
 
-    public void setCamps(Camp camp) {
+    public void setCamp(Camp camp) {
         this.camp = camp;
     }
 

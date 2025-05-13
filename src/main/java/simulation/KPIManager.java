@@ -482,7 +482,15 @@ public class KPIManager {
             log.fundingReceived = state.getLastFundingReceived();
 
             // Iterate through camps
-            for (var camp : state.getInventory().keySet()) {
+            for (var campEntry : state.getInventory().entrySet()) {
+                Camp camp = campEntry.getKey();
+                
+                // Skip null camps to prevent NullPointerException
+                if (camp == null) {
+                    System.out.println("Warning: Null camp detected in inventory. Skipping...");
+                    continue;
+                }
+                
                 String campName = camp.getName();
                 
                 // Initialize maps

@@ -30,14 +30,34 @@ const SimulationConfigSection: React.FC<Props> = ({
 
     // For number inputs, only update if it's a valid number or empty string
     if (type === "number") {
-      // Only allow numeric input (including decimal point for ratios)
-      const numericValue = value.replace(/[^0-9.]/g, "");
-      if (numericValue === value) {
-        // Only update if no characters were filtered out
-        setSimulationConfig((prev) => ({
-          ...prev,
-          [name]: value,
-        }));
+      // Different validation for different types of numeric fields
+      if (name === "campBuffer" || name === "centralBuffer") {
+        // For buffer ratios, allow decimals (0-1 range typically)
+        if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+          setSimulationConfig((prev) => ({
+            ...prev,
+            [name]: value,
+          }));
+        }
+      } else if (
+        name === "inventoryControlPeriod" ||
+        name === "planningHorizon"
+      ) {
+        // For periods, only allow positive integers
+        if (value === "" || /^\d*$/.test(value)) {
+          setSimulationConfig((prev) => ({
+            ...prev,
+            [name]: value,
+          }));
+        }
+      } else {
+        // For other numeric inputs
+        if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
+          setSimulationConfig((prev) => ({
+            ...prev,
+            [name]: value,
+          }));
+        }
       }
     } else if (type === "checkbox") {
       setSimulationConfig((prev) => ({

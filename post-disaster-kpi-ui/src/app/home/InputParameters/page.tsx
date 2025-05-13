@@ -65,6 +65,8 @@ interface Camp {
 
 interface AgencyFunding {
   fundingType: string;
+  item?: string;
+  camp?: string;
   arrivalData: {
     distributionType: string;
     distParameters: {
@@ -146,6 +148,49 @@ const InputParameters = () => {
     campBuffer: "0.0",
     centralBuffer: "0.0",
   });
+
+  // Add this helper function to safely handle type conversions
+  const ensureNumericValues = (data: any) => {
+    if (!data) return data;
+
+    // Make a deep copy to avoid modifying the original
+    const result = JSON.parse(JSON.stringify(data));
+
+    // Helper to recursively process objects
+    const processObject = (obj: any) => {
+      if (!obj || typeof obj !== "object") return;
+
+      Object.keys(obj).forEach((key) => {
+        const value = obj[key];
+
+        // Handle arrays
+        if (Array.isArray(value)) {
+          value.forEach((item) => processObject(item));
+          return;
+        }
+
+        // Process nested objects
+        if (typeof value === "object" && value !== null) {
+          processObject(value); // Recursively process nested objects
+          return;
+        }
+
+        // Convert string numbers to actual numbers
+        if (typeof value === "string" && /^-?\d*\.?\d*$/.test(value)) {
+          const numValue = value.includes(".")
+            ? parseFloat(value)
+            : parseInt(value, 10);
+
+          if (!isNaN(numValue)) {
+            obj[key] = numValue;
+          }
+        }
+      });
+    };
+
+    processObject(result);
+    return result;
+  };
 
   const [items, setItems] = useState<Item[]>([
     {
@@ -503,25 +548,45 @@ const InputParameters = () => {
       setError(null);
       setSuccessMessage(null);
 
-      const dataToSend = {
-        simulationConfig,
-        items,
-        camps,
-        agencies,
-        migrations,
-        inventoryPolicy,
-        initialState,
-      };
+      // Create a deep copy of the data to modify
+      const dataToSend = JSON.parse(
+        JSON.stringify({
+          simulationConfig,
+          items,
+          camps,
+          agencies,
+          migrations,
+          inventoryPolicy,
+          initialState,
+        })
+      );
 
-      // Save it to localStorage so we can retrieve it later
+      // Normalize agency funding data to ensure property names match backend expectations
+      if (dataToSend.agencies) {
+        dataToSend.agencies.forEach((agency: any) => {
+          if (agency.fundingArray) {
+            agency.fundingArray.forEach((funding: any) => {
+              // Ensure empty strings are null to avoid backend issues
+              if (funding.item === "") funding.item = null;
+              if (funding.camp === "") funding.camp = null;
+            });
+          }
+        });
+      }
+
+      // Save raw data to localStorage for later use
+      localStorage.setItem("simulationInputData", JSON.stringify(dataToSend));
       localStorage.setItem("currentSimulationData", JSON.stringify(dataToSend));
+
+      // Process data for API submission to ensure correct types
+      const processedData = ensureNumericValues(dataToSend);
 
       const response = await fetch("/api/runSimulation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(processedData),
       });
 
       const data = await response.json();
@@ -581,6 +646,7 @@ const InputParameters = () => {
             agencies={agencies}
             setAgencies={setAgencies}
             items={items}
+            camps={camps}
           />
         </CollapsibleSection>
 

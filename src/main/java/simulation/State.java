@@ -8,8 +8,8 @@ import java.util.PriorityQueue;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import data.Camp;
-import data.Item;
 import data.Environment;
+import data.Item;
 import enums.CampExternalDemandSatisfactionType;
 import enums.FundingType;
 import enums.MigrationType;
@@ -324,21 +324,71 @@ public class State implements Cloneable {
             this.availableFunds += amount;
         }
         else if (fundingType == FundingType.MONETARY_EARMARKED){
+            // Verify camp is not null for earmarked funds
+            if (camp == null) {
+                System.out.println("Warning: Trying to add earmarked funds to null camp. Adding to available funds instead.");
+                this.availableFunds += amount;
+                return;
+            }
+            
+            if (!earmarkedFunds.containsKey(camp)) {
+                earmarkedFunds.put(camp, 0.0);
+            }
             this.earmarkedFunds.put(camp, this.earmarkedFunds.get(camp) + amount);
         }
         else if (fundingType == FundingType.INKIND_REGULAR){
+            // Verify item is not null
+            if (item == null) {
+                System.out.println("Warning: Trying to add in-kind funding with null item. Ignoring this funding.");
+                return;
+            }
+            
             if (!centralWarehouseInventory.containsKey(item)) {
                 centralWarehouseInventory.put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));
             }
+            
+            if (!centralWarehousePosition.containsKey(item)) {
+                centralWarehousePosition.put(item, 0);
+            }
+            
             centralWarehouseInventory.get(item).offer(new InventoryItem((int) amount, expiration, arrivalTime));
             centralWarehousePosition.put(item, centralWarehousePosition.get(item) + (int) amount);
         }
         else if (fundingType == FundingType.INKIND_EARMARKED){
+            // Verify camp and item are not null for earmarked in-kind
+            if (camp == null || item == null) {
+                System.out.println("Warning: Trying to add earmarked in-kind to null camp or with null item. Adding to central warehouse instead.");
+                // Redirect to central warehouse if camp is null but item is valid
+                if (item != null) {
+                    if (!centralWarehouseInventory.containsKey(item)) {
+                        centralWarehouseInventory.put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));
+                    }
+                    if (!centralWarehousePosition.containsKey(item)) {
+                        centralWarehousePosition.put(item, 0);
+                    }
+                    centralWarehouseInventory.get(item).offer(new InventoryItem((int) amount, expiration, arrivalTime));
+                    centralWarehousePosition.put(item, centralWarehousePosition.get(item) + (int) amount);
+                }
+                return;
+            }
+            
+            if (!inventory.containsKey(camp)) {
+                inventory.put(camp, new HashMap<>());
+            }
+            
             HashMap<Item, PriorityQueue<InventoryItem>> campInventory = inventory.get(camp);
 
             if (!campInventory.containsKey(item)) {
                 campInventory.put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));
             }
+            
+            if (!inventoryPosition.containsKey(camp)) {
+                inventoryPosition.put(camp, new HashMap<>());
+            }
+            if (!inventoryPosition.get(camp).containsKey(item)) {
+                inventoryPosition.get(camp).put(item, 0);
+            }
+            
             campInventory.get(item).offer(new InventoryItem((int) amount, expiration, arrivalTime));
             inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) + (int) amount);
         }

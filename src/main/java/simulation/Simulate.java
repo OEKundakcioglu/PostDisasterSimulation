@@ -7,8 +7,8 @@ import java.util.PriorityQueue;
 
 import data.Agency;
 import data.Camp;
-import data.Item;
 import data.Environment;
+import data.Item;
 import data.event_info.Demand;
 import data.event_info.Funding;
 import data.event_info.Migration;
@@ -78,11 +78,13 @@ public class Simulate {
                 DemandEvent demandEvent = (DemandEvent) event;
                 Camp camp = demandEvent.camp;
 
-                for (IEvent e : eventSet) {
-                    if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) {
-                        continue;
+                if (eventSet != null) {
+                    for (IEvent e : eventSet) {
+                        if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) {
+                            continue;
+                        }
+                        this.demandEventQueue.get(camp).offer(e);
                     }
-                    this.demandEventQueue.get(camp).offer(e);
                 }
 
                 PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
@@ -268,9 +270,32 @@ public class Simulate {
     }
 
     private void generateDemandEvents(Camp camp, Demand demand, double currentTime){
+        // Add null checks
+        if (camp == null) {
+            System.out.println("Warning: Attempted to generate demand events for null camp. Skipping...");
+            return;
+        }
+        
+        if (demand == null) {
+            System.out.println("Warning: Attempted to generate demand events with null demand for camp " + camp.getName() + ". Skipping...");
+            return;
+        }
+        
         if (!this.demandEventQueue.containsKey(camp)){
             this.demandEventQueue.put(camp, new PriorityQueue<>(IEvent::compareTo));
         }
+        
+        // Add null checks for population maps
+        if (!this.state.getInternalPopulation().containsKey(camp)) {
+            System.out.println("Warning: No internal population data for camp " + camp.getName() + ". Initializing to 0.");
+            this.state.getInternalPopulation().put(camp, 0);
+        }
+        
+        if (!this.state.getExternalPopulation().containsKey(camp)) {
+            System.out.println("Warning: No external population data for camp " + camp.getName() + ". Initializing to 0.");
+            this.state.getExternalPopulation().put(camp, 0);
+        }
+        
         PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
         for (int i = 0; i < this.state.getInternalPopulation().get(camp); i++){
             if (this.quantityGenerator.rngDemand.nextDouble() < demand.getInternalRatio()){
@@ -298,11 +323,25 @@ public class Simulate {
     }
 
     private void migrationStateUpdate(MigrationEvent migrationEvent){
+        // Add null checks
+        if (migrationEvent == null) {
+            System.out.println("Warning: Null migration event. Skipping state update.");
+            return;
+        }
+        
         if (migrationEvent.migrationType == MigrationType.EXTERNAL_TO_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.INTERNAL_TO_SYSTEM) {
+            // Check for null toCamp
+            if (migrationEvent.toCamp == null) {
+                System.out.println("Warning: Migration event has null toCamp. Skipping state update.");
+                return;
+            }
+            
             if (migrationEvent.quantity > 0) {
                 this.state.getInventoryPolicy().initialize(environment, this.state);
                 for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                    if (demand == null) continue; // Skip null demands
+                    
                     // Reset the demand events for the camp
                     this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
                     generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
@@ -312,24 +351,46 @@ public class Simulate {
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_FROM_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM
                 ) {
+            // Check for null fromCamp
+            if (migrationEvent.fromCamp == null) {
+                System.out.println("Warning: Migration event has null fromCamp. Skipping state update.");
+                return;
+            }
+            
             if (migrationEvent.quantity > 0) {
                 this.state.getInventoryPolicy().initialize(environment, this.state);
                 for (Demand demand : migrationEvent.fromCamp.getDemands()) {
+                    if (demand == null) continue; // Skip null demands
+                    
                     // Reset the demand events for the camp
-                    this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
-                    generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
+                    this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
+                    generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
                 }
             }
         }
-        else if ( migrationEvent.migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM||
+        else if (migrationEvent.migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.EXTERNAL_WITHIN_SYSTEM) {
+            // Check for null camps
+            if (migrationEvent.fromCamp == null || migrationEvent.toCamp == null) {
+                System.out.println("Warning: Migration event has null fromCamp or toCamp. Skipping state update.");
+                return;
+            }
+                
             if (migrationEvent.quantity > 0) {
                 // Reset the demand events for the camp
                 this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
                 this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
                 this.state.getInventoryPolicy().initialize(environment, this.state);
+                
                 for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                    if (demand == null) continue; // Skip null demands
                     generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
+                }
+                
+                // Also generate demand events for fromCamp as the population changed
+                for (Demand demand : migrationEvent.fromCamp.getDemands()) {
+                    if (demand == null) continue; // Skip null demands
+                    generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
                 }
             }
         }

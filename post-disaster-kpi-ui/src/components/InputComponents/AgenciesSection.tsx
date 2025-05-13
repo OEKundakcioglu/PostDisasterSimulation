@@ -30,7 +30,7 @@ interface ArrivalDistParameters extends CommonDistParameters {
 interface AgencyFunding {
   fundingType: string;
   item?: string; // For in-kind donations
-  earmarkedFor?: string; // For earmarked funding
+  camp?: string; // Changed from earmarkedFor to camp
   arrivalData: {
     distributionType: string;
     distParameters: ArrivalDistParameters;
@@ -50,12 +50,14 @@ interface Props {
   agencies: Agency[];
   setAgencies: React.Dispatch<React.SetStateAction<Agency[]>>;
   items?: { name: string }[]; // Make items optional to prevent errors
+  camps: { name: string }[]; // Add camps prop for earmarked funding
 }
 
 const AgenciesSection: React.FC<Props> = ({
   agencies,
   setAgencies,
   items = [],
+  camps = [], // Default to empty array
 }) => {
   // Default items to empty array if not provided
 
@@ -425,6 +427,18 @@ const AgenciesSection: React.FC<Props> = ({
     ));
   };
 
+  // Render empty placeholder when no camps are available
+  const renderCampOptions = () => {
+    if (!camps || camps.length === 0) {
+      return <MenuItem disabled>No camps available</MenuItem>;
+    }
+    return camps.map((camp) => (
+      <MenuItem key={`camp-${camp.name}`} value={camp.name}>
+        {camp.name}
+      </MenuItem>
+    ));
+  };
+
   return (
     <>
       {agencies.map((agency, agencyIndex) => (
@@ -571,17 +585,17 @@ const AgenciesSection: React.FC<Props> = ({
                         <TextField
                           select
                           fullWidth
-                          label="Earmarked For"
-                          value={funding.earmarkedFor || ""}
+                          label="Earmarked For (Camp)"
+                          value={funding.camp || ""}
                           onChange={(e) => {
                             const newAgencies = [...agencies];
                             newAgencies[agencyIndex].fundingArray[
                               fundingIndex
-                            ].earmarkedFor = e.target.value;
+                            ].camp = e.target.value;
                             setAgencies(newAgencies);
                           }}
                         >
-                          {renderItemOptions()}
+                          {renderCampOptions()}
                         </TextField>
                       </Grid>
                     )}
@@ -707,7 +721,7 @@ const AgenciesSection: React.FC<Props> = ({
                   newAgencies[agencyIndex].fundingArray.push({
                     fundingType: "MONETARY_REGULAR",
                     item: "", // Initialize empty for in-kind
-                    earmarkedFor: "", // Initialize empty for earmarked
+                    camp: "", // Initialize empty for earmarked
                     arrivalData: {
                       distributionType: "BERNOULLI",
                       distParameters: {
