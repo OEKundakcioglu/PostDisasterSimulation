@@ -1,41 +1,40 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import yaml from "yaml";
+
+const YAML_REL_PATH = [
+  "..",
+  "src",
+  "main",
+  "java",
+  "data",
+  "input_files",
+  "input.yaml",
+] as const;
+
+function getYamlPath() {
+  return path.join(process.cwd(), ...YAML_REL_PATH);
+}
 
 export async function GET() {
   try {
-    // Define path to YAML file
-    const yamlFilePath = path.join(
-      process.cwd(),
-      "..",
-      "src",
-      "main",
-      "java",
-      "data",
-      "input_files",
-      "input.yaml"
-    );
-
-    // Check if file exists
+    const yamlFilePath = getYamlPath();
     if (!fs.existsSync(yamlFilePath)) {
       return NextResponse.json(
         { error: "Configuration file not found" },
         { status: 404 }
       );
     }
-
-    // Read the YAML file
     const yamlContent = fs.readFileSync(yamlFilePath, "utf8");
-
-    return NextResponse.json({
-      success: true,
-      data: yamlContent,
-    });
-  } catch (error: any) {
-    console.error("Error reading configuration:", error);
     return NextResponse.json(
-      { error: `Failed to read configuration: ${error.message}` },
+      { success: true, data: yamlContent },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error reading configuration:", message);
+    return NextResponse.json(
+      { error: `Failed to read configuration: ${message}` },
       { status: 500 }
     );
   }

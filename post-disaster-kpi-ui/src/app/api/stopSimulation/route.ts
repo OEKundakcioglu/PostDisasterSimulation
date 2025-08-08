@@ -1,48 +1,64 @@
 import { NextResponse } from "next/server";
 
-export async function POST() {
-  console.log("🔴 API route: /api/stopSimulation called");
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const STOP_ENDPOINT = "/simulate/stop";
+
+async function fetchWithTimeout(url: string, ms = 8000, init?: RequestInit) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    console.log("🔹 Using API URL:", apiUrl);
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
 
-    if (!apiUrl) {
-      console.error("❌ API URL not defined in environment variables");
-      throw new Error("API URL not defined");
-    }
-
-    console.log(`🔹 Sending POST request to ${apiUrl}/simulate/stop`);
-    const response = await fetch(`${apiUrl}/simulate/stop`, {
+export async function POST() {
+  if (!API_URL) {
+    return NextResponse.json(
+      { success: false, error: "API URL not defined" },
+      { status: 500 }
+    );
+  }
+  try {
+    const url = `${API_URL}${STOP_ENDPOINT}`;
+    const response = await fetchWithTimeout(url, 8000, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
 
-    console.log(`🔹 Backend response status: ${response.status}`);
-
     if (!response.ok) {
-      console.error(`❌ Backend returned error status: ${response.status}`);
-      throw new Error(`Failed to stop simulation: ${response.status}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Failed to stop simulation: ${response.status}`,
+        },
+        { status: response.status }
+      );
     }
 
+    let details: unknown = null;
     try {
-      const responseData = await response.json();
-      console.log("🔹 Backend response data:", responseData);
-    } catch (e) {
-      console.log("🔹 Backend didn't return JSON response");
+      details = await response.json();
+    } catch {
+      /* ignore non-json */
     }
 
-    console.log("✅ Simulation stop request successful");
     return NextResponse.json({
       success: true,
       message: "Simulation stopped successfully",
+      details,
     });
   } catch (error) {
-    console.error("❌ Error stopping simulation:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
+    const aborted = message.includes("AbortError");
     return NextResponse.json(
-      { success: false, error: "Failed to stop simulation: " + errorMessage },
+      {
+        success: false,
+        error: aborted
+          ? "Stop request timed out"
+          : `Failed to stop simulation: ${message}`,
+      },
       { status: 500 }
     );
   }

@@ -2,7 +2,7 @@
 
 "use client";
 
-import React from "react";
+import React, { PropsWithChildren, useMemo } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import {
   AppBar,
@@ -15,55 +15,58 @@ import {
 import GitHubIcon from "@mui/icons-material/GitHub";
 import "@fontsource/merriweather";
 import "@fontsource/open-sans";
-import theme from "../theme";
+import theme from "@/app/theme";
 
-const HomeLayout = ({ children }: { children: React.ReactNode }) => {
+// ------------------ constants ------------------
+const GITHUB_REPO_URL =
+  "https://github.com/OEKundakcioglu/PostDisasterSimulation";
+const PROF_PAGE_URL = "http://erhun.me";
+
+// ------------------ component ------------------
+const HomeLayout: React.FC<PropsWithChildren> = ({ children }) => {
+  const headerTitle = useMemo(() => "Post Disaster Simulation", []);
+
   return (
     <ThemeProvider theme={theme}>
-      <AppBar
-        position="static"
-        elevation={0}
-        sx={{ backgroundColor: theme.palette.primary.main }}
-      >
+      <AppBar position="static" elevation={0} sx={{ bgcolor: "primary.main" }}>
         <Toolbar>
           <Typography
             variant="h5"
             sx={{
               flexGrow: 1,
-              fontFamily: theme.typography.fontFamily,
-              fontWeight: "bold",
-              letterSpacing: "0.05rem",
-              color: theme.palette.primary.contrastText,
+              fontWeight: 700,
+              letterSpacing: ".05rem",
+              color: "primary.contrastText",
             }}
           >
-            Post Disaster Simulation
+            {headerTitle}
           </Typography>
 
-          {/* GitHub Icon and Link */}
           <IconButton
+            aria-label="GitHub repository"
             color="inherit"
             component="a"
-            href="https://github.com/OEKundakcioglu/PostDisasterSimulation"
+            href={GITHUB_REPO_URL}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
+            size="large"
           >
             <GitHubIcon />
           </IconButton>
 
-          {/* Link to Prof. Erhun's page */}
           <Typography
             variant="body2"
-            sx={{
-              color: theme.palette.primary.contrastText,
-              marginLeft: 2,
-            }}
+            sx={{ color: "primary.contrastText", ml: 2 }}
           >
             Prepared by the Research Group of{" "}
             <Link
-              href="http://erhun.me"
+              href={PROF_PAGE_URL}
               target="_blank"
-              rel="noopener"
-              sx={{ color: theme.palette.primary.contrastText }}
+              rel="noopener noreferrer"
+              sx={{
+                color: "primary.contrastText",
+                textDecorationColor: "primary.contrastText",
+              }}
             >
               Prof. Erhun Kundakcıoğlu
             </Link>
@@ -72,11 +75,8 @@ const HomeLayout = ({ children }: { children: React.ReactNode }) => {
       </AppBar>
 
       <Box
-        sx={{
-          padding: "30px",
-          backgroundColor: theme.palette.background.default,
-          minHeight: "100vh",
-        }}
+        component="main"
+        sx={{ p: 4, bgcolor: "background.default", minHeight: "100vh" }}
       >
         {children}
       </Box>

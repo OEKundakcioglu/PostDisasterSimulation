@@ -1,4 +1,7 @@
 {
-  "/home/RealTimeVisualization/page": "app/home/RealTimeVisualization/page.js",
-  "/home/InputParameters/page": "app/home/InputParameters/page.js"
+  "/api/runSimulation/route": "app/api/runSimulation/route.js",
+  "/api/downloadConfig/route": "app/api/downloadConfig/route.js",
+  "/api/stopSimulation/route": "app/api/stopSimulation/route.js",
+  "/home/InputParameters/page": "app/home/InputParameters/page.js",
+  "/home/RealTimeVisualization/page": "app/home/RealTimeVisualization/page.js"
 }

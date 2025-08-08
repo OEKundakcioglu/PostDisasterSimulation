@@ -19,6 +19,7 @@ simulationConfig:
   fileName: C-0.10
   campBuffer: &campBuffer 0
   centralBuffer: &centralBuffer 0
+
 items:
   - &hygienekit
     name: HygieneKit
@@ -33,6 +34,7 @@ items:
       distributionType: EXPONENTIAL
       distParameters: !!data.distribution.DistExponential
         mean: 2
+
   - &medicine
     name: Medicine
     isPerishable: true
@@ -46,12 +48,14 @@ items:
       distributionType: NORMAL
       distParameters: !!data.distribution.DistNormal
         [45, 5]
+
     leadTimeData:
       distributionType: TRIANGULAR
       distParameters: !!data.distribution.DistTriangular
         min: 1
         mode: 2
         max: 4
+
 camps:
   - &hatay-1
     name: Hatay-1
@@ -59,6 +63,7 @@ camps:
       distributionType: FIXED
       distParameters: !!data.distribution.DistFixed
         mean: 2
+
     demands:
       - item: *hygienekit
         demandTimingType: SPORADIC
@@ -67,6 +72,7 @@ camps:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
+
         internalRatio: 0.4
         externalRatio: 0.05
       - item: *medicine
@@ -76,6 +82,7 @@ camps:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.0167
+
         internalRatio: 0.2
         externalRatio: 0.02
     campExternalDemandSatisfactionType: FULLY
@@ -88,6 +95,7 @@ camps:
       distributionType: EQUAL_SHARE
       distParameters: !!data.distribution.DistEqualShare
         mean: 2
+
     demands:
       - item: *hygienekit
         demandTimingType: PERIODIC
@@ -96,6 +104,7 @@ camps:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.033
+
         internalRatio: 0.5
         externalRatio: 0.05
       - item: *medicine
@@ -105,12 +114,14 @@ camps:
           distributionType: EXPONENTIAL
           distParameters: !!data.distribution.DistExponential
             mean: 0.0167
+
         internalRatio: 0.2
         externalRatio: 0.02
     campExternalDemandSatisfactionType: NONE
     populationType: REGULAR
     initialInternalPopulation: 214212
     initialExternalPopulation: 14410
+
 agencies:
   - name: Government
     fundingArray:
@@ -122,10 +133,12 @@ agencies:
             mean: 1
             arrivalInterval: 1090
             initialArrival: true
+
         amountData:
           distributionType: FIXED
           distParameters: !!data.distribution.DistFixed
             mean: 1
+
       - fundingType: MONETARY_REGULAR
         arrivalData:
           distributionType: BERNOULLI
@@ -133,10 +146,12 @@ agencies:
             mean: 1
             arrivalInterval: 1090
             initialArrival: true
+
         amountData:
           distributionType: EQUAL_SHARE
           distParameters: !!data.distribution.DistEqualShare
             mean: 14900000
+
   - name: we
     fundingArray:
       - fundingType: INKIND_EARMARKED
@@ -147,10 +162,12 @@ agencies:
             mean: 1
             arrivalInterval: 1090
             initialArrival: true
+
         amountData:
           distributionType: EQUAL_SHARE
           distParameters: !!data.distribution.DistEqualShare
             mean: 14900000
+
 migrations:
   - migrationType: EXTERNAL_TO_SYSTEM
     toCamp: *hatay-2
@@ -159,10 +176,12 @@ migrations:
       distParameters: !!data.distribution.DistUniform
         min: 1
         max: 10
+
     quantityData:
       distributionType: FIXED
       distParameters: !!data.distribution.DistFixed
         mean: 500
+
     migrationRatio: 0.05
   - migrationType: EXTERNAL_FROM_SYSTEM
     fromCamp: *hatay-1
@@ -170,6 +189,7 @@ migrations:
       distributionType: BERNOULLI
       distParameters: !!data.distribution.DistBernoulli
         mean: 0.5
+
     migrationRatio: 0.05
   - migrationType: EXTERNAL_TO_SYSTEM
     toCamp: *hatay-2
@@ -178,22 +198,25 @@ migrations:
       distParameters: !!data.distribution.DistUniform
         min: 1
         max: 10
+
     quantityData:
       distributionType: NORMAL
       distParameters: !!data.distribution.DistNormal
         [500, 100]
+
     migrationRatio: 0.05
+
 inventoryPolicy: !!simulation.decision.OrderUpToPolicy
   bufferRatios:
     *hatay-1:
-      *hygienekit: *campBuffer
-      *medicine: *campBuffer
+      *hygienekit: 0
+      *medicine: 0
     *hatay-2:
-      *hygienekit: *campBuffer
-      *medicine: *campBuffer
+      *hygienekit: 0
+      *medicine: 0
   centralBufferRatios:
-    *hygienekit: *centralBuffer
-    *medicine: *centralBuffer
+    *hygienekit: 0
+    *medicine: 0
   periodicCounts:
     *hatay-1:
       *hygienekit: 10
@@ -204,6 +227,7 @@ inventoryPolicy: !!simulation.decision.OrderUpToPolicy
   centralPeriodicCounts:
     *hygienekit: 10
     *medicine: 10
+
 initialState:
   availableFunds: 0
   initialInventory:

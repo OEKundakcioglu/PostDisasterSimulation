@@ -1,26 +1,41 @@
 import { NextResponse } from "next/server";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const FILENAME = "simulation-config.yaml";
+const COMMON_NO_CACHE = {
+  "Cache-Control": "no-cache, no-store, must-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
+async function fetchWithTimeout(url: string, ms = 8000, init?: RequestInit) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 export async function GET() {
-  try {
-    const timestamp = new Date().getTime();
-    const response = await fetch(
-      `${API_URL}/simulate/downloadYaml?t=${timestamp}`,
-      {
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      }
+  if (!API_URL) {
+    return NextResponse.json(
+      { error: "Backend API URL not configured" },
+      { status: 500 }
     );
+  }
+  try {
+    const url = `${API_URL}/simulate/downloadYaml?t=${Date.now()}`;
+    const response = await fetchWithTimeout(url, 8000, {
+      cache: "no-store",
+      headers: COMMON_NO_CACHE,
+    });
 
     if (!response.ok) {
       return NextResponse.json(
         { error: "YAML configuration file not found" },
-        { status: 404 }
+        { status: response.status }
       );
     }
 
@@ -29,16 +44,19 @@ export async function GET() {
     return new NextResponse(yamlContent, {
       headers: {
         "Content-Type": "application/yaml",
-        "Content-Disposition": "attachment; filename=simulation-config.yaml",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
+        "Content-Disposition": `attachment; filename=${FILENAME}`,
+        ...COMMON_NO_CACHE,
       },
     });
   } catch (error) {
-    console.error("Error fetching YAML file from backend:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    const aborted = message.includes("AbortError");
     return NextResponse.json(
-      { error: "Failed to fetch YAML configuration file from backend" },
+      {
+        error: aborted
+          ? "Request for YAML timed out"
+          : "Failed to fetch YAML configuration file from backend",
+      },
       { status: 500 }
     );
   }
