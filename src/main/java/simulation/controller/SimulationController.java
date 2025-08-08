@@ -39,7 +39,7 @@ public class SimulationController {
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private volatile boolean isSimulationRunning = false;
     private Timer logBroadcastTimer;
-    private Future<?> simulationFuture; // Track the current simulation task
+    private Future<?> simulationFuture;
 
     @Autowired
     private SimulationWebSocketHandler webSocketHandler;

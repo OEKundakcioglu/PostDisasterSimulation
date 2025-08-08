@@ -72,9 +72,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
     return "mean" in params && "stdDev" in params;
   };
 
-  // Handle numeric keyboard input to prevent non-numeric characters
   const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Allow: backspace, delete, tab, escape, enter, decimal point, navigation
     if (
       [
         "Backspace",

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export async function GET() {
   try {
     const timestamp = new Date().getTime();
     const response = await fetch(
-      `http://localhost:8083/simulate/downloadYaml?t=${timestamp}`,
+      `${API_URL}/simulate/downloadYaml?t=${timestamp}`,
       {
         cache: "no-store",
         headers: {
