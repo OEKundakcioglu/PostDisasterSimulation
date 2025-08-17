@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Typography, Grid, TextField } from "@mui/material";
+import { Grid, TextField } from "@mui/material";
 import { Item } from "../../types/Item";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 

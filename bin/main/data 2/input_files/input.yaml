@@ -1,0 +1,476 @@
+simulationConfig:
+  seedDemandTime: 0
+  seedDemandQuantity: 12
+  seedItemDuration: 0
+  seedSupplyDisruptionTime: 0
+  seedSupplyDisruptionDuration: 0
+  seedMigrationTime: 0
+  seedMigrationQuantity: 21
+  seedFundingTime: 0
+  seedFundingAmount: 12
+  seedReplenishmentTime: 0
+  seedTransferTime: 0
+  seedTransshipmentTime: 0
+  inventoryControlType: PERIODIC
+  inventoryControlPeriod: &period 10
+  planningHorizon: 1080
+  reportEvents: false
+  reportKPIs: true
+  fileName: C-0.10
+  campBuffer: &campBuffer 0
+  centralBuffer: &centralBuffer 0
+items:
+  - &hygienekit
+    name: HygieneKit
+    isPerishable: false
+    price: 5
+    orderingCost: 1202
+    holdingCost: 1
+    deprivationRate: 0.11
+    deprivationCoefficient: 1
+    referralCost: 2
+    leadTimeData:
+      distributionType: EXPONENTIAL
+      distParameters: !!data.distribution.DistExponential
+        mean: 2
+  - &medicine
+    name: Medicine
+    isPerishable: true
+    price: 12
+    orderingCost: 1400
+    holdingCost: 0.2
+    deprivationRate: 0.245
+    deprivationCoefficient: 1
+    referralCost: 4.06
+    durationData:
+      distributionType: NORMAL
+      distParameters: !!data.distribution.DistNormal
+        [45, 5]
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters: !!data.distribution.DistTriangular
+        min: 1
+        mode: 2
+        max: 4
+  - &şef
+    name: şef
+    isPerishable: true
+    price: 22.85
+    orderingCost: 23423
+    holdingCost: 23
+    deprivationRate: 0.21
+    deprivationCoefficient: 2
+    referralCost: 3
+    durationData:
+      distributionType: NORMAL
+      distParameters: !!data.distribution.DistNormal
+        [45, 5]
+    leadTimeData:
+      distributionType: BERNOULLI
+      distParameters: !!data.distribution.DistBernoulli
+        mean: 0.5
+        arrivalInterval: 10
+        initialArrival: true
+camps:
+  - &hatay-1
+    name: Hatay-1
+    leadTimeData:
+      distributionType: FIXED
+      distParameters: !!data.distribution.DistFixed
+        mean: 2
+    demands:
+      - item: *hygienekit
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: NORMAL
+          distParameters: !!data.distribution.DistNormal
+            [10, 2]
+        internalRatio: 0.4
+        externalRatio: 0.05
+      - item: *medicine
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.0167
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *şef
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: FULLY
+    populationType: PRIORITIZED
+    initialInternalPopulation: 12312
+    initialExternalPopulation: 144103
+  - &hatay-2
+    name: Hatay-2
+    leadTimeData:
+      distributionType: EQUAL_SHARE
+      distParameters: !!data.distribution.DistEqualShare
+        mean: 2
+    demands:
+      - item: *hygienekit
+        demandTimingType: PERIODIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.5
+        externalRatio: 0.05
+      - item: *medicine
+        demandTimingType: ONETIME
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.0167
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *şef
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: NONE
+    populationType: REGULAR
+    initialInternalPopulation: 214212
+    initialExternalPopulation: 14410
+  - &wef
+    name: wef
+    leadTimeData:
+      distributionType: NORMAL
+      distParameters: !!data.distribution.DistNormal
+        [10, 2]
+    demands:
+      - item: *hygienekit
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *medicine
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *şef
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: THRESHOLD
+    externalDemandSatisfactionThreshold: 0.5
+    populationType: REGULAR
+    initialInternalPopulation: 1212
+    initialExternalPopulation: 1234
+  - &han
+    name: han
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters: !!data.distribution.DistTriangular
+        min: 1
+        mode: 2
+        max: 4
+    demands:
+      - item: *hygienekit
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *medicine
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *şef
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: FULLY
+    populationType: REGULAR
+    initialInternalPopulation: 123123
+    initialExternalPopulation: 3243
+  - &ewfew
+    name: ewfew
+    leadTimeData:
+      distributionType: TRIANGULAR
+      distParameters: !!data.distribution.DistTriangular
+        min: 1
+        mode: 2
+        max: 4
+    demands:
+      - item: *hygienekit
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *medicine
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+      - item: *şef
+        demandTimingType: SPORADIC
+        demandQuantityType: SINGLE
+        arrivalData:
+          distributionType: EXPONENTIAL
+          distParameters: !!data.distribution.DistExponential
+            mean: 0.033
+        internalRatio: 0.2
+        externalRatio: 0.02
+    campExternalDemandSatisfactionType: FULLY
+    populationType: REGULAR
+    initialInternalPopulation: 12
+    initialExternalPopulation: 2327
+agencies:
+  - name: Government
+    fundingArray:
+      - fundingType: INKIND_EARMARKED
+        item: *hygienekit
+        arrivalData:
+          distributionType: BERNOULLI
+          distParameters: !!data.distribution.DistBernoulli
+            mean: 1
+            arrivalInterval: 1090
+            initialArrival: true
+        amountData:
+          distributionType: FIXED
+          distParameters: !!data.distribution.DistFixed
+            mean: 1
+      - fundingType: MONETARY_REGULAR
+        arrivalData:
+          distributionType: BERNOULLI
+          distParameters: !!data.distribution.DistBernoulli
+            mean: 1
+            arrivalInterval: 1090
+            initialArrival: true
+        amountData:
+          distributionType: EQUAL_SHARE
+          distParameters: !!data.distribution.DistEqualShare
+            mean: 14900000
+  - name: we
+    fundingArray:
+      - fundingType: INKIND_EARMARKED
+        item: *hygienekit
+        arrivalData:
+          distributionType: BERNOULLI
+          distParameters: !!data.distribution.DistBernoulli
+            mean: 1
+            arrivalInterval: 1090
+            initialArrival: true
+        amountData:
+          distributionType: EQUAL_SHARE
+          distParameters: !!data.distribution.DistEqualShare
+            mean: 14900000
+  - name: defa
+    fundingArray:
+      - fundingType: MONETARY_EARMARKED
+        camp: *hatay-2
+        arrivalData:
+          distributionType: UNIFORM
+          distParameters: !!data.distribution.DistUniform
+            min: 1
+            max: 5
+        amountData:
+          distributionType: UNIFORM
+          distParameters: !!data.distribution.DistUniform
+            min: 10000000
+            max: 20000000
+migrations:
+  - migrationType: INTERNAL_TO_SYSTEM
+    toCamp: *hatay-2
+    arrivalData:
+      distributionType: EXPONENTIAL
+      distParameters: !!data.distribution.DistExponential
+        mean: 30
+    quantityData:
+      distributionType: UNIFORM
+      distParameters: !!data.distribution.DistUniform
+        min: 1
+        max: 1000
+    migrationRatio: 0.05
+  - migrationType: EXTERNAL_TO_SYSTEM
+    toCamp: *hatay-2
+    arrivalData:
+      distributionType: UNIFORM
+      distParameters: !!data.distribution.DistUniform
+        min: 1
+        max: 10
+    quantityData:
+      distributionType: FIXED
+      distParameters: !!data.distribution.DistFixed
+        mean: 500
+    migrationRatio: 0.05
+  - migrationType: EXTERNAL_FROM_SYSTEM
+    fromCamp: *hatay-1
+    arrivalData:
+      distributionType: BERNOULLI
+      distParameters: !!data.distribution.DistBernoulli
+        mean: 0.5
+    migrationRatio: 0.05
+  - migrationType: EXTERNAL_TO_SYSTEM
+    toCamp: *hatay-2
+    arrivalData:
+      distributionType: UNIFORM
+      distParameters: !!data.distribution.DistUniform
+        min: 1
+        max: 10
+    quantityData:
+      distributionType: NORMAL
+      distParameters: !!data.distribution.DistNormal
+        [500, 100]
+    migrationRatio: 0.05
+inventoryPolicy: !!simulation.decision.OrderUpToPolicy
+  bufferRatios:
+    *hatay-1:
+      *hygienekit: *campBuffer
+      *medicine: *campBuffer
+      *şef: *campBuffer
+    *hatay-2:
+      *hygienekit: *campBuffer
+      *medicine: *campBuffer
+      *şef: *campBuffer
+    *wef:
+      *hygienekit: *campBuffer
+      *medicine: *campBuffer
+      *şef: *campBuffer
+    *han:
+      *hygienekit: *campBuffer
+      *medicine: *campBuffer
+      *şef: *campBuffer
+    *ewfew:
+      *hygienekit: *campBuffer
+      *medicine: *campBuffer
+      *şef: *campBuffer
+  centralBufferRatios:
+    *hygienekit: *centralBuffer
+    *medicine: *centralBuffer
+    *şef: *centralBuffer
+  periodicCounts:
+    *hatay-1:
+      *hygienekit: 10
+      *medicine: 10
+      *şef: *period
+    *hatay-2:
+      *hygienekit: 10
+      *medicine: 10
+      *şef: *period
+    *wef:
+      *hygienekit: *period
+      *medicine: *period
+      *şef: *period
+    *han:
+      *hygienekit: *period
+      *medicine: *period
+      *şef: *period
+    *ewfew:
+      *hygienekit: *period
+      *medicine: *period
+      *şef: *period
+  centralPeriodicCounts:
+    *hygienekit: 10
+    *medicine: 10
+    *şef: *period
+initialState:
+  availableFunds: 0
+  initialInventory:
+    *hatay-1:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *hatay-2:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *wef:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *han:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *ewfew:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+  initialCentralWarehouseInventory:
+    *hygienekit: 0
+    *medicine: 0
+    *şef: 0
+  earmarkedFunds:
+    *hatay-1: 0
+    *hatay-2: 0
+    *wef: 0
+    *han: 0
+    *ewfew: 0
+  initialEarmarkedInKind:
+    *hatay-1:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *hatay-2:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *wef:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *han:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+    *ewfew:
+      *hygienekit: 0
+      *medicine: 0
+      *şef: 0
+  isItemAvailable:
+    *hygienekit: true
+    *medicine: true
+    *şef: true

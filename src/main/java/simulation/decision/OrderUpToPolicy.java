@@ -77,36 +77,45 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                 if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
                     externalPopulation = 0;
                 }
-                Object bufferRatioObj = bufferRatios.get(camp).get(item);
-                Object periodicCountObj = periodicCounts.get(camp).get(item);
                 
-                // Convert buffer ratio to double regardless of whether it's Integer or Double
-                double bufferRatio = 0.0;
-                if (bufferRatioObj instanceof Integer) {
-                    bufferRatio = ((Integer) bufferRatioObj).doubleValue();
-                } else if (bufferRatioObj instanceof Double) {
-                    bufferRatio = (Double) bufferRatioObj;
-                } else if (bufferRatioObj instanceof String) {
-                    try {
-                        bufferRatio = Double.parseDouble((String) bufferRatioObj);
-                    } catch (NumberFormatException e) {
-                        bufferRatio = 0.0;
-                    }
+                // Check if buffer ratios and periodic counts exist for this camp and item
+                HashMap<Item, Double> campBufferRatios = bufferRatios.get(camp);
+                HashMap<Item, Integer> campPeriodicCounts = periodicCounts.get(camp);
+                
+                if (campBufferRatios == null) {
+                    throw new IllegalStateException(String.format(
+                        "Missing buffer ratio configuration for camp '%s'. Please configure inventory policies for all camps.",
+                        camp.getName()
+                    ));
                 }
                 
-                // Convert periodic count to integer
-                int periodicCount = 0;
-                if (periodicCountObj instanceof Integer) {
-                    periodicCount = (Integer) periodicCountObj;
-                } else if (periodicCountObj instanceof Double) {
-                    periodicCount = ((Double) periodicCountObj).intValue();
-                } else if (periodicCountObj instanceof String) {
-                    try {
-                        periodicCount = Integer.parseInt((String) periodicCountObj);
-                    } catch (NumberFormatException e) {
-                        periodicCount = 0;
-                    }
+                if (campPeriodicCounts == null) {
+                    throw new IllegalStateException(String.format(
+                        "Missing periodic count configuration for camp '%s'. Please configure inventory policies for all camps.",
+                        camp.getName()
+                    ));
                 }
+                
+                Double bufferRatioObj = campBufferRatios.get(item);
+                Integer periodicCountObj = campPeriodicCounts.get(item);
+                
+                if (bufferRatioObj == null) {
+                    throw new IllegalStateException(String.format(
+                        "Missing buffer ratio for camp '%s' and item '%s'. Please configure inventory policies for all camp-item combinations.",
+                        camp.getName(), item.getName()
+                    ));
+                }
+                
+                if (periodicCountObj == null) {
+                    throw new IllegalStateException(String.format(
+                        "Missing periodic count for camp '%s' and item '%s'. Please configure inventory policies for all camp-item combinations.",
+                        camp.getName(), item.getName()
+                    ));
+                }
+                
+                // Convert buffer ratio and periodic count (they are already the correct types)
+                double bufferRatio = bufferRatioObj;
+                int periodicCount = periodicCountObj;
 
                 reorderPoints.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (leadTime) * (1 + bufferRatio)));
                 orderUpToLevels.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (periodicCount + leadTime) * (1 + bufferRatio)));
@@ -139,35 +148,27 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                 totalDemand += (this.environment.getCorrespondingDemand(item, camp).getArrivalData().getDistParameters().getMean() * population);
             }
 
-            // Safe conversion for central buffer ratio
-            Object bufferRatioObj = centralBufferRatios.get(item);
-            double bufferRatio = 0.0;
-            if (bufferRatioObj instanceof Integer) {
-                bufferRatio = ((Integer) bufferRatioObj).doubleValue();
-            } else if (bufferRatioObj instanceof Double) {
-                bufferRatio = (Double) bufferRatioObj;
-            } else if (bufferRatioObj instanceof String) {
-                try {
-                    bufferRatio = Double.parseDouble((String) bufferRatioObj);
-                } catch (NumberFormatException e) {
-                    bufferRatio = 0.0;
-                }
+            // Check if central buffer ratio and periodic count exist for this item
+            Double bufferRatioObj = centralBufferRatios.get(item);
+            Integer periodicCountObj = centralPeriodicCounts.get(item);
+            
+            if (bufferRatioObj == null) {
+                throw new IllegalStateException(String.format(
+                    "Missing central buffer ratio for item '%s'. Please configure central inventory policies for all items.",
+                    item.getName()
+                ));
             }
             
-            // Safe conversion for central periodic count
-            Object periodicCountObj = centralPeriodicCounts.get(item);
-            int periodicCount = 0;
-            if (periodicCountObj instanceof Integer) {
-                periodicCount = (Integer) periodicCountObj;
-            } else if (periodicCountObj instanceof Double) {
-                periodicCount = ((Double) periodicCountObj).intValue();
-            } else if (periodicCountObj instanceof String) {
-                try {
-                    periodicCount = Integer.parseInt((String) periodicCountObj);
-                } catch (NumberFormatException e) {
-                    periodicCount = 0;
-                }
+            if (periodicCountObj == null) {
+                throw new IllegalStateException(String.format(
+                    "Missing central periodic count for item '%s'. Please configure central inventory policies for all items.",
+                    item.getName()
+                ));
             }
+            
+            // Convert values (they are already the correct types)
+            double bufferRatio = bufferRatioObj;
+            int periodicCount = periodicCountObj;
 
             centralReorderPoints.put(item, (int) (totalDemand * leadTime * (1 + bufferRatio)));
             centralOrderUpToLevels.put(item, (int) (totalDemand * (periodicCount + leadTime) * (1 + bufferRatio)));

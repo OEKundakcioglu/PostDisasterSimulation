@@ -15,31 +15,24 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
 // Updated interface to match Java backend implementation
+interface DistParams {
+  min?: string;
+  mode?: string;
+  max?: string;
+  mean?: string;
+  stdDev?: string;
+}
+interface DataBlock {
+  distributionType: string;
+  distParameters: DistParams;
+}
 interface Migration {
   fromCamp: string;
   toCamp: string;
   migrationType: string;
-  arrivalData: {
-    distributionType: string;
-    distParameters: {
-      min?: string;
-      mode?: string;
-      max?: string;
-      mean?: string;
-      stdDev?: string;
-    };
-  };
+  arrivalData: DataBlock;
   // quantityData is only needed for *_TO_SYSTEM migration types
-  quantityData?: {
-    distributionType: string;
-    distParameters: {
-      min?: string;
-      mode?: string;
-      max?: string;
-      mean?: string;
-      stdDev?: string;
-    };
-  };
+  quantityData?: DataBlock;
   migrationRatio: string;
 }
 
@@ -61,9 +54,9 @@ const MigrationsSection: React.FC<Props> = ({
   const handleMigrationChange = (
     index: number,
     field: keyof Migration,
-    value: any,
-    subField?: string,
-    subSubField?: string
+    value: string | DataBlock,
+    subField?: "distributionType" | "distParameters",
+    subSubField?: keyof DistParams
   ) => {
     const newMigrations = [...migrations];
 
@@ -75,15 +68,16 @@ const MigrationsSection: React.FC<Props> = ({
         (value === "" || /^0*\.?\d*$/.test(value))
       ) {
         if (value === "" || parseFloat(value) <= 1) {
-          newMigrations[index][field] = value;
+          newMigrations[index].migrationRatio = value;
         }
+        setMigrations(newMigrations);
         return;
       }
     }
 
     // Handle migration type change - add or remove quantityData as needed
     if (field === "migrationType") {
-      const newType = value as string;
+      const newType = String(value);
 
       // If changing to a type that needs quantityData
       if (
@@ -106,23 +100,66 @@ const MigrationsSection: React.FC<Props> = ({
 
     if (subField && subSubField) {
       // Handle nested fields within data structures
-      if (
-        newMigrations[index][field] &&
-        typeof newMigrations[index][field] === "object"
-      ) {
-        (newMigrations[index][field] as any)[subField][subSubField] = value;
+      if (field === "arrivalData" || field === "quantityData") {
+        const block = newMigrations[index][field] as DataBlock | undefined;
+        if (block && subField === "distParameters") {
+          block.distParameters = {
+            ...block.distParameters,
+            [subSubField]: String(value),
+          };
+        }
       }
     } else if (subField) {
       // Handle direct subField
-      if (
-        newMigrations[index][field] &&
-        typeof newMigrations[index][field] === "object"
-      ) {
-        (newMigrations[index][field] as any)[subField] = value;
+      if (field === "arrivalData" || field === "quantityData") {
+        const block = newMigrations[index][field] as DataBlock | undefined;
+        if (block) {
+          if (subField === "distributionType" && typeof value === "string") {
+            block.distributionType = value;
+          } else if (
+            subField === "distParameters" &&
+            typeof value === "object" &&
+            value
+          ) {
+            block.distParameters = value as DistParams;
+          }
+        } else if (
+          field === "quantityData" &&
+          typeof value === "object" &&
+          value
+        ) {
+          // initialize quantityData if absent
+          newMigrations[index].quantityData = value as DataBlock;
+        }
       }
     } else {
       // Handle direct field assignment
-      newMigrations[index][field] = value;
+      switch (field) {
+        case "fromCamp":
+          if (typeof value === "string") newMigrations[index].fromCamp = value;
+          break;
+        case "toCamp":
+          if (typeof value === "string") newMigrations[index].toCamp = value;
+          break;
+        case "migrationType":
+          if (typeof value === "string")
+            newMigrations[index].migrationType = value;
+          break;
+        case "migrationRatio":
+          if (typeof value === "string")
+            newMigrations[index].migrationRatio = value;
+          break;
+        case "arrivalData":
+          if (typeof value === "object" && value)
+            newMigrations[index].arrivalData = value as DataBlock;
+          break;
+        case "quantityData":
+          if (typeof value === "object" && value)
+            newMigrations[index].quantityData = value as DataBlock;
+          break;
+        default:
+          break;
+      }
     }
 
     setMigrations(newMigrations);
@@ -149,7 +186,7 @@ const MigrationsSection: React.FC<Props> = ({
     }
 
     // Use a type guard approach to fix the TypeScript error
-    const updateParams = () => {
+    const updateParams = (): DistParams => {
       switch (newDistType) {
         case "TRIANGULAR":
           return {
@@ -190,7 +227,7 @@ const MigrationsSection: React.FC<Props> = ({
       newMigrations[migrationIndex].quantityData
     ) {
       // Only access quantityData if it exists
-      newMigrations[migrationIndex].quantityData.distParameters =
+      newMigrations[migrationIndex].quantityData!.distParameters =
         updateParams();
     }
 
@@ -401,9 +438,23 @@ const MigrationsSection: React.FC<Props> = ({
             <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
               <Typography sx={{ flexGrow: 1 }}>
                 Migration {migrationIndex + 1}
-                {migration.fromCamp && migration.toCamp
-                  ? `: ${migration.fromCamp} → ${migration.toCamp}`
-                  : ""}
+                {(() => {
+                  const t = migration.migrationType || "";
+                  if (t.includes("_WITHIN_SYSTEM")) {
+                    return migration.fromCamp && migration.toCamp
+                      ? `: ${migration.fromCamp} → ${migration.toCamp}`
+                      : "";
+                  }
+                  if (t.includes("_TO_SYSTEM")) {
+                    return migration.toCamp ? `: → ${migration.toCamp}` : "";
+                  }
+                  if (t.includes("_FROM_SYSTEM")) {
+                    return migration.fromCamp
+                      ? `: ${migration.fromCamp} →`
+                      : "";
+                  }
+                  return "";
+                })()}
               </Typography>
               <IconButton
                 size="small"
@@ -639,23 +690,25 @@ const MigrationsSection: React.FC<Props> = ({
               </Grid>
             )}
 
-            {/* Migration Ratio */}
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                label="Migration Ratio"
-                type="number"
-                inputProps={{ min: 0, max: 1, step: 0.01 }}
-                value={migration.migrationRatio || "0.05"}
-                onChange={(e) =>
-                  handleMigrationChange(
-                    migrationIndex,
-                    "migrationRatio",
-                    e.target.value
-                  )
-                }
-              />
-            </Grid>
+            {/* Migration Ratio (hidden for *_TO_SYSTEM types which use quantityData instead) */}
+            {!migration.migrationType.includes("_TO_SYSTEM") && (
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Migration Ratio"
+                  type="number"
+                  inputProps={{ min: 0, max: 1, step: 0.01 }}
+                  value={migration.migrationRatio || "0.05"}
+                  onChange={(e) =>
+                    handleMigrationChange(
+                      migrationIndex,
+                      "migrationRatio",
+                      e.target.value
+                    )
+                  }
+                />
+              </Grid>
+            )}
           </Grid>
         </NestedCollapsibleSection>
       ))}
@@ -664,7 +717,7 @@ const MigrationsSection: React.FC<Props> = ({
       <Button
         variant="contained"
         onClick={() => {
-          const newMigration = {
+          const newMigration: Migration = {
             fromCamp: "",
             toCamp: "",
             migrationType: "INTERNAL_WITHIN_SYSTEM",

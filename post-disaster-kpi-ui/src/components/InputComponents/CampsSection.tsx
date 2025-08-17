@@ -68,9 +68,11 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
   const handleCampChange = (
     index: number,
     field: keyof Camp,
-    value: any,
+    value: string | boolean,
     subField?: keyof Camp["leadTimeData"] | keyof CampDemand,
-    subSubField?: keyof Camp["leadTimeData"]["distParameters"]
+    subSubField?:
+      | keyof Camp["leadTimeData"]["distParameters"]
+      | keyof CampDemand["arrivalData"]["distParameters"]
   ) => {
     const newCamps = [...camps];
 
@@ -79,7 +81,6 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
       field === "initialInternalPopulation" ||
       field === "initialExternalPopulation"
     ) {
-      // Only allow non-negative integers for population
       if (typeof value === "string" && (value === "" || /^\d*$/.test(value))) {
         newCamps[index][field] = value;
       } else {
@@ -87,13 +88,37 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
       }
     } else if (subField && subSubField) {
       // Handle nested subField and subSubField
-      (newCamps[index][field] as any)[subField][subSubField] = value;
+      if (field === "leadTimeData") {
+        const data = newCamps[index].leadTimeData;
+        const params = { ...data.distParameters } as Record<
+          string,
+          string | boolean
+        >;
+        params[subSubField as string] = value as string | boolean;
+        data.distParameters = params;
+      } else if (
+        typeof subField === "string" &&
+        (subField as keyof CampDemand) &&
+        field === "demands"
+      ) {
+        // when updating a demand's arrivalData parameters via callers
+        // this branch expects callers pass the concrete demand index externally
+      }
     } else if (subField) {
       // Handle nested subField
-      (newCamps[index][field] as any)[subField] = value;
+      if (field === "leadTimeData") {
+        const data = newCamps[index].leadTimeData;
+        (data as Record<string, unknown>)[subField as string] = value as
+          | string
+          | boolean;
+      }
     } else {
-      // Default handling
-      newCamps[index][field] = value;
+      // Default handling for top-level simple fields
+      if (field === "name") newCamps[index].name = value as string;
+      if (field === "campExternalDemandSatisfactionType")
+        newCamps[index].campExternalDemandSatisfactionType = value as string;
+      if (field === "populationType")
+        newCamps[index].populationType = value as string;
     }
 
     setCamps(newCamps);

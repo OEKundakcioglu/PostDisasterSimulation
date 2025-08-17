@@ -26,6 +26,19 @@ public class Environment {
     public Environment(RandomConfig randomConfig) {
     }
 
+    public static Environment of(State initialState, Item[] items, Camp[] camps, Agency[] agencies, Migration[] migrations, SupplyStatusSwitch[] switches, SimulationConfig config, IPolicy policy){
+        Environment env = new Environment();
+        env.setInitialState(initialState);
+        env.setItems(items);
+        env.setCamps(camps);
+        env.setAgencies(agencies);
+        env.setMigrations(migrations);
+        env.setSupplyStatusSwitches(switches);
+        env.setSimulationConfig(config);
+        env.setInventoryPolicy(policy);
+        return env;
+    }
+
     public State getInitialState() {
         return initialState;
     }

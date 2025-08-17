@@ -64,22 +64,47 @@ const AgenciesSection: React.FC<Props> = ({
   const handleAgencyChange = (
     index: number,
     field: keyof Agency,
-    value: any,
+    value: string | boolean | AgencyFunding[] | AgencyFunding,
     subField?: keyof AgencyFunding,
-    subSubField?: string
+    subSubField?: keyof AgencyFunding["arrivalData"]["distParameters"] &
+      keyof AgencyFunding["amountData"]["distParameters"]
   ) => {
     const newAgencies = [...agencies];
-    if (
-      field === "fundingArray" &&
-      typeof subField === "string" &&
-      subSubField
-    ) {
-      (newAgencies[index].fundingArray as any)[subField][subSubField] = value;
-    } else if (field === "fundingArray" && typeof subField === "string") {
-      (newAgencies[index].fundingArray as any)[subField] = value;
+
+    if (field === "fundingArray") {
+      const arr = newAgencies[index].fundingArray;
+      if (typeof subField === "string") {
+        // Update a property on a specific funding entry
+        const targetIndex = 0; // by design this handler is used with a known fundingIndex in calls
+        const entry = arr[targetIndex];
+        if (!entry) return;
+        if (subField === "arrivalData" || subField === "amountData") {
+          if (subSubField) {
+            // distParameters nested key update
+            const data = entry[subField];
+            const params = { ...data.distParameters };
+            (params as Record<string, string | boolean>)[
+              subSubField as string
+            ] = value as string | boolean;
+            data.distParameters = params as typeof data.distParameters;
+          } else if (typeof value === "string") {
+            // update distributionType
+            entry[subField].distributionType = value as string;
+          }
+        } else if (subField in entry) {
+          // top-level funding field like fundingType, item, camp
+          (entry as unknown as Record<string, string | boolean>)[
+            subField as string
+          ] = value as string | boolean;
+        }
+      } else if (Array.isArray(value)) {
+        newAgencies[index].fundingArray = value as AgencyFunding[];
+      }
     } else {
-      (newAgencies[index] as any)[field] = value;
+      // direct agency field update
+      if (field === "name") newAgencies[index].name = value as string;
     }
+
     setAgencies(newAgencies);
   };
 
@@ -102,7 +127,7 @@ const AgenciesSection: React.FC<Props> = ({
             min: "1",
             mode: "2",
             max: "4",
-          };
+          } as ArrivalDistParameters;
           break;
         case "EXPONENTIAL":
         case "FIXED":
@@ -111,7 +136,7 @@ const AgenciesSection: React.FC<Props> = ({
             fundingIndex
           ].arrivalData.distParameters = {
             mean: "0.033",
-          };
+          } as ArrivalDistParameters;
           break;
         case "BERNOULLI":
           newAgencies[agencyIndex].fundingArray[
@@ -120,7 +145,7 @@ const AgenciesSection: React.FC<Props> = ({
             mean: "0.5",
             arrivalInterval: "10",
             initialArrival: true,
-          };
+          } as ArrivalDistParameters;
           break;
         case "NORMAL":
           newAgencies[agencyIndex].fundingArray[
@@ -128,7 +153,7 @@ const AgenciesSection: React.FC<Props> = ({
           ].arrivalData.distParameters = {
             mean: "10",
             stdDev: "2",
-          };
+          } as ArrivalDistParameters;
           break;
         case "UNIFORM":
           newAgencies[agencyIndex].fundingArray[
@@ -136,20 +161,24 @@ const AgenciesSection: React.FC<Props> = ({
           ].arrivalData.distParameters = {
             min: "1",
             max: "5",
-          };
+          } as ArrivalDistParameters;
           break;
+        default:
+          newAgencies[agencyIndex].fundingArray[
+            fundingIndex
+          ].arrivalData.distParameters = {} as ArrivalDistParameters;
       }
     } else {
-      // Handle amount data parameters (which doesn't use arrivalInterval or initialArrival)
+      // Handle amount data parameters
       switch (newDistType) {
         case "TRIANGULAR":
           newAgencies[agencyIndex].fundingArray[
             fundingIndex
           ].amountData.distParameters = {
-            min: "10000000",
-            mode: "14900000",
-            max: "20000000",
-          };
+            min: "100",
+            mode: "200",
+            max: "400",
+          } as CommonDistParameters;
           break;
         case "EXPONENTIAL":
         case "FIXED":
@@ -157,32 +186,29 @@ const AgenciesSection: React.FC<Props> = ({
           newAgencies[agencyIndex].fundingArray[
             fundingIndex
           ].amountData.distParameters = {
-            mean: "14900000",
-          };
-          break;
-        case "BERNOULLI":
-          newAgencies[agencyIndex].fundingArray[
-            fundingIndex
-          ].amountData.distParameters = {
-            mean: "0.5",
-          };
+            mean: "200",
+          } as CommonDistParameters;
           break;
         case "NORMAL":
           newAgencies[agencyIndex].fundingArray[
             fundingIndex
           ].amountData.distParameters = {
-            mean: "14900000",
-            stdDev: "1000000",
-          };
+            mean: "200",
+            stdDev: "50",
+          } as CommonDistParameters;
           break;
         case "UNIFORM":
           newAgencies[agencyIndex].fundingArray[
             fundingIndex
           ].amountData.distParameters = {
-            min: "10000000",
-            max: "20000000",
-          };
+            min: "100",
+            max: "400",
+          } as CommonDistParameters;
           break;
+        default:
+          newAgencies[agencyIndex].fundingArray[
+            fundingIndex
+          ].amountData.distParameters = {} as CommonDistParameters;
       }
     }
 

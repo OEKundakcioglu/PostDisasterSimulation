@@ -28,21 +28,30 @@ import simulation.event.SupplyRecoveryEvent;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
 
-
 public class Simulate {
     private final Environment environment;
     private State state;
     private final InterarrivalGenerator interarrivalGenerator;
     private final QuantityGenerator quantityGenerator;
     private PriorityQueue<IEvent> eventQueue;
-
+    // Cooperative cancellation hook
+    public interface CancelChecker { boolean isCancelled(); }
+    private final CancelChecker cancelChecker;
     private HashMap<Camp, PriorityQueue<IEvent>> demandEventQueue;
+    private boolean prepared = false;
+    private boolean finalized = false;
 
-
-    public Simulate(Environment environment) throws CloneNotSupportedException {
+    public Simulate(Environment environment) { this(environment, null); }
+    public Simulate(Environment environment, CancelChecker cancelChecker) {
         this.environment = environment;
+        this.cancelChecker = cancelChecker;
         this.interarrivalGenerator = new InterarrivalGenerator(this.environment.getSimulationConfig());
         this.quantityGenerator = new QuantityGenerator(this.environment.getSimulationConfig());
+    }
+
+    public void prepare() throws CloneNotSupportedException {
+        if (prepared) return;
+    long t0 = System.nanoTime();
         this.environment.getInitialState().projectInitialState(this.interarrivalGenerator);
         this.state = environment.getInitialState();
         this.state.initialize(this.environment);
@@ -50,22 +59,32 @@ public class Simulate {
         this.state.setInventoryPolicy((IPolicy) environment.getInventoryPolicy().clone());
         this.eventQueue = new PriorityQueue<>(IEvent::compareTo);
         this.demandEventQueue = new HashMap<>();
-        this.run();
-        this.state.getKpiManager().calculateFinalCosts(this.environment, this.state);
-        this.state.getKpiManager().reportKPIs(this.environment);
-
+    generateInitialEvents();
+    long t1 = System.nanoTime();
+    double ms = (t1 - t0)/1_000_000.0;
+    System.out.println("[Perf] Initial preparation & event generation took " + ms + " ms. Initial event queue size=" + this.eventQueue.size());
+        // seed initial log at time 0 so UI starts immediately
+        try { this.state.getKpiManager().logState(this.state, 0.0, 0.0001); } catch (Exception ignored) {}
+        prepared = true;
     }
 
-
     public void run() {
-        generateInitialEvents();
-
+        if (!prepared) throw new IllegalStateException("Simulation not prepared");
+        long startNano = System.nanoTime();
+        long lastReport = startNano;
+        long processed = 0;
+        int maxQueue = this.eventQueue.size();
         while (!this.eventQueue.isEmpty()) {
+            if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
+                System.out.println("Simulation interrupted/cancelled – exiting loop");
+                break;
+            }
             IEvent event = this.eventQueue.poll();
             deleteExpiredItems(this.state, event.getTime());
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
 
             state.getKpiManager().logState(state, event.getTime(), 10);
+            processed++;
 
             // If population changes, generate new demand events with the new population, deleting the old demand events
             if (event.getClass().getSimpleName().equals("MigrationEvent")) {
@@ -74,50 +93,108 @@ public class Simulate {
             }
 
             if(event.getClass().getSimpleName().equals("DemandEvent")){
-                // If demand event, get the earliest demand event from the queue
                 DemandEvent demandEvent = (DemandEvent) event;
                 Camp camp = demandEvent.camp;
 
                 if (eventSet != null) {
                     for (IEvent e : eventSet) {
-                        if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) {
-                            continue;
-                        }
+                        if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) continue;
                         this.demandEventQueue.get(camp).offer(e);
                     }
                 }
 
                 PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
-                if (!demandQueue.isEmpty()){
-                    this.eventQueue.offer(demandQueue.poll());
-                }
+                if (!demandQueue.isEmpty()) this.eventQueue.offer(demandQueue.poll());
             }
 
             // Continuously generate inventory control events for the continuous inventory control type
             if (!event.getClass().getSimpleName().equals("InventoryControlEvent") &&
                 this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS) {
-                InventoryControlEvent ice = new InventoryControlEvent(event.getTime());
-                this.eventQueue.offer(ice);
+                this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
             }
-
-            // Add the new events to the event queue
-            if (eventSet == null) {
-                continue;
-            }
-
-            for (IEvent e : eventSet) {
-                if (e.getClass().getSimpleName().equals("DemandEvent")) continue;
-                if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) {
-                    continue;
+            if (eventSet != null) {
+                for (IEvent e : eventSet) {
+                    if (e.getClass().getSimpleName().equals("DemandEvent")) continue;
+                    if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) continue;
+                    this.eventQueue.offer(e);
                 }
-                this.eventQueue.offer(e);
             }
-
-            // Update KPIs after each step
             state.getKpiManager().updateTimeStepLogs(event.getTime());
+
+            // Lightweight perf reporting (every 1s or every 100k events)
+            if (processed % 100_000 == 0) {
+                long now = System.nanoTime();
+                double elapsedSec = (now - startNano) / 1_000_000_000.0;
+                if (this.eventQueue.size() > maxQueue) maxQueue = this.eventQueue.size();
+                System.out.println(String.format("[Perf] Events=%d simTime=%.2f queue=%d maxQueue=%d elapsed=%.2fs evt/s=%.0f", processed, event.getTime(), this.eventQueue.size(), maxQueue, elapsedSec, processed/elapsedSec));
+                lastReport = now;
+            } else {
+                long now = System.nanoTime();
+                if (now - lastReport > 1_000_000_000L) {
+                    double elapsedSec = (now - startNano) / 1_000_000_000.0;
+                    if (this.eventQueue.size() > maxQueue) maxQueue = this.eventQueue.size();
+                    System.out.println(String.format("[Perf] Events=%d simTime=%.2f queue=%d maxQueue=%d elapsed=%.2fs evt/s=%.0f", processed, event.getTime(), this.eventQueue.size(), maxQueue, elapsedSec, processed/elapsedSec));
+                    lastReport = now;
+                }
+            }
+        }
+        long endNano = System.nanoTime();
+        double totalSec = (endNano - startNano)/1_000_000_000.0;
+        System.out.println(String.format("[Perf] Simulation complete. Total events=%d totalTime=%.2fs avgEvt/s=%.0f", processed, totalSec, processed/totalSec));
+    }
+
+    public void runWithThrottle(Runnable throttleCallback){
+        if (!prepared) throw new IllegalStateException("Simulation not prepared");
+        int processed = 0;
+        while (!this.eventQueue.isEmpty()) {
+            if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
+                System.out.println("Simulation interrupted/cancelled – exiting loop");
+                break;
+            }
+            IEvent event = this.eventQueue.poll();
+            deleteExpiredItems(this.state, event.getTime());
+            ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
+            state.getKpiManager().logState(state, event.getTime(), 10);
+            if (event.getClass().getSimpleName().equals("MigrationEvent")) migrationStateUpdate((MigrationEvent) event);
+            if(event.getClass().getSimpleName().equals("DemandEvent")){
+                DemandEvent demandEvent = (DemandEvent) event;
+                Camp camp = demandEvent.camp;
+                if (eventSet != null) {
+                    for (IEvent e : eventSet) { if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) continue; this.demandEventQueue.get(camp).offer(e); }
+                }
+                PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
+                if (!demandQueue.isEmpty()) this.eventQueue.offer(demandQueue.poll());
+            }
+            if (!event.getClass().getSimpleName().equals("InventoryControlEvent") && this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS) {
+                this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
+            }
+            if (eventSet != null) {
+                for (IEvent e : eventSet) {
+                    if (e.getClass().getSimpleName().equals("DemandEvent")) continue;
+                    if (e.getTime() > this.environment.getSimulationConfig().getPlanningHorizon()) continue;
+                    this.eventQueue.offer(e);
+                }
+            }
+            state.getKpiManager().updateTimeStepLogs(event.getTime());
+            if (throttleCallback != null && ++processed % 250 == 0) { // was 25 -> fewer sleeps
+                throttleCallback.run();
+            }
         }
     }
 
+    public void finalizeSimulation() {
+        if (finalized) return;
+        try {
+            this.state.getKpiManager().calculateFinalCosts(this.environment, this.state);
+            this.state.getKpiManager().reportKPIs(this.environment);
+        } catch (Exception ignored) {}
+        finalized = true;
+    }
+
+    public void cleanup() {
+        if (eventQueue != null) eventQueue.clear();
+        if (demandEventQueue != null) demandEventQueue.clear();
+    }
 
     public void deleteExpiredItems(State state, double currentTime) {
         // Delete from camp inventory
@@ -297,29 +374,44 @@ public class Simulate {
         }
         
         PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
-        for (int i = 0; i < this.state.getInternalPopulation().get(camp); i++){
-            if (this.quantityGenerator.rngDemand.nextDouble() < demand.getInternalRatio()){
-                DemandEvent de_internal =
-                        new DemandEvent(this.state, camp, demand, true, this.interarrivalGenerator, this.quantityGenerator, currentTime);
-                if (de_internal.getTime() <=  this.environment.getSimulationConfig().getPlanningHorizon()){
-                    demandQueue.offer(de_internal);
-                }
-            }
+        int internalPop = this.state.getInternalPopulation().get(camp);
+        int externalPop = this.state.getExternalPopulation().get(camp);
+
+        int internalEvents = sampleBinomialApprox(internalPop, demand.getInternalRatio(), this.quantityGenerator.rngDemand);
+        for (int k = 0; k < internalEvents; k++) {
+            DemandEvent de_internal = new DemandEvent(this.state, camp, demand, true, this.interarrivalGenerator, this.quantityGenerator, currentTime);
+            if (de_internal.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(de_internal);
         }
-        for (int i = 0; i < this.state.getExternalPopulation().get(camp); i++){
-            if (this.quantityGenerator.rngDemand.nextDouble() < demand.getExternalRatio()){
-                DemandEvent de_external =
-                        new DemandEvent(this.state, camp, demand, false, this.interarrivalGenerator, this.quantityGenerator, currentTime);
-                if (de_external.getTime() <=  this.environment.getSimulationConfig().getPlanningHorizon()){
-                    demandQueue.offer(de_external);
-                }
-            }
+        int externalEvents = sampleBinomialApprox(externalPop, demand.getExternalRatio(), this.quantityGenerator.rngDemand);
+        for (int k = 0; k < externalEvents; k++) {
+            DemandEvent de_external = new DemandEvent(this.state, camp, demand, false, this.interarrivalGenerator, this.quantityGenerator, currentTime);
+            if (de_external.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(de_external);
         }
         // pick the first event from the queue
         if (!demandQueue.isEmpty()){
             this.eventQueue.offer(demandQueue.poll());
         }
         this.demandEventQueue.put(camp, demandQueue);
+    }
+
+    // Fast approximate binomial sampler to avoid O(n) loops for large populations.
+    // For small n (<5000) fall back to direct Bernoulli trials; for larger use normal approximation with
+    // mean n*p and variance n*p*(1-p), truncated to [0,n]. Good enough for event volume generation.
+    private static int sampleBinomialApprox(int n, double p, java.util.Random rng) {
+        if (p <= 0) return 0;
+        if (p >= 1) return n;
+        if (n < 5000) { // exact by iteration for smaller populations
+            int c = 0; for (int i=0;i<n;i++) if (rng.nextDouble() < p) c++; return c; }
+        double mean = n * p;
+        double var = mean * (1 - p);
+        double std = Math.sqrt(var);
+        // Box-Muller
+        double u1 = rng.nextDouble();
+        double u2 = rng.nextDouble();
+        double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        int val = (int)Math.round(mean + std * z);
+        if (val < 0) val = 0; else if (val > n) val = n;
+        return val;
     }
 
     private void migrationStateUpdate(MigrationEvent migrationEvent){

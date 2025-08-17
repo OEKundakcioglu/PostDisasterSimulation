@@ -131,6 +131,22 @@ public class State implements Cloneable {
                 if (item.getIsPerishable()){
                     expiration = interarrivalGenerator.generateItemDuration(item);
                 }
+                
+                // Check if inventory structure exists for this camp and item
+                if (inventory.get(camp) == null) {
+                    throw new IllegalStateException(String.format(
+                        "No inventory initialized for camp '%s'. Please ensure initial inventory is properly configured.",
+                        camp.getName()
+                    ));
+                }
+                
+                if (inventory.get(camp).get(item) == null) {
+                    throw new IllegalStateException(String.format(
+                        "No inventory initialized for camp '%s' and item '%s'. Please ensure initial inventory is properly configured for all camp-item combinations.",
+                        camp.getName(), item.getName()
+                    ));
+                }
+                
                 inventory.get(camp).get(item).offer(new InventoryItem(quantity, expiration, 0.0));
             }
         }

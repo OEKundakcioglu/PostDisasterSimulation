@@ -6,19 +6,19 @@ plugins {
 }
 
 repositories {
-    mavenCentral() // Use Maven Central for dependencies
+    mavenCentral() 
 }
 
 dependencies {
-    implementation 'org.yaml:snakeyaml:1.33' // Example dependency
-    implementation 'org.apache.poi:poi-ooxml:5.3.0' // Example dependency
-    implementation 'org.apache.poi:poi:5.3.0' // Example dependency
-    implementation 'org.springframework.boot:spring-boot-starter-web' // Replace with a stable version
+    implementation 'org.yaml:snakeyaml:1.33' 
+    implementation 'org.apache.poi:poi-ooxml:5.3.0' 
+    implementation 'org.apache.poi:poi:5.3.0' 
+    implementation 'org.springframework.boot:spring-boot-starter-web' 
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter'
-    implementation 'com.google.code.gson:gson:2.8.6' // Gson dependency
+    implementation 'com.google.code.gson:gson:2.8.6'
 }
 
 springBoot {

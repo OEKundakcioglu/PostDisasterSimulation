@@ -1,7 +1,13 @@
 {
-  "/api/runSimulation/route": "app/api/runSimulation/route.js",
-  "/api/downloadConfig/route": "app/api/downloadConfig/route.js",
-  "/api/stopSimulation/route": "app/api/stopSimulation/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/simulations/logs/route": "app/api/simulations/logs/route.js",
+  "/api/simulations/environment/route": "app/api/simulations/environment/route.js",
+  "/api/simulations/start/route": "app/api/simulations/start/route.js",
+  "/api/simulations/delete/route": "app/api/simulations/delete/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/api/simulations/create/route": "app/api/simulations/create/route.js",
+  "/api/simulations/cancel/route": "app/api/simulations/cancel/route.js",
+  "/page": "app/page.js",
   "/home/InputParameters/page": "app/home/InputParameters/page.js",
   "/home/RealTimeVisualization/page": "app/home/RealTimeVisualization/page.js"
 }

@@ -15,7 +15,6 @@ import InfoIcon from "@mui/icons-material/Info";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 import { Item, DistParameters } from "../../types/Item";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useRef } from "react";
 
 interface Props {
   items: Item[];
@@ -71,6 +70,12 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
   ): params is { mean: string; stdDev: string } => {
     return "mean" in params && "stdDev" in params;
   };
+
+  // Helper: create default duration data
+  const buildDefaultDurationData = (): NonNullable<Item["durationData"]> => ({
+    distributionType: "UNIFORM",
+    distParameters: { min: "30", max: "60" },
+  });
 
   const handleNumericKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (
@@ -128,18 +133,23 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
   const handleItemChange = (
     index: number,
     field: keyof Item,
-    value: any,
-    subField?:
-      | keyof Item["leadTimeData"]
-      | keyof NonNullable<Item["durationData"]>,
-    subSubField?: string
+    value: string | boolean,
+    subField?: "distributionType" | "distParameters",
+    subSubField?:
+      | "min"
+      | "mode"
+      | "max"
+      | "mean"
+      | "stdDev"
+      | "arrivalInterval"
+      | "initialArrival"
   ) => {
     const newItems = [...items];
 
     // Validate numeric input for number fields
     if (
       typeof value === "string" &&
-      isNumericField(field, subField as string, subSubField) &&
+      isNumericField(field, subField, subSubField) &&
       value !== ""
     ) {
       // For decimals (price, rates, etc.)
@@ -167,134 +177,132 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
       }
     }
 
-    if (subField && subSubField) {
-      // Handle nested subField and subSubField
-      if (
-        (field === "leadTimeData" || field === "durationData") &&
-        newItems[index][field]
-      ) {
-        const mainField = newItems[index][field];
-
-        if (subField === "distParameters") {
-          // Create a new distParameters object based on distribution type
-          const params = { ...mainField.distParameters };
-
-          if (field === "leadTimeData") {
-            switch (mainField.distributionType) {
-              case "TRIANGULAR":
-                if (isTriangular(params)) {
-                  if (
-                    subSubField === "min" ||
-                    subSubField === "mode" ||
-                    subSubField === "max"
-                  ) {
-                    params[subSubField] = value;
-                  }
-                }
-                break;
-              case "EXPONENTIAL":
-              case "FIXED":
-                if (isMeanOnly(params) && subSubField === "mean") {
-                  params.mean = value;
-                }
-                break;
-              case "BERNOULLI":
-                if (isBernoulli(params)) {
-                  if (
-                    subSubField === "mean" ||
-                    subSubField === "arrivalInterval"
-                  ) {
-                    params[subSubField] = value;
-                  } else if (subSubField === "initialArrival") {
-                    params.initialArrival = value;
-                  }
-                }
-                break;
-            }
-          } else if (
-            field === "durationData" &&
-            mainField.distributionType === "UNIFORM"
-          ) {
-            if (isUniform(params)) {
-              if (subSubField === "min" || subSubField === "max") {
-                params[subSubField] = value;
-              }
-            }
-          }
-
-          // Update with the new distParameters
-          mainField.distParameters = params;
-        }
-      }
-    } else if (subField) {
-      // Handle nested subField
-      if (
-        (field === "leadTimeData" || field === "durationData") &&
-        newItems[index][field]
-      ) {
-        const mainField = newItems[index][field];
-
-        if (subField === "distributionType") {
-          // Update distribution type and reset parameters based on the new type
-          mainField.distributionType = value as any;
-
-          if (field === "leadTimeData") {
-            switch (value) {
-              case "TRIANGULAR":
-                mainField.distParameters = { min: "1", mode: "2", max: "4" };
-                break;
-              case "EXPONENTIAL":
-              case "FIXED":
-              case "EQUAL_SHARE":
-                mainField.distParameters = { mean: "2" };
-                break;
-              case "BERNOULLI":
-                mainField.distParameters = {
-                  mean: "0.5",
-                  arrivalInterval: "10",
-                  initialArrival: true,
-                };
-                break;
-              case "NORMAL":
-                mainField.distParameters = { mean: "10", stdDev: "2" };
-                break;
-              case "UNIFORM":
-                mainField.distParameters = { min: "1", max: "5" };
-                break;
-            }
-          } else if (field === "durationData") {
-            switch (value) {
-              case "UNIFORM":
-                mainField.distParameters = { min: "30", max: "60" };
-                break;
-              case "NORMAL":
-                mainField.distParameters = { mean: "45", stdDev: "5" };
-                break;
-            }
+    // Nested updates for leadTimeData or durationData
+    if (subField) {
+      if (field === "leadTimeData") {
+        const mainField = newItems[index].leadTimeData;
+        if (subField === "distParameters" && subSubField) {
+          const current = mainField.distParameters as DistParameters;
+          const params: Partial<
+            Record<
+              | "min"
+              | "mode"
+              | "max"
+              | "mean"
+              | "stdDev"
+              | "arrivalInterval"
+              | "initialArrival",
+              string | boolean
+            >
+          > = Array.isArray(current)
+            ? {}
+            : { ...(current as Record<string, string | boolean>) };
+          params[subSubField] = value;
+          mainField.distParameters = params as DistParameters;
+        } else if (subField === "distributionType") {
+          mainField.distributionType =
+            value as Item["leadTimeData"]["distributionType"];
+          // Reset parameters when distribution type changes
+          switch (mainField.distributionType) {
+            case "TRIANGULAR":
+              mainField.distParameters = { min: "1", mode: "2", max: "4" };
+              break;
+            case "UNIFORM":
+              mainField.distParameters = { min: "1", max: "5" };
+              break;
+            case "NORMAL":
+              mainField.distParameters = { mean: "2", stdDev: "1" };
+              break;
+            case "EXPONENTIAL":
+            case "FIXED":
+            case "EQUAL_SHARE":
+              mainField.distParameters = { mean: "2" };
+              break;
+            case "BERNOULLI":
+              mainField.distParameters = {
+                mean: "0.5",
+                arrivalInterval: "10",
+                initialArrival: true,
+              };
+              break;
+            default:
+              mainField.distParameters = { mean: "2" };
           }
         }
-      }
-    } else {
-      // Directly assign to `field` if types are compatible
-      if (
-        value !== undefined &&
-        (typeof newItems[index][field] === typeof value ||
-          newItems[index][field] === undefined)
-      ) {
-        (newItems[index][field] as typeof value) = value;
-      }
-
-      if (field === "isPerishable") {
-        // Set `durationData` for perishable items
-        if (value === true && !newItems[index].durationData) {
-          newItems[index].durationData = {
-            distributionType: "UNIFORM",
-            distParameters: { min: "30", max: "60" },
+      } else if (field === "durationData") {
+        // Ensure durationData exists if perishable and user starts editing
+        if (!newItems[index].durationData) {
+          newItems[index].durationData = buildDefaultDurationData();
+        }
+        const mainField = newItems[index].durationData!;
+        if (subField === "distParameters" && subSubField) {
+          const current = mainField.distParameters as DistParameters;
+          const params: Partial<
+            Record<"min" | "max" | "mean" | "stdDev", string | boolean>
+          > = {
+            ...(current as Record<string, string | boolean>),
           };
-        } else if (!value) {
+          params[subSubField as "min" | "max" | "mean" | "stdDev"] = value;
+          mainField.distParameters = params as DistParameters;
+        } else if (subField === "distributionType") {
+          // Reset parameters when distribution type changes
+          mainField.distributionType = value as NonNullable<
+            Item["durationData"]
+          >["distributionType"];
+          switch (mainField.distributionType) {
+            case "UNIFORM":
+              mainField.distParameters = { min: "30", max: "60" };
+              break;
+            case "NORMAL":
+              mainField.distParameters = { mean: "45", stdDev: "10" };
+              break;
+            default:
+              mainField.distParameters = { min: "30", max: "60" };
+          }
+        }
+      }
+      setItems(newItems);
+      return;
+    }
+
+    // Top-level field updates
+    switch (field) {
+      case "isPerishable": {
+        const makePerishable = Boolean(value);
+        newItems[index].isPerishable = makePerishable;
+        if (makePerishable) {
+          if (!newItems[index].durationData) {
+            newItems[index].durationData = buildDefaultDurationData();
+          }
+        } else {
+          // Remove duration data when item is no longer perishable
           delete newItems[index].durationData;
         }
+        break;
       }
+      case "name":
+        newItems[index].name = value as string;
+        break;
+      case "price":
+        newItems[index].price = value as string;
+        break;
+      case "orderingCost":
+        newItems[index].orderingCost = value as string;
+        break;
+      case "holdingCost":
+        newItems[index].holdingCost = value as string;
+        break;
+      case "deprivationRate":
+        newItems[index].deprivationRate = value as string;
+        break;
+      case "deprivationCoefficient":
+        newItems[index].deprivationCoefficient = value as string;
+        break;
+      case "referralCost":
+        newItems[index].referralCost = value as string;
+        break;
+      default:
+        break;
     }
 
     setItems(newItems);
@@ -763,33 +771,21 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                           </IconButton>
                         </Tooltip>
                       </Typography>
-
-                      <Box
-                        sx={{ display: "flex", flexDirection: "column", mt: 1 }}
-                      >
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={item.isPerishable}
-                              onChange={(e) =>
-                                handleItemChange(index, "isPerishable", true)
-                              }
-                            />
-                          }
-                          label="Has Expiration Date"
-                        />
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={!item.isPerishable}
-                              onChange={(e) =>
-                                handleItemChange(index, "isPerishable", false)
-                              }
-                            />
-                          }
-                          label="No Expiration Date"
-                        />
-                      </Box>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={item.isPerishable}
+                            onChange={(e) =>
+                              handleItemChange(
+                                index,
+                                "isPerishable",
+                                e.target.checked
+                              )
+                            }
+                          />
+                        }
+                        label="Has Expiration Date"
+                      />
                     </Box>
                   </Grid>
                   <Grid item xs={12} sm={6} md={4}>
@@ -995,7 +991,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
             </Grid>
 
             {/* Duration Data - Only visible if item is perishable */}
-            {item.isPerishable && (
+            {item.isPerishable && item.durationData && (
               <Grid item xs={12}>
                 <NestedCollapsibleSection
                   title="Duration Data (days)"
@@ -1007,7 +1003,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         select
                         fullWidth
                         label="Duration Distribution Type"
-                        value={item.durationData?.distributionType || "UNIFORM"}
+                        value={item.durationData.distributionType}
                         onChange={(e) =>
                           handleItemChange(
                             index,
@@ -1022,10 +1018,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         <MenuItem value="NORMAL">NORMAL</MenuItem>
                       </TextField>
                     </Grid>
-
-                    {/* Distribution Parameters */}
-                    {item.durationData &&
-                      renderDistributionParameters(item, index, "durationData")}
+                    {renderDistributionParameters(item, index, "durationData")}
                   </Grid>
                 </NestedCollapsibleSection>
               </Grid>

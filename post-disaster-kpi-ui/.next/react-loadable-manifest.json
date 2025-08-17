@@ -1,14 +1,16 @@
 {
-  "app/home/RealTimeVisualization/page.tsx -> @/components/SimulationVisualizer/SimulationVisualizer": {
-    "id": "app/home/RealTimeVisualization/page.tsx -> @/components/SimulationVisualizer/SimulationVisualizer",
+  "app/home/RealTimeVisualization/PageClient.tsx -> @/components/SimulationVisualizer/SimulationVisualizer": {
+    "id": 5667,
     "files": [
-      "static/chunks/_app-pages-browser_src_components_SimulationVisualizer_SimulationVisualizer_tsx.js"
+      "static/chunks/414-25a534446ff46f14.js",
+      "static/chunks/667.564a33803b1c36ba.js"
     ]
   },
   "components/SimulationVisualizer/SimulationVisualizer.tsx -> react-plotly.js": {
-    "id": "components/SimulationVisualizer/SimulationVisualizer.tsx -> react-plotly.js",
+    "id": 3161,
     "files": [
-      "static/chunks/_app-pages-browser_node_modules_react-plotly_js_react-plotly_js.js"
+      "static/chunks/f2d0f643.6c85053a17c63e58.js",
+      "static/chunks/584.d99c16230993f7b7.js"
     ]
   }
 }

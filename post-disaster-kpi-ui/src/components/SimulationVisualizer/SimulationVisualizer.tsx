@@ -5,32 +5,40 @@ import React, {
   useState,
   useEffect,
   useMemo,
-  useRef,
   useCallback,
+  useRef,
 } from "react";
-import {
-  Box,
-  Paper,
-  Typography,
-  Grid,
-  CircularProgress,
-  alpha,
-} from "@mui/material";
+import { Box, Paper, Typography, Grid, CircularProgress } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import dynamic from "next/dynamic";
-import { debounce } from "lodash";
+import type { Layout } from "plotly.js";
 
-/* -------- Plotly (client‑only) ------------------------------------- */
-const Plot = dynamic(() => import("react-plotly.js"), {
-  ssr: false,
-  loading: () => (
-    <Box sx={{ py: 6, display: "flex", justifyContent: "center" }}>
-      <CircularProgress />
-    </Box>
-  ),
-});
+/* -------- Plotly (client‑only with retry) ------------------------- */
+const Plot = dynamic(
+  async () => {
+    try {
+      const mod = await import("react-plotly.js");
+      return mod;
+    } catch (e) {
+      console.error("Initial Plotly chunk load failed, retrying once", e);
+      // small delay then retry (helps during dev HMR race)
+      await new Promise((res) => setTimeout(res, 300));
+      const mod = await import("react-plotly.js");
+      return mod;
+    }
+  },
+  {
+    ssr: false,
+    loading: () => (
+      <Box sx={{ py: 6, display: "flex", justifyContent: "center" }}>
+        <CircularProgress />
+      </Box>
+    ),
+  }
+);
 
 /* -------- colours & order ----------------------------------------- */
+const DISPLAY_STEP = 10; // desired visual increment
 const COST_COLOUR: Record<string, string> = {
   "Replenishment Cost": "#4CAF50",
   "Deprivation Cost": "#F44336",
@@ -75,14 +83,6 @@ const RankItem = styled("div")<{
 }));
 
 /* -------- types ---------------------------------------------------- */
-interface IncomingPacket {
-  time?: number;
-  planningHorizon?: number;
-  cumulativeHoldingCosts?: Record<string, number>;
-  cumulativeReferralCosts?: Record<string, number>;
-  cumulativeDeprivationCosts?: Record<string, number>;
-  cumulativeReplenishmentCosts?: Record<string, number>;
-}
 interface Point {
   t: number;
   cost: number;
@@ -92,86 +92,108 @@ interface CostEntry {
   type: string;
   cost: number;
 }
+interface TimeStepLog {
+  time: number;
+  planningHorizon: number;
+  cumulativeHoldingCosts: Record<string, number>;
+  cumulativeReferralCosts: Record<string, number>;
+  cumulativeDeprivationCosts: Record<string, number>;
+  cumulativeReplenishmentCosts: Record<string, number>;
+}
+
+interface SimulationVisualizerProps {
+  logs?: TimeStepLog[];
+}
 
 /* =================================================================== */
-const SimulationVisualizer: React.FC = () => {
-  const wsRef = useRef<WebSocket | null>(null);
-
-  const [ready, setReady] = useState(false);
+const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
+  logs,
+}) => {
+  // remove internal websocket if logs prop provided
+  const externalMode = !!logs;
+  const [ranking, setRanking] = useState<CostEntry[]>([]);
+  const [ts, setTs] = useState<Record<string, Record<string, Point[]>>>({});
   const [day, setDay] = useState<number | null>(null);
   const [horizon, setHorizon] = useState<number | null>(null);
+  const ready = true;
+  const lastIngestedRef = useRef(0); // track how many logs already processed
 
-  const [ranking, setRanking] = useState<CostEntry[]>([]);
-  const [ts, setTs] = useState<Record<string, Record<string, Point[]>>>({}); // camp → type → series
-
-  /* -------- websocket --------------------------------------------- */
-  useEffect(() => {
-    const connect = () => {
-      wsRef.current = new WebSocket("ws://localhost:8083/ws");
-      wsRef.current.onopen = () => setReady(true);
-      wsRef.current.onmessage = (evt) => {
-        try {
-          const pkt: IncomingPacket = JSON.parse(evt.data);
-          onPacket(pkt);
-        } catch (e) {
-          console.warn("WS parse error", e);
-        }
-      };
-      wsRef.current.onclose = () => {
-        setReady(false);
-        setTimeout(connect, 3000);
-      };
-    };
-    connect();
-    return () => wsRef.current?.close(1000, "unmount");
+  const ingest = useCallback((batch: TimeStepLog[]) => {
+    if (!batch || !batch.length) return;
+    batch.forEach((pkt) => {
+      setDay(pkt.time);
+      setHorizon(pkt.planningHorizon);
+      const entries: CostEntry[] = [
+        ...Object.entries(pkt.cumulativeReplenishmentCosts || {}).map(
+          ([camp, cost]) => ({ camp, type: "Replenishment Cost", cost })
+        ),
+        ...Object.entries(pkt.cumulativeDeprivationCosts || {}).map(
+          ([camp, cost]) => ({ camp, type: "Deprivation Cost", cost })
+        ),
+        ...Object.entries(pkt.cumulativeHoldingCosts || {}).map(
+          ([camp, cost]) => ({ camp, type: "Holding Cost", cost })
+        ),
+        ...Object.entries(pkt.cumulativeReferralCosts || {}).map(
+          ([camp, cost]) => ({ camp, type: "Referral Cost", cost })
+        ),
+      ];
+      setRanking((r) =>
+        entries.length
+          ? entries.sort(
+              (a, b) => b.cost - a.cost || a.camp.localeCompare(b.camp)
+            )
+          : r
+      );
+      setTs((prev) => {
+        const next = { ...prev };
+        entries.forEach(({ camp, type, cost }) => {
+          if (!next[camp]) next[camp] = {};
+          if (!next[camp][type]) next[camp][type] = [];
+          const series = next[camp][type];
+          const t = pkt.time;
+          const last = series[series.length - 1];
+          if (!last || t > last.t) {
+            // fill visual gaps with synthetic points every DISPLAY_STEP
+            if (last && t - last.t > DISPLAY_STEP) {
+              const gap = t - last.t;
+              const steps = Math.floor(gap / DISPLAY_STEP) - 0; // number of full steps before final t
+              for (let s = 1; s < steps; s++) {
+                const interT = last.t + s * DISPLAY_STEP;
+                if (interT >= t) break;
+                // linear interpolation (costs are cumulative so linear approx is OK visually)
+                const interCost =
+                  last.cost +
+                  ((cost - last.cost) * (interT - last.t)) / (t - last.t);
+                series.push({ t: interT, cost: interCost });
+              }
+            }
+            series.push({ t, cost });
+          } else if (t === last.t) {
+            series[series.length - 1] = { t, cost };
+          } else {
+            // out-of-order: insert sorted (no interpolation)
+            let i = series.length - 1;
+            while (i >= 0 && series[i].t > t) i--;
+            if (i >= 0 && series[i].t === t) series[i].cost = cost;
+            else series.splice(i + 1, 0, { t, cost });
+          }
+          if (series.length > 500) series.splice(0, series.length - 500);
+        });
+        return next;
+      });
+    });
   }, []);
 
-  /* -------- packet handler (debounced) ---------------------------- */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const onPacket = useCallback(
-    debounce((pkt: IncomingPacket) => {
-      if (pkt.time !== undefined) setDay(pkt.time);
-      if (pkt.planningHorizon !== undefined) setHorizon(pkt.planningHorizon);
-
-      const make = (obj: Record<string, number> | undefined, label: string) =>
-        obj
-          ? Object.entries(obj).map<CostEntry>(([camp, cost]) => ({
-              camp,
-              type: label,
-              cost,
-            }))
-          : [];
-
-      const entries: CostEntry[] = [
-        ...make(pkt.cumulativeReplenishmentCosts, "Replenishment Cost"),
-        ...make(pkt.cumulativeDeprivationCosts, "Deprivation Cost"),
-        ...make(pkt.cumulativeHoldingCosts, "Holding Cost"),
-        ...make(pkt.cumulativeReferralCosts, "Referral Cost"),
-      ];
-
-      // ranking
-      setRanking(
-        entries.sort((a, b) => b.cost - a.cost || a.camp.localeCompare(b.camp))
-      );
-
-      // timeseries
-      if (pkt.time !== undefined) {
-        setTs((prev) => {
-          const next = { ...prev };
-          entries.forEach(({ camp, type, cost }) => {
-            if (!next[camp]) next[camp] = {};
-            if (!next[camp][type]) next[camp][type] = [];
-            next[camp][type].push({ t: pkt.time!, cost });
-            if (next[camp][type].length > 100) next[camp][type].shift();
-          });
-          return next;
-        });
+  useEffect(() => {
+    if (externalMode && logs) {
+      const start = lastIngestedRef.current;
+      if (logs.length > start) {
+        ingest(logs.slice(start));
+        lastIngestedRef.current = logs.length;
       }
-    }, 250),
-    []
-  );
+    }
+  }, [logs, externalMode, ingest]);
 
-  /* -------- derived ---------------------------------------------- */
   const topCamps = useMemo(
     () => Array.from(new Set(ranking.map((e) => e.camp))).slice(0, 4),
     [ranking]
@@ -180,7 +202,12 @@ const SimulationVisualizer: React.FC = () => {
   const headline =
     day === null || horizon === null
       ? "Awaiting data …"
-      : `Day ${Math.floor(day)} of ${Math.floor(horizon)}`;
+      : (() => {
+          const d = Math.floor(day);
+          const h = Math.floor(horizon);
+          const snapped = h - d < DISPLAY_STEP ? h : d; // snap if within one step of horizon
+          return `Day\u00A0${snapped}\u00A0of\u00A0${h}`;
+        })();
 
   /* -------- render ------------------------------------------------ */
   return (
@@ -294,7 +321,7 @@ const SimulationVisualizer: React.FC = () => {
                                     name: type,
                                   },
                                 ]}
-                                layout={{
+                                layout={((): Partial<Layout> => ({
                                   height: 220,
                                   margin: { t: 25, l: 50, r: 10, b: 40 },
                                   title: {
@@ -304,12 +331,12 @@ const SimulationVisualizer: React.FC = () => {
                                       color: COST_COLOUR[type],
                                     },
                                   },
-                                  xaxis: { title: "Day" },
-                                  yaxis: { title: "Cost" },
+                                  xaxis: { title: { text: "Day" } },
+                                  yaxis: { title: { text: "Cost" } },
                                   paper_bgcolor: "white",
                                   plot_bgcolor: "white",
                                   showlegend: false,
-                                }}
+                                }))()}
                                 config={{
                                   responsive: true,
                                   displayModeBar: false,

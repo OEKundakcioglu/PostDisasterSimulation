@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  Typography,
-  Grid,
-  TextField,
-  Checkbox,
-  FormControlLabel,
-} from "@mui/material";
+import { Grid, TextField, Checkbox, FormControlLabel } from "@mui/material";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
 interface InitialState {

@@ -71,11 +71,16 @@ export function buildSimulationYAML(data: SimulationInputDTO): string {
   });
 
   let out = "";
-  out += section("simulationConfig", buildSimulationConfig(data.simulationConfig));
+  out += section(
+    "simulationConfig",
+    buildSimulationConfig(data.simulationConfig)
+  );
   out += section("items", buildItems(data, anchors));
   out += section("camps", buildCamps(data, anchors));
-  if (data.agencies?.length) out += section("agencies", buildAgencies(data, anchors));
-  if (data.migrations?.length) out += section("migrations", buildMigrations(data, anchors));
+  if (data.agencies?.length)
+    out += section("agencies", buildAgencies(data, anchors));
+  if (data.migrations?.length)
+    out += section("migrations", buildMigrations(data, anchors));
   out += sectionRaw(buildInventoryPolicy(data, anchors));
   out += sectionRaw(buildInitialState(data, anchors));
 
@@ -84,9 +89,11 @@ export function buildSimulationYAML(data: SimulationInputDTO): string {
 
 // ------------------ Builders ------------------
 function buildSimulationConfig(cfg: Record<string, unknown>): string {
-  return Object.entries(cfg)
-    .map(([k, v]) => `  ${k}: ${formatValue(k, v, ANCHORED_FIELDS[k])}`)
-    .join("\n") + "\n";
+  return (
+    Object.entries(cfg)
+      .map(([k, v]) => `  ${k}: ${formatValue(k, v, ANCHORED_FIELDS[k])}`)
+      .join("\n") + "\n"
+  );
 }
 
 function buildItems(data: SimulationInputDTO, a: AnchorMaps): string {
@@ -102,14 +109,20 @@ function buildItems(data: SimulationInputDTO, a: AnchorMaps): string {
         `    orderingCost: ${formatNumber(item.orderingCost)}`,
         `    holdingCost: ${formatNumber(item.holdingCost)}`,
         `    deprivationRate: ${formatNumber(item.deprivationRate)}`,
-        `    deprivationCoefficient: ${formatNumber(item.deprivationCoefficient)}`,
+        `    deprivationCoefficient: ${formatNumber(
+          item.deprivationCoefficient
+        )}`,
         `    referralCost: ${formatNumber(item.referralCost)}`,
       ];
       if (item.isPerishable && item.durationData) {
         lines.push("    durationData:");
-        lines.push(`      distributionType: ${item.durationData.distributionType}`);
         lines.push(
-          `      distParameters: !!data.distribution.${distTag(item.durationData.distributionType)}`
+          `      distributionType: ${item.durationData.distributionType}`
+        );
+        lines.push(
+          `      distParameters: !!data.distribution.${distTag(
+            item.durationData.distributionType
+          )}`
         );
         lines.push(
           formatDistParameters(
@@ -121,9 +134,13 @@ function buildItems(data: SimulationInputDTO, a: AnchorMaps): string {
       }
       if (item.leadTimeData) {
         lines.push("    leadTimeData:");
-        lines.push(`      distributionType: ${item.leadTimeData.distributionType}`);
         lines.push(
-          `      distParameters: !!data.distribution.${distTag(item.leadTimeData.distributionType)}`
+          `      distributionType: ${item.leadTimeData.distributionType}`
+        );
+        lines.push(
+          `      distParameters: !!data.distribution.${distTag(
+            item.leadTimeData.distributionType
+          )}`
         );
         lines.push(
           formatDistParameters(
@@ -149,7 +166,9 @@ function buildCamps(data: SimulationInputDTO, a: AnchorMaps): string {
         `    name: ${camp.name}`,
         "    leadTimeData:",
         `      distributionType: ${camp.leadTimeData.distributionType}`,
-        `      distParameters: !!data.distribution.${distTag(camp.leadTimeData.distributionType)}`,
+        `      distParameters: !!data.distribution.${distTag(
+          camp.leadTimeData.distributionType
+        )}`,
         formatDistParameters(
           camp.leadTimeData.distParameters as Record<string, unknown>,
           8,
@@ -160,36 +179,55 @@ function buildCamps(data: SimulationInputDTO, a: AnchorMaps): string {
         lines.push("    demands:");
         camp.demands.forEach((d) => {
           if (!d.item) return;
-            const iA = a.item.get(d.item);
-            lines.push(`      - item: *${iA}`);
-            lines.push(`        demandTimingType: ${d.demandTimingType}`);
-            lines.push(`        demandQuantityType: ${d.demandQuantityType}`);
-            lines.push("        arrivalData:");
-            lines.push(`          distributionType: ${d.arrivalData.distributionType}`);
-            lines.push(
-              `          distParameters: !!data.distribution.${distTag(d.arrivalData.distributionType)}`
-            );
-            lines.push(
-              formatDistParameters(
-                d.arrivalData.distParameters as Record<string, unknown>,
-                12,
-                d.arrivalData.distributionType
-              )
-            );
-            lines.push(`        internalRatio: ${formatNumber(d.internalRatio)}`);
-            lines.push(`        externalRatio: ${formatNumber(d.externalRatio)}`);
+          const iA = a.item.get(d.item);
+          lines.push(`      - item: *${iA}`);
+          lines.push(`        demandTimingType: ${d.demandTimingType}`);
+          lines.push(`        demandQuantityType: ${d.demandQuantityType}`);
+          lines.push("        arrivalData:");
+          lines.push(
+            `          distributionType: ${d.arrivalData.distributionType}`
+          );
+          lines.push(
+            `          distParameters: !!data.distribution.${distTag(
+              d.arrivalData.distributionType
+            )}`
+          );
+          lines.push(
+            formatDistParameters(
+              d.arrivalData.distParameters as Record<string, unknown>,
+              12,
+              d.arrivalData.distributionType
+            )
+          );
+          lines.push(`        internalRatio: ${formatNumber(d.internalRatio)}`);
+          lines.push(`        externalRatio: ${formatNumber(d.externalRatio)}`);
         });
       }
       lines.push(
         `    campExternalDemandSatisfactionType: ${camp.campExternalDemandSatisfactionType}`
       );
-      const threshold = (camp as unknown as { externalDemandSatisfactionThreshold?: string }).externalDemandSatisfactionThreshold;
-      if (camp.campExternalDemandSatisfactionType === "THRESHOLD" && threshold) {
-        lines.push(`    externalDemandSatisfactionThreshold: ${formatNumber(threshold)}`);
+      const threshold = (
+        camp as unknown as { externalDemandSatisfactionThreshold?: string }
+      ).externalDemandSatisfactionThreshold;
+      if (
+        camp.campExternalDemandSatisfactionType === "THRESHOLD" &&
+        threshold
+      ) {
+        lines.push(
+          `    externalDemandSatisfactionThreshold: ${formatNumber(threshold)}`
+        );
       }
       lines.push(`    populationType: ${camp.populationType}`);
-      lines.push(`    initialInternalPopulation: ${formatInt(camp.initialInternalPopulation)}`);
-      lines.push(`    initialExternalPopulation: ${formatInt(camp.initialExternalPopulation)}`);
+      lines.push(
+        `    initialInternalPopulation: ${formatInt(
+          camp.initialInternalPopulation
+        )}`
+      );
+      lines.push(
+        `    initialExternalPopulation: ${formatInt(
+          camp.initialExternalPopulation
+        )}`
+      );
       return lines.join("\n");
     })
     .filter(Boolean)
@@ -197,8 +235,8 @@ function buildCamps(data: SimulationInputDTO, a: AnchorMaps): string {
 }
 
 function buildAgencies(data: SimulationInputDTO, a: AnchorMaps): string {
-  return data.agencies!
-    .map((agency) => {
+  return data
+    .agencies!.map((agency) => {
       if (!agency.name) return "";
       const lines: string[] = [`  - name: ${agency.name}`];
       if (agency.fundingArray?.length) {
@@ -208,21 +246,29 @@ function buildAgencies(data: SimulationInputDTO, a: AnchorMaps): string {
           addOptionalFundingItemRef(f, a, lines);
           addOptionalFundingCampRef(f, a, lines);
           lines.push("        arrivalData:");
-          lines.push(`          distributionType: ${f.arrivalData.distributionType}`);
-            lines.push(
-              `          distParameters: !!data.distribution.${distTag(f.arrivalData.distributionType)}`
-            );
-            lines.push(
-              formatDistParameters(
-                f.arrivalData.distParameters as Record<string, unknown>,
-                12,
-                f.arrivalData.distributionType
-              )
-            );
-          lines.push("        amountData:");
-          lines.push(`          distributionType: ${f.amountData.distributionType}`);
           lines.push(
-            `          distParameters: !!data.distribution.${distTag(f.amountData.distributionType)}`
+            `          distributionType: ${f.arrivalData.distributionType}`
+          );
+          lines.push(
+            `          distParameters: !!data.distribution.${distTag(
+              f.arrivalData.distributionType
+            )}`
+          );
+          lines.push(
+            formatDistParameters(
+              f.arrivalData.distParameters as Record<string, unknown>,
+              12,
+              f.arrivalData.distributionType
+            )
+          );
+          lines.push("        amountData:");
+          lines.push(
+            `          distributionType: ${f.amountData.distributionType}`
+          );
+          lines.push(
+            `          distParameters: !!data.distribution.${distTag(
+              f.amountData.distributionType
+            )}`
           );
           lines.push(
             formatDistParameters(
@@ -271,8 +317,8 @@ function addOptionalFundingCampRef(
 }
 
 function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
-  return data.migrations!
-    .map((m) => {
+  return data
+    .migrations!.map((m) => {
       const type = String(m.migrationType);
       if (
         (!m.fromCamp && !type.includes("_TO_SYSTEM")) ||
@@ -291,13 +337,15 @@ function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
       lines.push("    arrivalData:");
       lines.push(`      distributionType: ${m.arrivalData.distributionType}`);
       lines.push(
-        `      distParameters: !!data.distribution.${distTag(m.arrivalData.distributionType)}`
+        `      distParameters: !!data.distribution.${distTag(
+          m.arrivalData.distributionType
+        )}`
       );
       lines.push(
         formatDistParameters(
           m.arrivalData.distParameters as Record<string, unknown>,
           8,
-            m.arrivalData.distributionType
+          m.arrivalData.distributionType
         )
       );
       if (type.includes("_TO_SYSTEM") && m.quantityData) {
@@ -306,7 +354,9 @@ function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
           `      distributionType: ${m.quantityData.distributionType}`
         );
         lines.push(
-          `      distParameters: !!data.distribution.${distTag(m.quantityData.distributionType)}`
+          `      distParameters: !!data.distribution.${distTag(
+            m.quantityData.distributionType
+          )}`
         );
         lines.push(
           formatDistParameters(
@@ -316,7 +366,9 @@ function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
           )
         );
       }
-      lines.push(`    migrationRatio: ${formatNumber(m.migrationRatio ?? 0.05)}`);
+      lines.push(
+        `    migrationRatio: ${formatNumber(m.migrationRatio ?? 0.05)}`
+      );
       return lines.join("\n");
     })
     .filter(Boolean)
@@ -420,10 +472,18 @@ function buildInitialState(data: SimulationInputDTO, a: AnchorMaps): string {
 }
 
 // ------------------ Small helpers ------------------
-function anchorName(name: string) { return name.replace(/\s+/g, "_").toLowerCase(); }
-function section(name: string, body: string) { return `${name}:\n${body.trimEnd()}\n\n`; }
-function sectionRaw(body: string) { return `${body.trimEnd()}\n\n`; }
-function distTag(t: string) { return DIST_TAG[t] || "DistFixed"; }
+function anchorName(name: string) {
+  return name.replace(/\s+/g, "_").toLowerCase();
+}
+function section(name: string, body: string) {
+  return `${name}:\n${body.trimEnd()}\n\n`;
+}
+function sectionRaw(body: string) {
+  return `${body.trimEnd()}\n\n`;
+}
+function distTag(t: string) {
+  return DIST_TAG[t] || "DistFixed";
+}
 function formatValue(key: string, value: unknown, anchor?: string) {
   if (anchor) return `${anchor} ${formatPrimitive(key, value)}`;
   return formatPrimitive(key, value);
@@ -436,16 +496,25 @@ function formatPrimitive(key: string, value: unknown) {
   if (Number.isFinite(num) && !Number.isNaN(num)) return String(num);
   return String(value);
 }
-function formatNumber(v: unknown) { const num = Number(v); return Number.isFinite(num) ? String(num) : "0"; }
-function formatInt(v: unknown) { return String(parseInt(String(v ?? "0"), 10) || 0); }
+function formatNumber(v: unknown) {
+  const num = Number(v);
+  return Number.isFinite(num) ? String(num) : "0";
+}
+function formatInt(v: unknown) {
+  return String(parseInt(String(v ?? "0"), 10) || 0);
+}
 function formatDistParameters(
   params: Record<string, unknown>,
   indent: number,
   type?: string
 ) {
-  if (!params) return ""; const pad = " ".repeat(indent);
+  if (!params) return "";
+  const pad = " ".repeat(indent);
   if (type === "NORMAL") {
-    const { mean = 0, stdDev = 1 } = params as { mean?: number | string; stdDev?: number | string };
+    const { mean = 0, stdDev = 1 } = params as {
+      mean?: number | string;
+      stdDev?: number | string;
+    };
     return `${pad}[${mean}, ${stdDev}]\n`;
   }
   let out = "";
