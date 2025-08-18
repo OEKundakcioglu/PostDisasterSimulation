@@ -266,6 +266,10 @@ public class State implements Cloneable {
             if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
                 int val = referralPopulation.get(camp).get(item) + quantity;
                 referralPopulation.get(camp).put(item, val);
+                // Incrementally update referral cost KPI so UI reflects non-zero earlier
+                if (kpiManager.totalReferralCost.containsKey(camp) && kpiManager.totalReferralCost.get(camp).containsKey(item)) {
+                    kpiManager.totalReferralCost.get(camp).put(item, referralPopulation.get(camp).get(item) * item.getReferralCost());
+                }
             }
             // Fully satisfy the demand
             else if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.FULLY){
@@ -300,6 +304,10 @@ public class State implements Cloneable {
                     } else {
                         int val = referralPopulation.get(camp).get(item) + quantity;
                         referralPopulation.get(camp).put(item, val);
+                    }
+                    // Update referral KPI map
+                    if (kpiManager.totalReferralCost.containsKey(camp)) {
+                        kpiManager.totalReferralCost.get(camp).put(item, referralPopulation.get(camp).get(item) * item.getReferralCost());
                     }
                 }
             }

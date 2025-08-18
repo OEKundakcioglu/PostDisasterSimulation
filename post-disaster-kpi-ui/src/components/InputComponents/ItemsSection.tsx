@@ -152,6 +152,10 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
       isNumericField(field, subField, subSubField) &&
       value !== ""
     ) {
+      // Normalize decimal separator (allow user to type comma)
+      if (value.includes(",")) {
+        value = value.replace(/,/g, ".");
+      }
       // For decimals (price, rates, etc.)
       if (
         field === "price" ||
@@ -298,9 +302,22 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
       case "deprivationCoefficient":
         newItems[index].deprivationCoefficient = value as string;
         break;
-      case "referralCost":
-        newItems[index].referralCost = value as string;
+      case "referralCost": {
+        // Prevent accidental empty referral cost (used in KPIs) – keep last non-empty if user clears field
+        const v = (value as string).trim();
+        if (v === "") {
+          // Do not overwrite with empty string; retain previous or set minimal default "0.01"
+          if (
+            !newItems[index].referralCost ||
+            newItems[index].referralCost === ""
+          ) {
+            newItems[index].referralCost = "0.01"; // tiny positive sentinel default
+          }
+        } else {
+          newItems[index].referralCost = v;
+        }
         break;
+      }
       default:
         break;
     }
@@ -1041,7 +1058,8 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
               holdingCost: "",
               deprivationRate: "",
               deprivationCoefficient: "",
-              referralCost: "",
+              // referralCost initialized non-empty to avoid silent 0 on backend parse
+              referralCost: "1",
               leadTimeData: {
                 distributionType: "TRIANGULAR",
                 distParameters: { min: "1", mode: "2", max: "4" },

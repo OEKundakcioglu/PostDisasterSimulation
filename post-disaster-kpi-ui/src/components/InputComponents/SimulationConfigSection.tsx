@@ -7,6 +7,7 @@ import {
   Tooltip,
   Box,
   IconButton,
+  MenuItem,
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
@@ -116,10 +117,8 @@ const SimulationConfigSection: React.FC<Props> = ({
       return;
     }
 
-    // Skip inventoryControlType as we'll always use PERIODIC
-    if (key === "inventoryControlType") {
-      return;
-    }
+    // inventoryControlType gets its own explicit UI block (added below)
+    if (key === "inventoryControlType") return;
 
     // Special case for inventory control period - move to inventory settings
     if (
@@ -190,6 +189,52 @@ const SimulationConfigSection: React.FC<Props> = ({
 
   return (
     <>
+      {/* Inventory Control Type explicit selector */}
+      <NestedCollapsibleSection title="Inventory Control" level="secondary">
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={4}>
+            <TextField
+              select
+              fullWidth
+              name="inventoryControlType"
+              label="Inventory Control Type"
+              value={
+                (simulationConfig["inventoryControlType"] as string) ||
+                "PERIODIC"
+              }
+              onChange={(e) =>
+                setSimulationConfig((prev) => ({
+                  ...prev,
+                  inventoryControlType: e.target.value,
+                }))
+              }
+              helperText="PERIODIC: review every period; CONTINUOUS: reorder immediately when position < target"
+            >
+              <MenuItem value="PERIODIC">PERIODIC</MenuItem>
+              <MenuItem value="CONTINUOUS">CONTINUOUS</MenuItem>
+            </TextField>
+          </Grid>
+          {simulationConfig["inventoryControlType"] === "PERIODIC" && (
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                name="inventoryControlPeriod"
+                label={getCustomLabel("inventoryControlPeriod")}
+                type="number"
+                inputProps={{ min: 0, step: 1, inputMode: "numeric" }}
+                value={simulationConfig["inventoryControlPeriod"] as string}
+                onChange={(e) =>
+                  handleChange(
+                    e as unknown as React.ChangeEvent<HTMLInputElement>
+                  )
+                }
+                onKeyDown={handleNumericKeyDown}
+              />
+            </Grid>
+          )}
+        </Grid>
+      </NestedCollapsibleSection>
+
       {Object.entries(groupedConfig).map(([category, keys]) =>
         keys.length > 0 ? (
           <NestedCollapsibleSection

@@ -44,6 +44,13 @@ public class SimulationsController {
             log.info(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(payload));
             log.info("=== END RAW PAYLOAD ===");
             
+            // Validate simulation size before processing
+            String validationError = validateSimulationSize(payload);
+            if (validationError != null) {
+                log.warn("❌ Simulation validation failed: {}", validationError);
+                return ResponseEntity.badRequest().body(Map.of("error", validationError));
+            }
+            
             Environment env = SimulationEnvironmentMapper.fromPayload(payload);
             if (env.getSimulationConfig() != null) {
                 env.getSimulationConfig().setUseReactUI(true); // enable realtime UI usage
@@ -53,6 +60,9 @@ public class SimulationsController {
                 "id", session.getId(),
                 "status", session.getStatus()
             ));
+        } catch (OutOfMemoryError e) {
+            log.error("❌ Out of memory error during simulation creation", e);
+            return ResponseEntity.status(507).body(Map.of("error", "Simulation too large for available memory. Please reduce population sizes or planning horizon."));
         } catch (Exception e) {
             log.error("❌ Error creating simulation", e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -64,7 +74,11 @@ public class SimulationsController {
         try {
             simulationService.startSession(id);
             return ResponseEntity.ok(Map.of("id", id, "status", SimulationStatus.RUNNING));
+        } catch (OutOfMemoryError e) {
+            log.error("❌ Out of memory error during simulation start", e);
+            return ResponseEntity.status(507).body(Map.of("error", "Simulation ran out of memory during execution. Please reduce population sizes, planning horizon, or number of camps/items."));
         } catch (Exception e) {
+            log.error("❌ Error starting simulation: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -124,5 +138,72 @@ public class SimulationsController {
     public ResponseEntity<?> deleteSimulation(@PathVariable String id){
         boolean removed = simulationService.deleteSession(id);
         return ResponseEntity.ok(Map.of("id", id, "removed", removed));
+    }
+    
+    /**
+     * Validates simulation size to prevent memory issues
+     */
+    private String validateSimulationSize(Map<String, Object> payload) {
+        try {
+            // Extract simulation config
+            Map<String, Object> simConfig = (Map<String, Object>) payload.get("simulationConfig");
+            if (simConfig != null) {
+                Object horizonObj = simConfig.get("planningHorizon");
+                if (horizonObj != null) {
+                    int planningHorizon = Integer.parseInt(horizonObj.toString());
+                    if (planningHorizon > 2000) {
+                        return "Planning horizon too large (" + planningHorizon + "). Maximum allowed: 2000 time units.";
+                    }
+                }
+            }
+            
+            // Extract camps and check population sizes
+            List<Map<String, Object>> camps = (List<Map<String, Object>>) payload.get("camps");
+            if (camps != null) {
+                long totalPopulation = 0;
+                int campCount = camps.size();
+                
+                if (campCount > 20) {
+                    return "Too many camps (" + campCount + "). Maximum allowed: 20 camps.";
+                }
+                
+                for (Map<String, Object> camp : camps) {
+                    Object internalPop = camp.get("initialInternalPopulation");
+                    Object externalPop = camp.get("initialExternalPopulation");
+                    
+                    if (internalPop != null) {
+                        long internal = Long.parseLong(internalPop.toString());
+                        if (internal > 1000000) {
+                            return "Camp '" + camp.get("name") + "' internal population too large (" + internal + "). Maximum allowed: 1,000,000.";
+                        }
+                        totalPopulation += internal;
+                    }
+                    
+                    if (externalPop != null) {
+                        long external = Long.parseLong(externalPop.toString());
+                        if (external > 10000000) {
+                            return "Camp '" + camp.get("name") + "' external population too large (" + external + "). Maximum allowed: 10,000,000.";
+                        }
+                        totalPopulation += external;
+                    }
+                }
+                
+                if (totalPopulation > 50000000) {
+                    return "Total population too large (" + totalPopulation + "). Maximum allowed: 50,000,000.";
+                }
+            }
+            
+            // Extract items count
+            List<Map<String, Object>> items = (List<Map<String, Object>>) payload.get("items");
+            if (items != null && items.size() > 10) {
+                return "Too many items (" + items.size() + "). Maximum allowed: 10 items.";
+            }
+            
+            return null; // No validation errors
+            
+        } catch (Exception e) {
+            log.warn("Error during size validation: {}", e.getMessage());
+            return null; // Allow processing to continue
+        }
     }
 }

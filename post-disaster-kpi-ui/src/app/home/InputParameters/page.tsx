@@ -331,6 +331,24 @@ const InputParameters = () => {
   const availabilityRef = useRef(initialState.isItemAvailable);
   const prevCampsRef = useRef<Camp[]>([]); // for detecting renames vs deletions
   const campRenameDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const prevErrorRef = useRef<string | null>(null);
+  const prevIssueCountRef = useRef<number>(0);
+
+  // Scroll to top on new errors or first appearance of validation issues
+  useEffect(() => {
+    const hasNewError = error && error !== prevErrorRef.current;
+    const issuesAppeared =
+      prevIssueCountRef.current === 0 && validationIssues.length > 0;
+    if (hasNewError || issuesAppeared) {
+      try {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {
+        // no-op (SSR or unavailable)
+      }
+    }
+    prevErrorRef.current = error;
+    prevIssueCountRef.current = validationIssues.length;
+  }, [error, validationIssues]);
 
   // --------------------------------------------------
   // Effect: Sync camp demands + item availability with items
@@ -657,22 +675,53 @@ const InputParameters = () => {
   const normalizeInventoryPolicy = useCallback(() => {
     setInventoryPolicy((prev: InventoryPolicy) => {
       const next = deepClone(prev);
-      camps.forEach((camp: Camp) => {
-        next.bufferRatios[camp.name] = next.bufferRatios[camp.name] || {};
-        next.periodicCounts[camp.name] = next.periodicCounts[camp.name] || {};
-        items.forEach((it: Item) => {
-          if (next.bufferRatios[camp.name][it.name] === undefined)
-            next.bufferRatios[camp.name][it.name] = "0";
-          if (next.periodicCounts[camp.name][it.name] === undefined)
-            next.periodicCounts[camp.name][it.name] = "0";
+
+      // Get valid camp and item names (non-empty)
+      const validCampNames = new Set(
+        camps.map((c: Camp) => c.name).filter(Boolean)
+      );
+      const validItemNames = new Set(
+        items.map((i: Item) => i.name).filter(Boolean)
+      );
+
+      // Clean up bufferRatios: remove stale camps/items, add missing ones
+      const newBufferRatios: Record<string, Record<string, string>> = {};
+      validCampNames.forEach((campName) => {
+        newBufferRatios[campName] = {};
+        validItemNames.forEach((itemName) => {
+          newBufferRatios[campName][itemName] =
+            next.bufferRatios[campName]?.[itemName] ?? "0";
         });
       });
-      items.forEach((it: Item) => {
-        if (next.centralBufferRatios[it.name] === undefined)
-          next.centralBufferRatios[it.name] = "0";
-        if (next.centralPeriodicCounts[it.name] === undefined)
-          next.centralPeriodicCounts[it.name] = "0";
+      next.bufferRatios = newBufferRatios;
+
+      // Clean up periodicCounts: remove stale camps/items, add missing ones
+      const newPeriodicCounts: Record<string, Record<string, string>> = {};
+      validCampNames.forEach((campName) => {
+        newPeriodicCounts[campName] = {};
+        validItemNames.forEach((itemName) => {
+          newPeriodicCounts[campName][itemName] =
+            next.periodicCounts[campName]?.[itemName] ?? "0";
+        });
       });
+      next.periodicCounts = newPeriodicCounts;
+
+      // Clean up centralBufferRatios: remove stale items, add missing ones
+      const newCentralBufferRatios: Record<string, string> = {};
+      validItemNames.forEach((itemName) => {
+        newCentralBufferRatios[itemName] =
+          next.centralBufferRatios[itemName] ?? "0";
+      });
+      next.centralBufferRatios = newCentralBufferRatios;
+
+      // Clean up centralPeriodicCounts: remove stale items, add missing ones
+      const newCentralPeriodicCounts: Record<string, string> = {};
+      validItemNames.forEach((itemName) => {
+        newCentralPeriodicCounts[itemName] =
+          next.centralPeriodicCounts[itemName] ?? "0";
+      });
+      next.centralPeriodicCounts = newCentralPeriodicCounts;
+
       return next;
     });
   }, [camps, items]);
@@ -785,6 +834,60 @@ const InputParameters = () => {
         agencies.map((a: Agency) => a.name),
         "Agency"
       );
+
+      // Check simulation size limits
+      if (items.length > 10) {
+        issues.push(
+          `Too many items (${items.length}). Maximum allowed: 10 items.`
+        );
+      }
+      if (camps.length > 20) {
+        issues.push(
+          `Too many camps (${camps.length}). Maximum allowed: 20 camps.`
+        );
+      }
+      const planningHorizon = parseInt(
+        simulationConfig.planningHorizon?.toString() || "0"
+      );
+      if (planningHorizon > 2000) {
+        issues.push(
+          `Planning horizon too large (${planningHorizon}). Maximum allowed: 2000 time units.`
+        );
+      }
+
+      // Check population sizes
+      let totalPopulation = 0;
+      camps.forEach((camp: Camp, i: number) => {
+        const internal = parseInt(
+          camp.initialInternalPopulation?.toString() || "0"
+        );
+        const external = parseInt(
+          camp.initialExternalPopulation?.toString() || "0"
+        );
+
+        if (internal > 1000000) {
+          issues.push(
+            `Camp '${
+              camp.name || i + 1
+            }' internal population too large (${internal}). Maximum allowed: 1,000,000.`
+          );
+        }
+        if (external > 10000000) {
+          issues.push(
+            `Camp '${
+              camp.name || i + 1
+            }' external population too large (${external}). Maximum allowed: 10,000,000.`
+          );
+        }
+
+        totalPopulation += internal + external;
+      });
+
+      if (totalPopulation > 50000000) {
+        issues.push(
+          `Total population too large (${totalPopulation}). Maximum allowed: 50,000,000.`
+        );
+      }
 
       // Items
       items.forEach((it: Item, i: number) => {
@@ -1071,7 +1174,13 @@ const InputParameters = () => {
       });
       const createJson = await createResp.json();
       if (!createResp.ok) {
-        setError(createJson.error || "Failed to create simulation session");
+        if (createResp.status === 507) {
+          setError(
+            `Memory Limit Exceeded: ${createJson.error}\n\nPlease try:\n• Reducing population sizes\n• Decreasing planning horizon\n• Using fewer camps or items`
+          );
+        } else {
+          setError(createJson.error || "Failed to create simulation session");
+        }
         return;
       }
       const sessionId = createJson.id;
@@ -1081,7 +1190,13 @@ const InputParameters = () => {
       );
       const startJson = await startResp.json();
       if (!startResp.ok) {
-        setError(startJson.error || "Failed to start simulation");
+        if (startResp.status === 507) {
+          setError(
+            `Memory Limit Exceeded During Execution: ${startJson.error}\n\nThe simulation started but ran out of memory. Please try:\n• Reducing population sizes\n• Decreasing planning horizon\n• Using fewer camps or items`
+          );
+        } else {
+          setError(startJson.error || "Failed to start simulation");
+        }
         return;
       }
       localStorage.setItem("activeSimulationSessionId", sessionId);

@@ -40,6 +40,8 @@ public class Simulate {
     private HashMap<Camp, PriorityQueue<IEvent>> demandEventQueue;
     private boolean prepared = false;
     private boolean finalized = false;
+    // Track last simulation time at which a continuous InventoryControlEvent was enqueued
+    private double lastContinuousICEventTime = Double.NaN;
 
     public Simulate(Environment environment) { this(environment, null); }
     public Simulate(Environment environment, CancelChecker cancelChecker) {
@@ -73,6 +75,8 @@ public class Simulate {
         long startNano = System.nanoTime();
         long lastReport = startNano;
         long processed = 0;
+    double lastLoggedSimTime = -1.0;
+    final int LOG_EVERY_N_EVENTS = 500; // throttle expensive KPI logging
         int maxQueue = this.eventQueue.size();
         while (!this.eventQueue.isEmpty()) {
             if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
@@ -83,8 +87,12 @@ public class Simulate {
             deleteExpiredItems(this.state, event.getTime());
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
 
-            state.getKpiManager().logState(state, event.getTime(), 10);
             processed++;
+            // Throttled KPI logging: only every N events OR when integer simulation day/time advances
+            if (processed % LOG_EVERY_N_EVENTS == 0 || (int)event.getTime() > (int)lastLoggedSimTime) {
+                state.getKpiManager().logState(state, event.getTime(), 10);
+                lastLoggedSimTime = event.getTime();
+            }
 
             // If population changes, generate new demand events with the new population, deleting the old demand events
             if (event.getClass().getSimpleName().equals("MigrationEvent")) {
@@ -108,9 +116,13 @@ public class Simulate {
             }
 
             // Continuously generate inventory control events for the continuous inventory control type
-            if (!event.getClass().getSimpleName().equals("InventoryControlEvent") &&
-                this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS) {
-                this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
+            if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS &&
+                !event.getClass().getSimpleName().equals("InventoryControlEvent")) {
+                // Enqueue at most one inventory control event per unique simulation time to avoid explosion
+                if (Double.isNaN(lastContinuousICEventTime) || event.getTime() > lastContinuousICEventTime) {
+                    this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
+                    lastContinuousICEventTime = event.getTime();
+                }
             }
             if (eventSet != null) {
                 for (IEvent e : eventSet) {
@@ -119,7 +131,9 @@ public class Simulate {
                     this.eventQueue.offer(e);
                 }
             }
-            state.getKpiManager().updateTimeStepLogs(event.getTime());
+            if (processed % LOG_EVERY_N_EVENTS == 0 || (int)event.getTime() > (int)lastLoggedSimTime) {
+                state.getKpiManager().updateTimeStepLogs(event.getTime());
+            }
 
             // Lightweight perf reporting (every 1s or every 100k events)
             if (processed % 100_000 == 0) {
@@ -146,6 +160,8 @@ public class Simulate {
     public void runWithThrottle(Runnable throttleCallback){
         if (!prepared) throw new IllegalStateException("Simulation not prepared");
         int processed = 0;
+    double lastLoggedSimTime = -1.0;
+    final int LOG_EVERY_N_EVENTS = 500;
         while (!this.eventQueue.isEmpty()) {
             if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
                 System.out.println("Simulation interrupted/cancelled – exiting loop");
@@ -154,7 +170,11 @@ public class Simulate {
             IEvent event = this.eventQueue.poll();
             deleteExpiredItems(this.state, event.getTime());
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
-            state.getKpiManager().logState(state, event.getTime(), 10);
+            processed++;
+            if (processed % LOG_EVERY_N_EVENTS == 0 || (int)event.getTime() > (int)lastLoggedSimTime) {
+                state.getKpiManager().logState(state, event.getTime(), 10);
+                lastLoggedSimTime = event.getTime();
+            }
             if (event.getClass().getSimpleName().equals("MigrationEvent")) migrationStateUpdate((MigrationEvent) event);
             if(event.getClass().getSimpleName().equals("DemandEvent")){
                 DemandEvent demandEvent = (DemandEvent) event;
@@ -165,8 +185,12 @@ public class Simulate {
                 PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
                 if (!demandQueue.isEmpty()) this.eventQueue.offer(demandQueue.poll());
             }
-            if (!event.getClass().getSimpleName().equals("InventoryControlEvent") && this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS) {
-                this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
+            if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS &&
+                !event.getClass().getSimpleName().equals("InventoryControlEvent")) {
+                if (Double.isNaN(lastContinuousICEventTime) || event.getTime() > lastContinuousICEventTime) {
+                    this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
+                    lastContinuousICEventTime = event.getTime();
+                }
             }
             if (eventSet != null) {
                 for (IEvent e : eventSet) {
@@ -175,8 +199,10 @@ public class Simulate {
                     this.eventQueue.offer(e);
                 }
             }
-            state.getKpiManager().updateTimeStepLogs(event.getTime());
-            if (throttleCallback != null && ++processed % 250 == 0) { // was 25 -> fewer sleeps
+            if (processed % LOG_EVERY_N_EVENTS == 0 || (int)event.getTime() > (int)lastLoggedSimTime) {
+                state.getKpiManager().updateTimeStepLogs(event.getTime());
+            }
+            if (throttleCallback != null && processed % 250 == 0) { // was 25 -> fewer sleeps
                 throttleCallback.run();
             }
         }
@@ -343,6 +369,7 @@ public class Simulate {
         else if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS){
             InventoryControlEvent ice = new InventoryControlEvent(0);
             this.eventQueue.offer(ice);
+            lastContinuousICEventTime = 0.0;
         }
     }
 

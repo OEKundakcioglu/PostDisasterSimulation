@@ -199,3 +199,86 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/java,gradle,intellij+all,macos
+
+###############################################
+# Frontend (Node / Next.js) ignores
+###############################################
+
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Next.js build output & cache
+.next/
+**/.next/
+out/
+dist/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Test coverage
+coverage/
+**/coverage/
+.nyc_output/
+
+# Lint / tooling caches
+.eslintcache
+.stylelintcache
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node REPL history
+.node_repl_history
+
+# Environment variable overrides
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+**/.env
+# Uncomment below ONLY if you also want to ignore base .env files globally
+# .env
+
+# Deployment / platform directories
+.vercel/
+**/.vercel/
+.turbo/
+**/.turbo/
+
+# SWC cache (usually inside .next, but safe)
+.swc/
+**/.swc/
+
+# Storybook (if added later)
+storybook-static/
+
+# Temporary artifact archives
+*.tgz
+
+# Optional editor config (keep commented if you share workspace settings)
+# .vscode/
+
+# Frontend logs directory
+post-disaster-kpi-ui/logs/
+
+# Prevent accidental commit of runtime trace artifacts (uncomment if noisy)
+# post-disaster-kpi-ui/.next/trace
+# post-disaster-kpi-ui/.next/**/*.nft.json
+
+# Yarn v2+ (PnP) optional
+.pnp.*
+
+###############################################
+# End Frontend Section
+###############################################
+
