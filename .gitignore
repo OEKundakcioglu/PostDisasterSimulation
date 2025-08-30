@@ -208,6 +208,23 @@ gradle-app.setting
 node_modules/
 **/node_modules/
 
+# Next.js build output (if any slipped into tracking before local .gitignore)
+/.next/
+**/.next/
+post-disaster-kpi-ui/.next/
+
+# Next.js standalone export dir
+out/
+post-disaster-kpi-ui/out/
+
+# Frontend build artifacts
+post-disaster-kpi-ui/build/
+
+# TypeScript incremental build info (already handled in sub .gitignore but keep global)
+**/*.tsbuildinfo
+node_modules/
+**/node_modules/
+
 # Next.js build output & cache
 .next/
 **/.next/
