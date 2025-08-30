@@ -3,9 +3,7 @@ import {
   InventoryPolicy,
   InitialState,
   Agency,
-  AgencyFunding,
   Camp,
-  CampDemand,
   Migration,
 } from "./types";
 import { Item } from "@/types/Item";
