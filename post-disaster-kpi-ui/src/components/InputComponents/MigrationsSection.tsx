@@ -136,10 +136,34 @@ const MigrationsSection: React.FC<Props> = ({
       // Handle direct field assignment
       switch (field) {
         case "fromCamp":
-          if (typeof value === "string") newMigrations[index].fromCamp = value;
+          if (typeof value === "string") {
+            // Validate that the camp exists
+            const campExists = camps.some((camp) => camp.name === value);
+            if (campExists || value === "") {
+              newMigrations[index].fromCamp = value;
+            } else {
+              console.warn(
+                `Warning: Camp '${value}' does not exist in the system`
+              );
+              // Don't update if camp doesn't exist
+              return;
+            }
+          }
           break;
         case "toCamp":
-          if (typeof value === "string") newMigrations[index].toCamp = value;
+          if (typeof value === "string") {
+            // Validate that the camp exists
+            const campExists = camps.some((camp) => camp.name === value);
+            if (campExists || value === "") {
+              newMigrations[index].toCamp = value;
+            } else {
+              console.warn(
+                `Warning: Camp '${value}' does not exist in the system`
+              );
+              // Don't update if camp doesn't exist
+              return;
+            }
+          }
           break;
         case "migrationType":
           if (typeof value === "string")

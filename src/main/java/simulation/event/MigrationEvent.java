@@ -1,15 +1,13 @@
 package simulation.event;
 
+import java.util.ArrayList;
+
 import data.Camp;
 import data.event_info.Migration;
-import enums.DemandTimingType;
 import enums.MigrationType;
-import simulation.KPIManager;
 import simulation.State;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
-
-import java.util.ArrayList;
 
 public class MigrationEvent implements IEvent {
 
@@ -40,6 +38,12 @@ public class MigrationEvent implements IEvent {
     }
 
     public ArrayList<IEvent> processEvent(State state, InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator) {
+
+        // Validate camps exist before proceeding
+        if (this.fromCamp == null || this.toCamp == null) {
+            System.err.println("Warning: MigrationEvent has null camps. fromCamp: " + this.fromCamp + ", toCamp: " + this.toCamp + ". Skipping migration.");
+            return null;
+        }
 
         // Call late quantity since it depends on the state
         this.quantity = quantityGenerator.generateMigrationQuantity(state, this.migration);

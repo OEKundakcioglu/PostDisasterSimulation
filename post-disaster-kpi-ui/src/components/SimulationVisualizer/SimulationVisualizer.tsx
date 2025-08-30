@@ -86,6 +86,7 @@ const RankItem = styled("div")<{
 interface Point {
   t: number;
   cost: number;
+  cumulativeCost?: number;
 }
 interface CostEntry {
   camp: string;
@@ -152,6 +153,15 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
           const series = next[camp][type];
           const t = pkt.time;
           const last = series[series.length - 1];
+
+          // Calculate incremental cost (real-time change)
+          const previousCumulativeCost = last ? last.cumulativeCost || 0 : 0;
+          const rawIncrementalCost = cost - previousCumulativeCost;
+
+          // Prevent negative incremental costs which can occur due to data inconsistencies
+          // or expired items being removed from inventory without proper cost accounting
+          const incrementalCost = Math.max(0, rawIncrementalCost);
+
           if (!last || t > last.t) {
             // fill visual gaps with synthetic points every DISPLAY_STEP
             if (last && t - last.t > DISPLAY_STEP) {
@@ -160,22 +170,35 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
               for (let s = 1; s < steps; s++) {
                 const interT = last.t + s * DISPLAY_STEP;
                 if (interT >= t) break;
-                // linear interpolation (costs are cumulative so linear approx is OK visually)
-                const interCost =
-                  last.cost +
-                  ((cost - last.cost) * (interT - last.t)) / (t - last.t);
-                series.push({ t: interT, cost: interCost });
+                // For gaps, use zero incremental cost for intermediate points
+                series.push({
+                  t: interT,
+                  cost: 0,
+                  cumulativeCost: last.cumulativeCost,
+                });
               }
             }
-            series.push({ t, cost });
+            series.push({ t, cost: incrementalCost, cumulativeCost: cost });
           } else if (t === last.t) {
-            series[series.length - 1] = { t, cost };
+            series[series.length - 1] = {
+              t,
+              cost: incrementalCost,
+              cumulativeCost: cost,
+            };
           } else {
             // out-of-order: insert sorted (no interpolation)
             let i = series.length - 1;
             while (i >= 0 && series[i].t > t) i--;
-            if (i >= 0 && series[i].t === t) series[i].cost = cost;
-            else series.splice(i + 1, 0, { t, cost });
+            if (i >= 0 && series[i].t === t) {
+              series[i].cost = incrementalCost;
+              series[i].cumulativeCost = cost;
+            } else {
+              series.splice(i + 1, 0, {
+                t,
+                cost: incrementalCost,
+                cumulativeCost: cost,
+              });
+            }
           }
           if (series.length > 500) series.splice(0, series.length - 500);
         });

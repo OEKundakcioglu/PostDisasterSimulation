@@ -227,54 +227,43 @@ export const useSimulationInputLogic = () => {
     }
     const campNames = new Set(camps.map((c: Camp) => c.name).filter(Boolean));
     setMigrations((prevMigs: Migration[]) => {
-      let blanked = false;
       let renamed = false;
-      const next = prevMigs.map((m: Migration) => {
-        let fromCamp = m.fromCamp;
-        let toCamp = m.toCamp;
-        const type = m.migrationType || "";
-        const within = type.includes("_WITHIN_SYSTEM");
-        const toSystem = type.includes("_TO_SYSTEM");
-        const fromSystem = type.includes("_FROM_SYSTEM");
-        // Attempt rename substitution first
-        if (fromCamp && renameMap[fromCamp]) {
-          fromCamp = renameMap[fromCamp];
-          renamed = true;
-        }
-        if (toCamp && renameMap[toCamp]) {
-          toCamp = renameMap[toCamp];
-          renamed = true;
-        }
-        // Only blank if truly removed (not renamed) and not an empty editing placeholder
-        const shouldBlank = (name: string | undefined) =>
-          !!name && !campNames.has(name) && !renameMap[name];
-        if (within) {
-          if (shouldBlank(fromCamp)) {
-            fromCamp = "";
-            blanked = true;
+      // Remove migrations that reference deleted camps
+      const filtered = prevMigs
+        .map((m: Migration) => {
+          let fromCamp = m.fromCamp;
+          let toCamp = m.toCamp;
+          const type = m.migrationType || "";
+          // Attempt rename substitution first
+          if (fromCamp && renameMap[fromCamp]) {
+            fromCamp = renameMap[fromCamp];
+            renamed = true;
           }
-          if (shouldBlank(toCamp)) {
-            toCamp = "";
-            blanked = true;
+          if (toCamp && renameMap[toCamp]) {
+            toCamp = renameMap[toCamp];
+            renamed = true;
           }
-        } else if (toSystem) {
-          if (shouldBlank(toCamp)) {
-            toCamp = "";
-            blanked = true;
+          return { ...m, fromCamp, toCamp };
+        })
+        .filter((m: Migration) => {
+          const type = m.migrationType || "";
+          const within = type.includes("_WITHIN_SYSTEM");
+          const toSystem = type.includes("_TO_SYSTEM");
+          const fromSystem = type.includes("_FROM_SYSTEM");
+          // Remove if any referenced camp is missing
+          if (within) {
+            return campNames.has(m.fromCamp) && campNames.has(m.toCamp);
+          } else if (toSystem) {
+            return campNames.has(m.toCamp);
+          } else if (fromSystem) {
+            return campNames.has(m.fromCamp);
           }
-        } else if (fromSystem) {
-          if (shouldBlank(fromCamp)) {
-            fromCamp = "";
-            blanked = true;
-          }
-        }
-        if (fromCamp === m.fromCamp && toCamp === m.toCamp) return m;
-        return { ...m, fromCamp, toCamp };
-      });
-      if (blanked) {
+          return true;
+        });
+      if (prevMigs.length !== filtered.length) {
         setValidationIssues((iss) => [
           ...iss,
-          "Cleared invalid camp references in migrations after camp removal",
+          "Removed migrations referencing deleted camps after camp removal",
         ]);
       } else if (renamed) {
         setValidationIssues((iss) => [
@@ -282,7 +271,7 @@ export const useSimulationInputLogic = () => {
           "Updated migration camp references after camp rename",
         ]);
       }
-      return next;
+      return filtered;
     });
     prevCampsRef.current = camps;
   }, [camps]);
@@ -594,6 +583,17 @@ export const useSimulationInputLogic = () => {
         const toSystem = type.includes("_TO_SYSTEM");
         const fromSystem = type.includes("_FROM_SYSTEM");
         const within = type.includes("_WITHIN_SYSTEM");
+
+        // Validate camp existence
+        if (m.fromCamp && !camps.some((camp) => camp.name === m.fromCamp)) {
+          issues.push(
+            `${ctx} references non-existent fromCamp '${m.fromCamp}'`
+          );
+        }
+        if (m.toCamp && !camps.some((camp) => camp.name === m.toCamp)) {
+          issues.push(`${ctx} references non-existent toCamp '${m.toCamp}'`);
+        }
+
         if (within) {
           if (!m.fromCamp) issues.push(`${ctx} missing fromCamp`);
           if (!m.toCamp) issues.push(`${ctx} missing toCamp`);

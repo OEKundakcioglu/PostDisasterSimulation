@@ -234,6 +234,17 @@ public class Simulate {
                 while (iterator.hasNext()) {
                     InventoryItem item = iterator.next();
                     if (item.getExpiration() != 0 && item.getExpiration() <= currentTime) {
+                        // Calculate holding cost for expired item before removing it
+                        double totalTime = currentTime - item.getArrivalTime();
+                        double expiredHoldingCost = totalTime * item.getQuantity() * itemEntry.getKey().getHoldingCost();
+                        
+                        // Add holding cost to accumulated total
+                        Camp camp = campEntry.getKey();
+                        Item itemType = itemEntry.getKey();
+                        this.state.getKpiManager().totalHoldingCost.get(camp).put(itemType, 
+                            this.state.getKpiManager().totalHoldingCost.get(camp).get(itemType) + expiredHoldingCost);
+                        
+                        // Track expired inventory
                         this.state.getKpiManager().totalExpiredInventory.get(campEntry.getKey()).put(itemEntry.getKey(),
                                 this.state.getKpiManager().totalExpiredInventory.get(campEntry.getKey()).get(itemEntry.getKey()) + item.getQuantity());
                         this.state.getInventoryPosition().get(campEntry.getKey()).put(itemEntry.getKey(), this.state.getInventoryPosition().get(campEntry.getKey()).get(itemEntry.getKey()) - item.getQuantity());
@@ -250,6 +261,8 @@ public class Simulate {
             while (iterator.hasNext()) {
                 InventoryItem item = iterator.next();
                 if (item.getExpiration() != 0 && item.getExpiration() <= currentTime) {
+                    // Note: Central warehouse holding costs are typically not tracked per-camp
+                    // but could be added to a global holding cost if needed
                     this.state.getKpiManager().totalCentralExpiredInventory.put(itemEntry.getKey(),
                             this.state.getKpiManager().totalCentralExpiredInventory.get(itemEntry.getKey()) + item.getQuantity());
                     this.state.getCentralWarehousePosition().put(itemEntry.getKey(), this.state.getCentralWarehousePosition().get(itemEntry.getKey()) - item.getQuantity());

@@ -322,21 +322,61 @@ public class State implements Cloneable {
     public void updatePopulation(Camp fromCamp, Camp toCamp, double quantity, MigrationType migrationType) {
 
         if (migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM) {
-            this.internalPopulation.put(fromCamp, this.internalPopulation.get(fromCamp) - (int) quantity);
-            this.internalPopulation.put(toCamp, this.internalPopulation.get(toCamp) + (int) quantity);
+            // Null check for fromCamp and toCamp in internal population
+            Integer fromPopulation = this.internalPopulation.get(fromCamp);
+            Integer toPopulation = this.internalPopulation.get(toCamp);
+            
+            if (fromPopulation == null) {
+                System.err.println("Warning: fromCamp '" + fromCamp.getName() + "' not found in internal population. Skipping migration.");
+                return;
+            }
+            if (toPopulation == null) {
+                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in internal population. Skipping migration.");
+                return;
+            }
+            
+            this.internalPopulation.put(fromCamp, fromPopulation - (int) quantity);
+            this.internalPopulation.put(toCamp, toPopulation + (int) quantity);
         }
         else if(migrationType == MigrationType.INTERNAL_TO_SYSTEM) {
-            this.internalPopulation.put(toCamp, this.internalPopulation.get(toCamp) + (int) quantity);
+            Integer toPopulation = this.internalPopulation.get(toCamp);
+            if (toPopulation == null) {
+                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in internal population. Skipping migration.");
+                return;
+            }
+            this.internalPopulation.put(toCamp, toPopulation + (int) quantity);
         }
         else if (migrationType == MigrationType.INTERNAL_FROM_SYSTEM) {
-            this.externalPopulation.put(fromCamp, this.externalPopulation.get(fromCamp) - (int) quantity);
+            Integer fromPopulation = this.externalPopulation.get(fromCamp);
+            if (fromPopulation == null) {
+                System.err.println("Warning: fromCamp '" + fromCamp.getName() + "' not found in external population. Skipping migration.");
+                return;
+            }
+            this.externalPopulation.put(fromCamp, fromPopulation - (int) quantity);
         }
         else if (migrationType == MigrationType.EXTERNAL_WITHIN_SYSTEM) {
-            this.externalPopulation.put(fromCamp, this.externalPopulation.get(fromCamp) - (int) quantity);
-            this.externalPopulation.put(toCamp, this.externalPopulation.get(toCamp) + (int) quantity);
+            Integer fromPopulation = this.externalPopulation.get(fromCamp);
+            Integer toPopulation = this.externalPopulation.get(toCamp);
+            
+            if (fromPopulation == null) {
+                System.err.println("Warning: fromCamp '" + fromCamp.getName() + "' not found in external population. Skipping migration.");
+                return;
+            }
+            if (toPopulation == null) {
+                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in external population. Skipping migration.");
+                return;
+            }
+            
+            this.externalPopulation.put(fromCamp, fromPopulation - (int) quantity);
+            this.externalPopulation.put(toCamp, toPopulation + (int) quantity);
         }
         else if (migrationType == MigrationType.EXTERNAL_TO_SYSTEM) {
-            this.externalPopulation.put(toCamp, this.externalPopulation.get(toCamp) + (int) quantity);
+            Integer toPopulation = this.externalPopulation.get(toCamp);
+            if (toPopulation == null) {
+                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in external population. Skipping migration.");
+                return;
+            }
+            this.externalPopulation.put(toCamp, toPopulation + (int) quantity);
         }
         else if (migrationType == MigrationType.EXTERNAL_FROM_SYSTEM) {
             this.externalPopulation.put(fromCamp, this.externalPopulation.get(fromCamp) - (int) quantity);

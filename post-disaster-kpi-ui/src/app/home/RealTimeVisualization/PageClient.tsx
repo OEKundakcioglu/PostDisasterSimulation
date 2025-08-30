@@ -15,8 +15,9 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import nextDynamic from "next/dynamic";
 
 // Lazy‑load visualizer for faster initial paint
-const SimulationVisualizer = nextDynamic(
-  () => import("@/components/SimulationVisualizer/SimulationVisualizer"),
+const TimeAwareSimulationVisualizer = nextDynamic(
+  () =>
+    import("@/components/SimulationVisualizer/TimeAwareSimulationVisualizer"),
   {
     ssr: false,
     loading: () => (
@@ -305,7 +306,7 @@ export default function PageClient() {
           Stop & Start New
         </Button>
       </Stack>
-      <SimulationVisualizer logs={logs} />
+      <TimeAwareSimulationVisualizer logs={logs} />
     </Box>
   );
 }

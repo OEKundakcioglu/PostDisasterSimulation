@@ -398,8 +398,14 @@ public class KPIManager {
                     var inventoryQueue = itemEntry.getValue();
                     int totalQuantity = inventoryQueue.stream().mapToInt(InventoryItem::getQuantity).sum();
                     log.itemQuantities.get(campName).put(item.getName(), totalQuantity);
-                    double holdingCostAcc = inventoryQueue.stream().mapToDouble(inv -> (currentTime - inv.getArrivalTime()) * inv.getQuantity() * item.getHoldingCost()).sum();
-                    log.cumulativeHoldingCosts.put(campName, log.cumulativeHoldingCosts.get(campName) + holdingCostAcc);
+                    // Calculate holding cost for current inventory items (still in inventory)
+                    double currentInventoryHoldingCost = inventoryQueue.stream()
+                        .mapToDouble(inv -> (currentTime - inv.getArrivalTime()) * inv.getQuantity() * item.getHoldingCost())
+                        .sum();
+                    
+                    // Add both accumulated costs (from consumed/expired items) and current inventory costs
+                    double totalAccumulatedCost = totalHoldingCost.get(camp).get(item);
+                    log.cumulativeHoldingCosts.put(campName, log.cumulativeHoldingCosts.get(campName) + totalAccumulatedCost + currentInventoryHoldingCost);
                     double referralCostAcc = totalReferralCost.get(camp).get(item);
                     double deprivationCostAcc = totalDeprivationCost.get(camp).get(item);
                     log.cumulativeReferralCosts.put(campName, log.cumulativeReferralCosts.get(campName) + referralCostAcc);
