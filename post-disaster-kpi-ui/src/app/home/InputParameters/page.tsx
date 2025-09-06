@@ -129,7 +129,7 @@ const InputParameters = () => {
           />
         </CollapsibleSection>
 
-        <Box sx={{ mt: 4, display: "flex", alignItems: "center" }}>
+        <Box sx={{ mt: 4, display: "flex", alignItems: "center", gap: 2 }}>
           <Button
             variant="contained"
             onClick={handleSubmit}
@@ -138,6 +138,68 @@ const InputParameters = () => {
           >
             {isLoading ? "Running Simulation..." : "Run Simulation"}
           </Button>
+          
+          <Button
+            variant="outlined"
+            onClick={() => {
+              const config = {
+                simulationConfig,
+                items,
+                camps,
+                agencies,
+                migrations,
+                inventoryPolicy,
+                initialState,
+              };
+              const blob = new Blob([JSON.stringify(config, null, 2)], {
+                type: "application/json",
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `simulation-config-${new Date().toISOString().split('T')[0]}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            disabled={isLoading}
+          >
+            Export Config
+          </Button>
+          
+          <Button
+            variant="outlined"
+            component="label"
+            disabled={isLoading}
+          >
+            Import Config
+            <input
+              type="file"
+              hidden
+              accept=".json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    try {
+                      const config = JSON.parse(event.target?.result as string);
+                      if (config.simulationConfig) setSimulationConfig(config.simulationConfig);
+                      if (config.items) setItems(config.items);
+                      if (config.camps) setCamps(config.camps);
+                      if (config.agencies) setAgencies(config.agencies);
+                      if (config.migrations) setMigrations(config.migrations);
+                      if (config.inventoryPolicy) setInventoryPolicy(config.inventoryPolicy);
+                      if (config.initialState) setInitialState(config.initialState);
+                    } catch (error) {
+                      console.error('Error parsing config file:', error);
+                    }
+                  };
+                  reader.readAsText(file);
+                }
+              }}
+            />
+          </Button>
+          
           {isLoading && <CircularProgress size={24} />}
         </Box>
       </Paper>

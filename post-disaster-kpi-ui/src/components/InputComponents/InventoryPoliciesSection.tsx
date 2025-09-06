@@ -39,6 +39,42 @@ const InventoryPoliciesSection: React.FC<Props> = ({
   useEffect(() => {
     if (hasManualEdits) return;
 
+    // Create a deep comparison function to check if we need to update
+    const shouldUpdate = () => {
+      const campBufferStr = campBuffer.toString();
+      const centralBufferStr = centralBuffer.toString();
+      const inventoryControlPeriodStr = inventoryControlPeriod.toString();
+
+      // Check if any camp/item combination is missing or has different values
+      for (const camp of camps) {
+        if (!inventoryPolicy.bufferRatios[camp.name] || !inventoryPolicy.periodicCounts[camp.name]) {
+          return true;
+        }
+        for (const item of items) {
+          if (
+            inventoryPolicy.bufferRatios[camp.name][item.name] !== campBufferStr ||
+            inventoryPolicy.periodicCounts[camp.name][item.name] !== inventoryControlPeriodStr
+          ) {
+            return true;
+          }
+        }
+      }
+
+      // Check central values
+      for (const item of items) {
+        if (
+          inventoryPolicy.centralBufferRatios[item.name] !== centralBufferStr ||
+          inventoryPolicy.centralPeriodicCounts[item.name] !== inventoryControlPeriodStr
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    if (!shouldUpdate()) return;
+
     const newBufferRatios = { ...inventoryPolicy.bufferRatios };
     const newCentralBufferRatios = { ...inventoryPolicy.centralBufferRatios };
     const newPeriodicCounts = { ...inventoryPolicy.periodicCounts };
@@ -76,18 +112,15 @@ const InventoryPoliciesSection: React.FC<Props> = ({
       periodicCounts: newPeriodicCounts,
       centralPeriodicCounts: newCentralPeriodicCounts,
     }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     campBuffer,
     centralBuffer,
     inventoryControlPeriod,
     camps,
     items,
-    setInventoryPolicy,
     hasManualEdits,
-    inventoryPolicy.bufferRatios,
-    inventoryPolicy.centralBufferRatios,
-    inventoryPolicy.periodicCounts,
-    inventoryPolicy.centralPeriodicCounts,
+    setInventoryPolicy,
   ]);
 
   const handleBufferRatioChange = (
