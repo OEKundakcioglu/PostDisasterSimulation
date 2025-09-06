@@ -132,7 +132,6 @@ public class State implements Cloneable {
                     expiration = interarrivalGenerator.generateItemDuration(item);
                 }
                 
-                // Check if inventory structure exists for this camp and item
                 if (inventory.get(camp) == null) {
                     throw new IllegalStateException(String.format(
                         "No inventory initialized for camp '%s'. Please ensure initial inventory is properly configured.",
@@ -388,7 +387,6 @@ public class State implements Cloneable {
             this.availableFunds += amount;
         }
         else if (fundingType == FundingType.MONETARY_EARMARKED){
-            // Verify camp is not null for earmarked funds
             if (camp == null) {
                 System.out.println("Warning: Trying to add earmarked funds to null camp. Adding to available funds instead.");
                 this.availableFunds += amount;
@@ -401,7 +399,6 @@ public class State implements Cloneable {
             this.earmarkedFunds.put(camp, this.earmarkedFunds.get(camp) + amount);
         }
         else if (fundingType == FundingType.INKIND_REGULAR){
-            // Verify item is not null
             if (item == null) {
                 System.out.println("Warning: Trying to add in-kind funding with null item. Ignoring this funding.");
                 return;
@@ -419,10 +416,8 @@ public class State implements Cloneable {
             centralWarehousePosition.put(item, centralWarehousePosition.get(item) + (int) amount);
         }
         else if (fundingType == FundingType.INKIND_EARMARKED){
-            // Verify camp and item are not null for earmarked in-kind
             if (camp == null || item == null) {
                 System.out.println("Warning: Trying to add earmarked in-kind to null camp or with null item. Adding to central warehouse instead.");
-                // Redirect to central warehouse if camp is null but item is valid
                 if (item != null) {
                     if (!centralWarehouseInventory.containsKey(item)) {
                         centralWarehouseInventory.put(item, new PriorityQueue<>(Comparator.comparingDouble(InventoryItem::getExpiration)));

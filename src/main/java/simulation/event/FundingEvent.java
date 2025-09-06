@@ -48,16 +48,13 @@ public class FundingEvent implements IEvent {
             System.out.println(this.getClass().getSimpleName() + " Time: " + this.getTime() + " Amount: " +
                 this.amount);
 
-        // Add validation for earmarked funding
         if ((this.fundingType == FundingType.MONETARY_EARMARKED || this.fundingType == FundingType.INKIND_EARMARKED) 
             && this.camp == null) {
             System.out.println("Warning: Earmarked funding without a target camp. Treating as regular funding.");
-            // Modify funding type to regular if camp is null
             this.fundingType = this.fundingType == FundingType.MONETARY_EARMARKED ? 
                                FundingType.MONETARY_REGULAR : FundingType.INKIND_REGULAR;
         }
 
-        // Update the state
         if (this.fundingType == FundingType.INKIND_EARMARKED || this.fundingType == FundingType.INKIND_REGULAR) {
             state.updateFunds(this.camp, this.item, this.fundingType, this.amount, this.getTime(), this.getTime());
         }

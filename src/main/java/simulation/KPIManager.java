@@ -10,12 +10,11 @@ import com.google.gson.GsonBuilder;
 import data.Camp;
 import data.Environment;
 import data.Item;
+import enums.InventoryControlType;
 import simulation.data.DeprivingPerson;
 import simulation.data.InventoryItem;
 
 public class KPIManager {
-    private static final double DEFAULT_SAMPLING_INTERVAL = 5; // was 10 -> faster day progression
-    // Aggregate counters (fields)
     int totalReferralPopulation;
     double totalReferralCostSum;
     double totalHoldingCostSum;
@@ -31,8 +30,8 @@ public class KPIManager {
     HashMap<Camp, HashMap<Item, Double>> totalDeprivationCost;
     HashMap<Camp, HashMap<Item, Double>> totalReferralCost;
 
-    HashMap<Camp, HashMap<Item, Integer>> totalDeprivedPopulation; // per camp-item count
-    HashMap<Camp, HashMap<Item, Double>> averageDeprivationTime;   // cumulative deprivation time per camp-item
+    HashMap<Camp, HashMap<Item, Integer>> totalDeprivedPopulation;
+    HashMap<Camp, HashMap<Item, Double>> averageDeprivationTime;  
 
     HashMap<Camp, HashMap<Item, Integer>> totalDemand;
     HashMap<Camp, HashMap<Item, Integer>> totalUnsatisfiedInternalDemand;
@@ -378,7 +377,16 @@ public class KPIManager {
 
     public void logState(State stateRef, double currentTime, double samplingInterval) {
         if (!useReactUI) return;
-        if (samplingInterval <= 0) samplingInterval = DEFAULT_SAMPLING_INTERVAL;
+
+        if (samplingInterval <= 0) {
+            if (stateRef.getEnvironment().getSimulationConfig().getInventoryControlType() == InventoryControlType.PERIODIC) {
+                samplingInterval = stateRef.getEnvironment().getSimulationConfig().getInventoryControlPeriod();
+            } else {
+                samplingInterval = 1.0;
+            }
+        }
+
+        
         if (timeStepLogs.isEmpty() || currentTime - timeStepLogs.get(timeStepLogs.size() - 1).time >= samplingInterval) {
             TimeStepLog log = new TimeStepLog();
             log.time = currentTime;
@@ -425,7 +433,9 @@ public class KPIManager {
 
     public List<TimeStepLog> getTimeStepLogs() { return timeStepLogs; }
     public int getPrunedCount() { return prunedCount; }
-    public void updateTimeStepLogs(double time) { logState(this.state, time, DEFAULT_SAMPLING_INTERVAL); }
+    public void updateTimeStepLogs(double time) { 
+        logState(this.state, time, 0); // Let logState determine the interval
+    }
 }
 
 

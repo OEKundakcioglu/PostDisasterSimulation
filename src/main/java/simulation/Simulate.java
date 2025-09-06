@@ -34,7 +34,6 @@ public class Simulate {
     private final InterarrivalGenerator interarrivalGenerator;
     private final QuantityGenerator quantityGenerator;
     private PriorityQueue<IEvent> eventQueue;
-    // Cooperative cancellation hook
     public interface CancelChecker { boolean isCancelled(); }
     private final CancelChecker cancelChecker;
     private HashMap<Camp, PriorityQueue<IEvent>> demandEventQueue;
@@ -61,10 +60,10 @@ public class Simulate {
         this.state.setInventoryPolicy((IPolicy) environment.getInventoryPolicy().clone());
         this.eventQueue = new PriorityQueue<>(IEvent::compareTo);
         this.demandEventQueue = new HashMap<>();
-    generateInitialEvents();
-    long t1 = System.nanoTime();
-    double ms = (t1 - t0)/1_000_000.0;
-    System.out.println("[Perf] Initial preparation & event generation took " + ms + " ms. Initial event queue size=" + this.eventQueue.size());
+        generateInitialEvents();
+        long t1 = System.nanoTime();
+        double ms = (t1 - t0)/1_000_000.0;
+        System.out.println("[Perf] Initial preparation & event generation took " + ms + " ms. Initial event queue size=" + this.eventQueue.size());
         // seed initial log at time 0 so UI starts immediately
         try { this.state.getKpiManager().logState(this.state, 0.0, 0.0001); } catch (Exception ignored) {}
         prepared = true;
@@ -75,8 +74,8 @@ public class Simulate {
         long startNano = System.nanoTime();
         long lastReport = startNano;
         long processed = 0;
-    double lastLoggedSimTime = -1.0;
-    final int LOG_EVERY_N_EVENTS = 500; // throttle expensive KPI logging
+        double lastLoggedSimTime = -1.0;
+        final int LOG_EVERY_N_EVENTS = 500; // throttle expensive KPI logging
         int maxQueue = this.eventQueue.size();
         while (!this.eventQueue.isEmpty()) {
             if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
@@ -88,13 +87,11 @@ public class Simulate {
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
 
             processed++;
-            // Throttled KPI logging: only every N events OR when integer simulation day/time advances
             if (processed % LOG_EVERY_N_EVENTS == 0 || (int)event.getTime() > (int)lastLoggedSimTime) {
                 state.getKpiManager().logState(state, event.getTime(), 10);
                 lastLoggedSimTime = event.getTime();
             }
 
-            // If population changes, generate new demand events with the new population, deleting the old demand events
             if (event.getClass().getSimpleName().equals("MigrationEvent")) {
                 MigrationEvent migrationEvent = (MigrationEvent) event;
                 migrationStateUpdate(migrationEvent);
@@ -160,8 +157,8 @@ public class Simulate {
     public void runWithThrottle(Runnable throttleCallback){
         if (!prepared) throw new IllegalStateException("Simulation not prepared");
         int processed = 0;
-    double lastLoggedSimTime = -1.0;
-    final int LOG_EVERY_N_EVENTS = 500;
+        double lastLoggedSimTime = -1.0;
+        final int LOG_EVERY_N_EVENTS = 500;
         while (!this.eventQueue.isEmpty()) {
             if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
                 System.out.println("Simulation interrupted/cancelled – exiting loop");
@@ -223,7 +220,6 @@ public class Simulate {
     }
 
     public void deleteExpiredItems(State state, double currentTime) {
-        // Delete from camp inventory
         for (Map.Entry<Camp, HashMap<Item, PriorityQueue<InventoryItem>>> campEntry : state.getInventory().entrySet()) {
             HashMap<Item, PriorityQueue<InventoryItem>> campInventory = campEntry.getValue();
 
@@ -234,45 +230,38 @@ public class Simulate {
                 while (iterator.hasNext()) {
                     InventoryItem item = iterator.next();
                     if (item.getExpiration() != 0 && item.getExpiration() <= currentTime) {
-                        // Calculate holding cost for expired item before removing it
                         double totalTime = currentTime - item.getArrivalTime();
                         double expiredHoldingCost = totalTime * item.getQuantity() * itemEntry.getKey().getHoldingCost();
                         
-                        // Add holding cost to accumulated total
                         Camp camp = campEntry.getKey();
                         Item itemType = itemEntry.getKey();
                         this.state.getKpiManager().totalHoldingCost.get(camp).put(itemType, 
                             this.state.getKpiManager().totalHoldingCost.get(camp).get(itemType) + expiredHoldingCost);
                         
-                        // Track expired inventory
                         this.state.getKpiManager().totalExpiredInventory.get(campEntry.getKey()).put(itemEntry.getKey(),
                                 this.state.getKpiManager().totalExpiredInventory.get(campEntry.getKey()).get(itemEntry.getKey()) + item.getQuantity());
                         this.state.getInventoryPosition().get(campEntry.getKey()).put(itemEntry.getKey(), this.state.getInventoryPosition().get(campEntry.getKey()).get(itemEntry.getKey()) - item.getQuantity());
-                        iterator.remove(); // Remove the expired item
+                        iterator.remove();
                     }
                 }
             }
         }
 
-        // Delete from central inventory
         for (Map.Entry<Item, PriorityQueue<InventoryItem>> itemEntry : state.getCentralWarehouseInventory().entrySet()) {
             PriorityQueue<InventoryItem> itemQueue = itemEntry.getValue();
             Iterator<InventoryItem> iterator = itemQueue.iterator();
             while (iterator.hasNext()) {
                 InventoryItem item = iterator.next();
                 if (item.getExpiration() != 0 && item.getExpiration() <= currentTime) {
-                    // Note: Central warehouse holding costs are typically not tracked per-camp
-                    // but could be added to a global holding cost if needed
                     this.state.getKpiManager().totalCentralExpiredInventory.put(itemEntry.getKey(),
                             this.state.getKpiManager().totalCentralExpiredInventory.get(itemEntry.getKey()) + item.getQuantity());
                     this.state.getCentralWarehousePosition().put(itemEntry.getKey(), this.state.getCentralWarehousePosition().get(itemEntry.getKey()) - item.getQuantity());
-                    iterator.remove(); // Remove the expired item
+                    iterator.remove(); 
                 }
             }
         }
     }
 
-    // This method generates the initial events for the simulation
     private void generateInitialEvents() {
         generateFundingEvents();
         generateSupplyStatusSwitchEvents();
@@ -314,7 +303,6 @@ public class Simulate {
                     currentTime += this.interarrivalGenerator.generateFunding(funding);
                 }
 
-                // If we equally distribute the funding amount for each event
                 if (funding.getAmountData().distributionType == DistributionType.EQUAL_SHARE)
                 {
                     double totalFunding = funding.getAmountData().getDistParameters().getMean();
@@ -324,7 +312,6 @@ public class Simulate {
                         this.eventQueue.offer(fe);
                     }
                 }
-                // Else we generate a random amount for each event
                 else{
                     for (double arrivalTime : arrivalTimes){
                         FundingEvent fe = new FundingEvent(funding, quantityGenerator, arrivalTime);
@@ -387,7 +374,6 @@ public class Simulate {
     }
 
     private void generateDemandEvents(Camp camp, Demand demand, double currentTime){
-        // Add null checks
         if (camp == null) {
             System.out.println("Warning: Attempted to generate demand events for null camp. Skipping...");
             return;
@@ -402,7 +388,6 @@ public class Simulate {
             this.demandEventQueue.put(camp, new PriorityQueue<>(IEvent::compareTo));
         }
         
-        // Add null checks for population maps
         if (!this.state.getInternalPopulation().containsKey(camp)) {
             System.out.println("Warning: No internal population data for camp " + camp.getName() + ". Initializing to 0.");
             this.state.getInternalPopulation().put(camp, 0);
@@ -427,25 +412,20 @@ public class Simulate {
             DemandEvent de_external = new DemandEvent(this.state, camp, demand, false, this.interarrivalGenerator, this.quantityGenerator, currentTime);
             if (de_external.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(de_external);
         }
-        // pick the first event from the queue
         if (!demandQueue.isEmpty()){
             this.eventQueue.offer(demandQueue.poll());
         }
         this.demandEventQueue.put(camp, demandQueue);
     }
 
-    // Fast approximate binomial sampler to avoid O(n) loops for large populations.
-    // For small n (<5000) fall back to direct Bernoulli trials; for larger use normal approximation with
-    // mean n*p and variance n*p*(1-p), truncated to [0,n]. Good enough for event volume generation.
     private static int sampleBinomialApprox(int n, double p, java.util.Random rng) {
         if (p <= 0) return 0;
         if (p >= 1) return n;
-        if (n < 5000) { // exact by iteration for smaller populations
+        if (n < 5000) { 
             int c = 0; for (int i=0;i<n;i++) if (rng.nextDouble() < p) c++; return c; }
         double mean = n * p;
         double var = mean * (1 - p);
         double std = Math.sqrt(var);
-        // Box-Muller
         double u1 = rng.nextDouble();
         double u2 = rng.nextDouble();
         double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
@@ -455,7 +435,6 @@ public class Simulate {
     }
 
     private void migrationStateUpdate(MigrationEvent migrationEvent){
-        // Add null checks
         if (migrationEvent == null) {
             System.out.println("Warning: Null migration event. Skipping state update.");
             return;
@@ -463,7 +442,6 @@ public class Simulate {
         
         if (migrationEvent.migrationType == MigrationType.EXTERNAL_TO_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.INTERNAL_TO_SYSTEM) {
-            // Check for null toCamp
             if (migrationEvent.toCamp == null) {
                 System.out.println("Warning: Migration event has null toCamp. Skipping state update.");
                 return;
@@ -474,7 +452,6 @@ public class Simulate {
                 for (Demand demand : migrationEvent.toCamp.getDemands()) {
                     if (demand == null) continue; // Skip null demands
                     
-                    // Reset the demand events for the camp
                     this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
                     generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
                 }
@@ -483,7 +460,6 @@ public class Simulate {
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_FROM_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM
                 ) {
-            // Check for null fromCamp
             if (migrationEvent.fromCamp == null) {
                 System.out.println("Warning: Migration event has null fromCamp. Skipping state update.");
                 return;
@@ -492,9 +468,8 @@ public class Simulate {
             if (migrationEvent.quantity > 0) {
                 this.state.getInventoryPolicy().initialize(environment, this.state);
                 for (Demand demand : migrationEvent.fromCamp.getDemands()) {
-                    if (demand == null) continue; // Skip null demands
+                    if (demand == null) continue; 
                     
-                    // Reset the demand events for the camp
                     this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
                     generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
                 }
@@ -502,26 +477,23 @@ public class Simulate {
         }
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.EXTERNAL_WITHIN_SYSTEM) {
-            // Check for null camps
             if (migrationEvent.fromCamp == null || migrationEvent.toCamp == null) {
                 System.out.println("Warning: Migration event has null fromCamp or toCamp. Skipping state update.");
                 return;
             }
                 
             if (migrationEvent.quantity > 0) {
-                // Reset the demand events for the camp
                 this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
                 this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
                 this.state.getInventoryPolicy().initialize(environment, this.state);
                 
                 for (Demand demand : migrationEvent.toCamp.getDemands()) {
-                    if (demand == null) continue; // Skip null demands
+                    if (demand == null) continue; 
                     generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
                 }
                 
-                // Also generate demand events for fromCamp as the population changed
                 for (Demand demand : migrationEvent.fromCamp.getDemands()) {
-                    if (demand == null) continue; // Skip null demands
+                    if (demand == null) continue; 
                     generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
                 }
             }

@@ -22,7 +22,7 @@ public class QuantityGenerator {
     public int generateDemandQuantity(Demand demand, int campPopulation, boolean isInternal){
         if (demand == null) return 0;
         if (demand.getDemandQuantityType() != DemandQuantityType.BATCH) {
-            return 1; // SINGLE demand => quantity always 1 (could extend later)
+            return 1; // SINGLE demand => quantity always 1 
         }
         if (campPopulation <= 0) return 0;
         double p = isInternal ? demand.getInternalRatio() : demand.getExternalRatio();
@@ -56,7 +56,6 @@ public class QuantityGenerator {
         }
     }
 
-    // Fast approximate binomial sampler (mirrors logic in Simulate) to avoid O(n) loops.
     private static int sampleBinomialApprox(int n, double p, Random rng) {
         if (p <= 0) return 0;
         if (p >= 1) return n;
