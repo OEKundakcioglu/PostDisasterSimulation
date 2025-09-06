@@ -68,9 +68,19 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            p: 2,
+            bgcolor: "primary.main",
+            borderRadius: 1,
+            color: "white",
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 500,
+              color: "white",
+            }}
+          >
             Simulation Timeline
           </Typography>
           <FormControlLabel
@@ -78,10 +88,29 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
               <Switch
                 checked={isRealTimeMode}
                 onChange={(e) => onRealTimeModeChange(e.target.checked)}
-                color="primary"
+                color="secondary"
+                sx={{
+                  "& .MuiSwitch-track": {
+                    bgcolor: "rgba(255,255,255,0.3)",
+                  },
+                  "& .MuiSwitch-thumb": {
+                    bgcolor: "white",
+                  },
+                }}
               />
             }
-            label="Real-time Mode"
+            label={
+              <Typography
+                sx={{
+                  fontWeight: 500,
+                  color: "white",
+                  fontSize: "0.95rem",
+                }}
+              >
+                Real-time Mode
+              </Typography>
+            }
+            sx={{ m: 0 }}
           />
         </Box>
 
@@ -208,7 +237,13 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
 
         {/* Timeline Info */}
         <Box sx={{ textAlign: "center" }}>
-          <Typography variant="caption" color="text.secondary">
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              color: "text.secondary",
+            }}
+          >
             {isRealTimeMode
               ? "Real-time mode: Showing latest simulation data"
               : `Snapshot mode: Viewing data up to ${formatTime(currentTime)}`}
