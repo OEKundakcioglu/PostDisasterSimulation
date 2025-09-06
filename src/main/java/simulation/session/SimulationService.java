@@ -12,20 +12,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import data.Camp;
 import data.Environment;
 import data.Item;
-import data.Camp;
 import data.config.SimulationWebSocketHandler;
 import simulation.Simulate;
 import simulation.State;
 import simulation.decision.IPolicy;
+import simulation.decision.OrderUpToPolicy;
 import simulation.generator.InterarrivalGenerator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 public class SimulationService {
@@ -37,14 +38,13 @@ public class SimulationService {
     private final Timer logTimer = new Timer(true);
     private final ConcurrentMap<String, TimerTask> logTasks = new ConcurrentHashMap<>();
     private static final Logger log = LoggerFactory.getLogger(SimulationService.class);
-    private static final long LOG_PUSH_PERIOD_MS = 50; // was 100 -> faster streaming
+    private static final long LOG_PUSH_PERIOD_MS = 250; 
 
     public SimulationService(SimulationWebSocketHandler wsHandler){
         this.wsHandler = wsHandler;
     }
 
     public SimulationSession createSession(Environment env) {
-        // Debug logging for input data
         log.info("=== Creating New Simulation Session ===");
         logEnvironmentDetails(env);
         
@@ -53,7 +53,6 @@ public class SimulationService {
         return session;
     }
     public SimulationSession createSession(Environment env, Map<String,Object> raw){
-        // Debug logging for input data (including raw payload)
         log.info("=== Creating New Simulation Session (with raw payload) ===");
         logEnvironmentDetails(env);
         
@@ -78,7 +77,6 @@ public class SimulationService {
         try {
             Environment env = session.getEnvironment();
             
-            // Validate environment before starting
             validateEnvironment(env);
             
             InterarrivalGenerator interGen = new InterarrivalGenerator(env.getSimulationConfig());
@@ -104,10 +102,8 @@ public class SimulationService {
         session.setStartedAt(java.time.Instant.now());
         Future<?> future = executor.submit(() -> {
             Simulate simulate = new Simulate(session.getEnvironment(), () -> session.getCancelRequested().get());
-            // Make the instance visible to the log streamer immediately (before prepare/run)
             session.setSimulateInstance(simulate);
             try {
-                // Run at full speed (no artificial throttling) for faster progression
                 simulate.prepare();
                 simulate.run();
                 if (!session.getCancelRequested().get()) simulate.finalizeSimulation();
@@ -123,7 +119,6 @@ public class SimulationService {
         });
         session.setFuture(future);
 
-        // schedule log push
         TimerTask task = new TimerTask(){
             @Override public void run(){
                 SimulationSession s = sessions.get(session.getId());
@@ -136,10 +131,10 @@ public class SimulationService {
                 int idx = s.getLastSentLogIndex();
                 int basePruned = kpiManager.getPrunedCount();
                 int sent = 0;
-                while (idx < logs.size() && sent < 20) { // was 10 -> larger batch per tick
+                while (idx < logs.size() && sent < 50) {
                     try {
                         var logEntry = logs.get(idx);
-                        int globalIndex = basePruned + idx; // stable index accounting for pruning
+                        int globalIndex = basePruned + idx; 
                         var payload = new java.util.HashMap<String,Object>();
                         payload.put("index", globalIndex);
                         payload.put("log", logEntry);
@@ -151,7 +146,6 @@ public class SimulationService {
                     }
                 }
                 s.setLastSentLogIndex(idx);
-                // If completed and nothing left to send, cancel task
                 if (st == SimulationStatus.COMPLETED && idx >= logs.size()) {
                     cancelSelf();
                 }
@@ -163,7 +157,7 @@ public class SimulationService {
             }
         };
         logTasks.put(session.getId(), task);
-        logTimer.scheduleAtFixedRate(task, 300, LOG_PUSH_PERIOD_MS); // was 500 initial delay
+        logTimer.scheduleAtFixedRate(task, 300, LOG_PUSH_PERIOD_MS); 
     }
 
     public boolean cancelSession(String id) {
@@ -184,13 +178,12 @@ public class SimulationService {
     public boolean deleteSession(String id){
         SimulationSession s = sessions.get(id);
         if (s == null) return false;
-        if (s.getStatus() == SimulationStatus.RUNNING) return false; // do not delete active
+        if (s.getStatus() == SimulationStatus.RUNNING) return false; 
         TimerTask task = logTasks.remove(id);
         if (task != null) { task.cancel(); log.debug("Cancelled log task on delete for session {}", id); }
         return sessions.remove(id) != null;
     }
 
-    // Custom exception class for validation errors
     public static class ValidationException extends RuntimeException {
         public ValidationException(String message) {
             super(message);
@@ -200,14 +193,12 @@ public class SimulationService {
     private void validateEnvironment(Environment environment) throws ValidationException {
         List<String> errors = new ArrayList<>();
         
-        // Check inventory policy completeness
         if (environment.getInventoryPolicy() == null) {
             errors.add("Inventory policy is missing");
         } else {
             validateInventoryPolicy(environment, errors);
         }
         
-        // Check initial state completeness
         if (environment.getInitialState() == null) {
             errors.add("Initial state configuration is missing");
         } else {
@@ -222,14 +213,12 @@ public class SimulationService {
     private void validateInventoryPolicy(Environment environment, List<String> errors) {
         var policy = environment.getInventoryPolicy();
         
-        // Only validate if the policy is OrderUpToPolicy
-        if (!(policy instanceof simulation.decision.OrderUpToPolicy)) {
-            return; // Skip validation for other policy types
+        if (!(policy instanceof OrderUpToPolicy)) {
+            return; 
         }
         
-        simulation.decision.OrderUpToPolicy orderUpToPolicy = (simulation.decision.OrderUpToPolicy) policy;
+        OrderUpToPolicy orderUpToPolicy = (OrderUpToPolicy) policy;
         
-        // Check camp-level policies
         for (Camp camp : environment.getCamps()) {
             if (!orderUpToPolicy.getPeriodicCounts().containsKey(camp)) {
                 errors.add("Missing inventory policy for camp: " + camp.getName());
@@ -243,7 +232,6 @@ public class SimulationService {
                 }
             }
             
-            // Check buffer ratios
             if (!orderUpToPolicy.getBufferRatios().containsKey(camp)) {
                 errors.add("Missing buffer ratios for camp: " + camp.getName());
             } else {
@@ -256,7 +244,6 @@ public class SimulationService {
             }
         }
         
-        // Check central policies
         for (Item item : environment.getItems()) {
             if (!orderUpToPolicy.getCentralPeriodicCounts().containsKey(item)) {
                 errors.add("Missing central warehouse periodic count for item: " + item.getName());
@@ -270,7 +257,6 @@ public class SimulationService {
     private void validateInitialState(Environment environment, List<String> errors) {
         var initialState = environment.getInitialState();
         
-        // Check initial inventory structure
         for (Camp camp : environment.getCamps()) {
             if (!initialState.getInitialInventory().containsKey(camp)) {
                 errors.add("Missing initial inventory setup for camp: " + camp.getName());
@@ -285,14 +271,12 @@ public class SimulationService {
             }
         }
         
-        // Check central warehouse inventory
         for (Item item : environment.getItems()) {
             if (!initialState.getInitialCentralWarehouseInventory().containsKey(item)) {
                 errors.add("Missing initial central warehouse inventory for item: " + item.getName());
             }
         }
         
-        // Check item availability flags
         for (Item item : environment.getItems()) {
             if (!initialState.getIsItemAvailable().containsKey(item)) {
                 errors.add("Missing availability setting for item: " + item.getName());
@@ -304,7 +288,6 @@ public class SimulationService {
         try {
             log.info("📋 SIMULATION CONFIGURATION DEBUG DATA:");
             
-            // Log simulation config
             if (env.getSimulationConfig() != null) {
                 log.info("🔧 Simulation Config: Duration={}, Seeds: demand={}, quantity={}, duration={}", 
                     env.getSimulationConfig().getSeedItemDuration(),
@@ -313,7 +296,6 @@ public class SimulationService {
                     env.getSimulationConfig().getSeedItemDuration());
             }
             
-            // Log camps
             log.info("🏕️ CAMPS ({} total):", env.getCamps().length);
             for (Camp camp : env.getCamps()) {
                 log.info("  - Camp: '{}' (Internal: {}, External: {})", 
@@ -322,7 +304,6 @@ public class SimulationService {
                     camp.getInitialExternalPopulation());
             }
             
-            // Log items
             log.info("📦 ITEMS ({} total):", env.getItems().length);
             for (Item item : env.getItems()) {
                 log.info("  - Item: '{}' (Perishable: {})", 
@@ -330,12 +311,10 @@ public class SimulationService {
                     item.getIsPerishable());
             }
             
-            // Log initial state details
             if (env.getInitialState() != null) {
                 logInitialStateDetails(env);
             }
             
-            // Log inventory policy details
             if (env.getInventoryPolicy() != null) {
                 logInventoryPolicyDetails(env);
             }
@@ -351,7 +330,7 @@ public class SimulationService {
         var initialState = env.getInitialState();
         
         log.info("🏪 INITIAL INVENTORY:");
-        // Log camp initial inventory
+
         if (initialState.getInitialInventory() != null) {
             for (Camp camp : env.getCamps()) {
                 if (initialState.getInitialInventory().containsKey(camp)) {
@@ -371,7 +350,6 @@ public class SimulationService {
             }
         }
         
-        // Log central warehouse inventory
         log.info("🏢 CENTRAL WAREHOUSE INVENTORY:");
         if (initialState.getInitialCentralWarehouseInventory() != null) {
             for (Item item : env.getItems()) {
@@ -384,7 +362,6 @@ public class SimulationService {
             }
         }
         
-        // Log item availability
         log.info("✅ ITEM AVAILABILITY:");
         if (initialState.getIsItemAvailable() != null) {
             for (Item item : env.getItems()) {
@@ -401,7 +378,6 @@ public class SimulationService {
             
             log.info("📊 INVENTORY POLICY (OrderUpToPolicy):");
             
-            // Log periodic counts
             log.info("  📅 PERIODIC COUNTS:");
             for (Camp camp : env.getCamps()) {
                 if (orderUpToPolicy.getPeriodicCounts().containsKey(camp)) {
@@ -420,7 +396,6 @@ public class SimulationService {
                 }
             }
             
-            // Log buffer ratios
             log.info("  📈 BUFFER RATIOS:");
             for (Camp camp : env.getCamps()) {
                 if (orderUpToPolicy.getBufferRatios().containsKey(camp)) {
@@ -439,7 +414,6 @@ public class SimulationService {
                 }
             }
             
-            // Log central policies
             log.info("  🏢 CENTRAL POLICIES:");
             log.info("    Central Periodic Counts:");
             for (Item item : env.getItems()) {

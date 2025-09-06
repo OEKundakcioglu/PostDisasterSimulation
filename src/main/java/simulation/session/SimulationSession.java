@@ -20,8 +20,8 @@ public class SimulationSession {
     private Simulate simulateInstance;
     private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
     private int lastSentLogIndex = 0;
-    private Map<String,Object> rawPayload; // original request payload for download
-    private String errorMessage; // stores validation or runtime error messages
+    private Map<String,Object> rawPayload; 
+    private String errorMessage;
 
     public SimulationSession(Environment environment, Map<String,Object> rawPayload) {
         this.id = UUID.randomUUID().toString();
