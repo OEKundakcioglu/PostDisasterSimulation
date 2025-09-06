@@ -423,11 +423,14 @@ public class KPIManager {
                 }
             }
             timeStepLogs.add(log);
+            /*
             if (timeStepLogs.size() > MAX_TIME_STEP_LOGS) {
                 int removeCount = (int)(MAX_TIME_STEP_LOGS * 0.1);
                 for (int i = 0; i < removeCount; i++) timeStepLogs.remove(0);
                 prunedCount += removeCount;
             }
+             */
+
         }
     }
 

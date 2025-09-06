@@ -11,13 +11,14 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.HashMap;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import data.Camp;
 import data.Environment;
 import data.Item;
@@ -31,8 +32,8 @@ import simulation.generator.InterarrivalGenerator;
 @Service
 public class SimulationService {
     private final Map<String, SimulationSession> sessions = new ConcurrentHashMap<>();
-    private final ExecutorService executor = Executors.newFixedThreadPool(4);
-    private static final int MAX_ACTIVE_SESSIONS = 10;
+    private final ExecutorService executor = Executors.newFixedThreadPool(8);
+    private static final int MAX_ACTIVE_SESSIONS = 8;
     private final SimulationWebSocketHandler wsHandler;
     private final ObjectMapper mapper = new ObjectMapper();
     private final Timer logTimer = new Timer(true);
@@ -135,7 +136,7 @@ public class SimulationService {
                     try {
                         var logEntry = logs.get(idx);
                         int globalIndex = basePruned + idx; 
-                        var payload = new java.util.HashMap<String,Object>();
+                        var payload = new HashMap<String,Object>();
                         payload.put("index", globalIndex);
                         payload.put("log", logEntry);
                         wsHandler.sendMessageToSession(s.getId(), mapper.writeValueAsString(payload));
@@ -168,7 +169,7 @@ public class SimulationService {
         boolean cancelled = session.getFuture().cancel(true);
         if (cancelled) {
             session.setStatus(SimulationStatus.CANCELLED);
-            session.setEndedAt(java.time.Instant.now());
+            session.setEndedAt(Instant.now());
             TimerTask task = logTasks.remove(id);
             if (task != null) { task.cancel(); log.debug("Cancelled log task on explicit cancel for session {}", id); }
         }

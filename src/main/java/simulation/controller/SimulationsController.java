@@ -44,7 +44,6 @@ public class SimulationsController {
             log.info(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(payload));
             log.info("=== END RAW PAYLOAD ===");
             
-            // Validate simulation size before processing
             String validationError = validateSimulationSize(payload);
             if (validationError != null) {
                 log.warn("❌ Simulation validation failed: {}", validationError);
@@ -53,9 +52,9 @@ public class SimulationsController {
             
             Environment env = SimulationEnvironmentMapper.fromPayload(payload);
             if (env.getSimulationConfig() != null) {
-                env.getSimulationConfig().setUseReactUI(true); // enable realtime UI usage
+                env.getSimulationConfig().setUseReactUI(true); 
             }
-            SimulationSession session = simulationService.createSession(env, payload); // store raw
+            SimulationSession session = simulationService.createSession(env, payload); 
             return ResponseEntity.ok(Map.of(
                 "id", session.getId(),
                 "status", session.getStatus()
@@ -112,7 +111,7 @@ public class SimulationsController {
         var allLogs = kpi.getTimeStepLogs();
         int offset = 0;
         try { offset = (int)kpi.getPrunedCount(); } catch (Exception ignored) {}
-        if (from < offset) from = offset; // cannot request before pruned
+        if (from < offset) from = offset; 
         int localFrom = from - offset;
         if (localFrom < 0) localFrom = 0;
         if (localFrom > allLogs.size()) localFrom = allLogs.size();
@@ -140,12 +139,9 @@ public class SimulationsController {
         return ResponseEntity.ok(Map.of("id", id, "removed", removed));
     }
     
-    /**
-     * Validates simulation size to prevent memory issues
-     */
+
     private String validateSimulationSize(Map<String, Object> payload) {
         try {
-            // Extract simulation config
             Map<String, Object> simConfig = (Map<String, Object>) payload.get("simulationConfig");
             if (simConfig != null) {
                 Object horizonObj = simConfig.get("planningHorizon");
@@ -157,7 +153,6 @@ public class SimulationsController {
                 }
             }
             
-            // Extract camps and check population sizes
             List<Map<String, Object>> camps = (List<Map<String, Object>>) payload.get("camps");
             if (camps != null) {
                 long totalPopulation = 0;
@@ -193,17 +188,16 @@ public class SimulationsController {
                 }
             }
             
-            // Extract items count
             List<Map<String, Object>> items = (List<Map<String, Object>>) payload.get("items");
-            if (items != null && items.size() > 10) {
+            if (items != null && items.size() > 20) {
                 return "Too many items (" + items.size() + "). Maximum allowed: 10 items.";
             }
             
-            return null; // No validation errors
+            return null; 
             
         } catch (Exception e) {
             log.warn("Error during size validation: {}", e.getMessage());
-            return null; // Allow processing to continue
+            return null; 
         }
     }
 }
