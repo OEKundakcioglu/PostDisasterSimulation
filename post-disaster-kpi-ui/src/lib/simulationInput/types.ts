@@ -54,7 +54,7 @@ export interface Migration {
   migrationType: string;
   arrivalData: DistBlock;
   quantityData?: DistBlock; // for *_TO_SYSTEM
-  migrationRatio: string; // keep required for compatibility; may be '' when unused
+  migrationRatio: number;
 }
 
 export interface InventoryPolicy {

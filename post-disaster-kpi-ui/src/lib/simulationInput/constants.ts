@@ -141,7 +141,7 @@ export const DEFAULT_MIGRATIONS: Migration[] = [
       distributionType: "FIXED",
       distParameters: { mean: "120000" },
     },
-    migrationRatio: "0.05",
+    migrationRatio: 0.05,
   },
 ];
 

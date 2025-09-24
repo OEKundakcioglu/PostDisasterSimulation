@@ -104,7 +104,7 @@ export interface Migration {
     distributionType: string;
     distParameters: { mean?: string };
   };
-  migrationRatio: string;
+  migrationRatio: number;
 }
 
 export interface InventoryPolicy {

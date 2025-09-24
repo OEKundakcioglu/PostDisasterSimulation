@@ -615,7 +615,7 @@ export const useSimulationInputLogic = () => {
             )
           );
         } else {
-          if (m.migrationRatio === undefined || m.migrationRatio === "")
+          if (m.migrationRatio === undefined || m.migrationRatio === null)
             issues.push(`${ctx} missing migrationRatio`);
           else if (
             isNaN(Number(m.migrationRatio)) ||

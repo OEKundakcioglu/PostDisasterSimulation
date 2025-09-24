@@ -33,7 +33,7 @@ interface Migration {
   arrivalData: DataBlock;
   // quantityData is only needed for *_TO_SYSTEM migration types
   quantityData?: DataBlock;
-  migrationRatio: string;
+  migrationRatio: number;
 }
 
 interface Camp {
@@ -68,7 +68,8 @@ const MigrationsSection: React.FC<Props> = ({
         (value === "" || /^0*\.?\d*$/.test(value))
       ) {
         if (value === "" || parseFloat(value) <= 1) {
-          newMigrations[index].migrationRatio = value;
+          newMigrations[index].migrationRatio =
+            value === "" ? 0 : parseFloat(value);
         }
         setMigrations(newMigrations);
         return;
@@ -170,8 +171,10 @@ const MigrationsSection: React.FC<Props> = ({
             newMigrations[index].migrationType = value;
           break;
         case "migrationRatio":
-          if (typeof value === "string")
-            newMigrations[index].migrationRatio = value;
+          if (typeof value === "string") {
+            newMigrations[index].migrationRatio =
+              value === "" ? 0 : parseFloat(value);
+          }
           break;
         case "arrivalData":
           if (typeof value === "object" && value)
@@ -722,7 +725,7 @@ const MigrationsSection: React.FC<Props> = ({
                   label="Migration Ratio"
                   type="number"
                   inputProps={{ min: 0, max: 1, step: 0.01 }}
-                  value={migration.migrationRatio || "0.05"}
+                  value={migration.migrationRatio || 0.05}
                   onChange={(e) =>
                     handleMigrationChange(
                       migrationIndex,
@@ -750,7 +753,7 @@ const MigrationsSection: React.FC<Props> = ({
               distParameters: { mean: "30" },
             },
             // No quantityData by default since INTERNAL_WITHIN_SYSTEM doesn't use it
-            migrationRatio: "0.05",
+            migrationRatio: 0.05,
           };
 
           // Set default camps based on type
