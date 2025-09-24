@@ -164,12 +164,7 @@ export const useSimulationInputLogic = () => {
       if (saved.migrations) setMigrations(saved.migrations);
       if (saved.inventoryPolicy) setInventoryPolicy(saved.inventoryPolicy);
       if (saved.initialState) setInitialState(saved.initialState);
-      setSuccessMessage(
-        shouldPreserve
-          ? "Previous configuration restored successfully!"
-          : "Previous configuration loaded successfully!"
-      );
-      setTimeout(() => setSuccessMessage(null), 3000);
+      // Success message removed - no need to notify user every time
     }
     if (shouldPreserve) localStorage.removeItem(LS_KEYS.preserveFlag);
   }, []);
