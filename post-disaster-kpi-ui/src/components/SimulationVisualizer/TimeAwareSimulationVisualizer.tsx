@@ -577,17 +577,27 @@ const TimeAwareSimulationVisualizer: React.FC<
                             ) : (
                               <Plot
                                 data={[
-                                  {
-                                    x: displaySeries.map((p) => p.t),
-                                    y: displaySeries.map((p) => p.cost),
-                                    type: "scatter",
-                                    mode: "lines",
-                                    line: {
-                                      width: 2,
-                                      color: COST_COLOUR[type],
-                                    },
-                                    name: type,
-                                  },
+                                  type === "Replenishment"
+                                    ? {
+                                        x: displaySeries.map((p) => p.t),
+                                        y: displaySeries.map((p) => p.cost),
+                                        type: "bar",
+                                        marker: {
+                                          color: COST_COLOUR[type],
+                                        },
+                                        name: type,
+                                      }
+                                    : {
+                                        x: displaySeries.map((p) => p.t),
+                                        y: displaySeries.map((p) => p.cost),
+                                        type: "scatter",
+                                        mode: "lines",
+                                        line: {
+                                          width: 2,
+                                          color: COST_COLOUR[type],
+                                        },
+                                        name: type,
+                                      },
                                   ...(isRealTimeMode
                                     ? []
                                     : isRangeMode

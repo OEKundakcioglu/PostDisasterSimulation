@@ -317,17 +317,27 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
                             ) : (
                               <Plot
                                 data={[
-                                  {
-                                    x: series.map((p) => p.t),
-                                    y: series.map((p) => p.cost),
-                                    type: "scatter",
-                                    mode: "lines",
-                                    line: {
-                                      width: 2,
-                                      color: COST_COLOUR[type],
-                                    },
-                                    name: type,
-                                  },
+                                  type === "Replenishment"
+                                    ? {
+                                        x: series.map((p) => p.t),
+                                        y: series.map((p) => p.cost),
+                                        type: "bar",
+                                        marker: {
+                                          color: COST_COLOUR[type],
+                                        },
+                                        name: type,
+                                      }
+                                    : {
+                                        x: series.map((p) => p.t),
+                                        y: series.map((p) => p.cost),
+                                        type: "scatter",
+                                        mode: "lines",
+                                        line: {
+                                          width: 2,
+                                          color: COST_COLOUR[type],
+                                        },
+                                        name: type,
+                                      },
                                 ]}
                                 layout={((): Partial<Layout> => ({
                                   height: 220,
