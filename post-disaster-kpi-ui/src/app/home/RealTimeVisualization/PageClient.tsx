@@ -46,10 +46,14 @@ export default function PageClient() {
     cumulativeReferralCosts: Record<string, number>;
     cumulativeDeprivationCosts: Record<string, number>;
     cumulativeReplenishmentCosts: Record<string, number>;
+    internalPopulation?: Record<string, number>;
+    externalPopulation?: Record<string, number>;
   }
   interface IncomingLog extends Partial<TimeStepLog> {
     fundingReceived?: number;
     itemQuantities?: Record<string, Record<string, number>>;
+    internalPopulation?: Record<string, number>;
+    externalPopulation?: Record<string, number>;
   }
   interface WSLogPayload {
     index: number;
@@ -70,8 +74,8 @@ export default function PageClient() {
 
   const baseApi = process.env.NEXT_PUBLIC_API_URL || "";
 
-  const normalize = useCallback(
-    (l: IncomingLog): TimeStepLog => ({
+  const normalize = useCallback((l: IncomingLog): TimeStepLog => {
+    return {
       time: typeof l.time === "number" ? l.time : 0,
       planningHorizon:
         typeof l.planningHorizon === "number" ? l.planningHorizon : 0,
@@ -79,9 +83,10 @@ export default function PageClient() {
       cumulativeReferralCosts: l.cumulativeReferralCosts || {},
       cumulativeDeprivationCosts: l.cumulativeDeprivationCosts || {},
       cumulativeReplenishmentCosts: l.cumulativeReplenishmentCosts || {},
-    }),
-    []
-  );
+      internalPopulation: l.internalPopulation || {},
+      externalPopulation: l.externalPopulation || {},
+    };
+  }, []);
 
   // Fetch any available logs from the backend starting at nextIndexRef
   const backfillLogs = useCallback(async () => {

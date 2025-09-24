@@ -574,6 +574,14 @@ public class State implements Cloneable {
         return inventoryPolicy;
     }
 
+    public int getCurrentInternalPopulation(Camp camp) {
+        return internalPopulation.getOrDefault(camp, 0);
+    }
+
+    public int getCurrentExternalPopulation(Camp camp) {
+        return externalPopulation.getOrDefault(camp, 0);
+    }
+
     public void setInventoryPolicy(IPolicy inventoryPolicy) {
         this.inventoryPolicy = inventoryPolicy;
     }

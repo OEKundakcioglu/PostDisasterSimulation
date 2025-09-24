@@ -373,6 +373,8 @@ public class KPIManager {
         public HashMap<String, Double> cumulativeReplenishmentCosts = new HashMap<>();
         public HashMap<String, HashMap<String, Integer>> itemQuantities = new HashMap<>();
         public double fundingReceived = 0.0;
+        public HashMap<String, Integer> internalPopulation = new HashMap<>();
+        public HashMap<String, Integer> externalPopulation = new HashMap<>();
     }
 
     public void logState(State stateRef, double currentTime, double samplingInterval) {
@@ -401,6 +403,9 @@ public class KPIManager {
                 log.cumulativeDeprivationCosts.putIfAbsent(campName, 0.0);
                 log.cumulativeReplenishmentCosts.putIfAbsent(campName, 0.0);
                 log.itemQuantities.putIfAbsent(campName, new HashMap<>());
+                
+                log.internalPopulation.put(campName, stateRef.getCurrentInternalPopulation(camp));
+                log.externalPopulation.put(campName, stateRef.getCurrentExternalPopulation(camp));
                 for (var itemEntry : stateRef.getInventory().get(camp).entrySet()) {
                     Item item = itemEntry.getKey();
                     var inventoryQueue = itemEntry.getValue();

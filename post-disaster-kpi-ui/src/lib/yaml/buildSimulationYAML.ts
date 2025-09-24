@@ -367,7 +367,7 @@ function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
         );
       }
       lines.push(
-        `    migrationRatio: ${formatNumber(m.migrationRatio ?? 0.05)}`
+        `    migrationRatio: ${formatNumber(m.migrationRatio || 0.05)}`
       );
       return lines.join("\n");
     })
