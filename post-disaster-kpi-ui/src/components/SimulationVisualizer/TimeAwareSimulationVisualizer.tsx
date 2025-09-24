@@ -122,7 +122,10 @@ const TimeAwareSimulationVisualizer: React.FC<
 
   // Time slider state
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [startTime, setStartTime] = useState<number>(0);
+  const [endTime, setEndTime] = useState<number>(0);
   const [isRealTimeMode, setIsRealTimeMode] = useState<boolean>(true);
+  const [isRangeMode, setIsRangeMode] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -136,13 +139,29 @@ const TimeAwareSimulationVisualizer: React.FC<
     return availableTimes.length > 0 ? Math.max(...availableTimes) : 0;
   }, [availableTimes]);
 
-  // Filter logs based on current time (for snapshot mode)
+  // Update start and end time when max time changes
+  useEffect(() => {
+    if (maxTime > 0) {
+      setEndTime(maxTime);
+    }
+  }, [maxTime]);
+
+  // Filter logs based on current time or time range (for snapshot mode)
   const filteredLogs = useMemo(() => {
     if (isRealTimeMode) {
       return allLogs;
     }
-    return allLogs.filter((log) => log.time <= currentTime);
-  }, [allLogs, currentTime, isRealTimeMode]);
+
+    if (isRangeMode) {
+      // Range mode: filter between start and end time
+      return allLogs.filter(
+        (log) => log.time >= startTime && log.time <= endTime
+      );
+    } else {
+      // Single point mode: filter up to current time
+      return allLogs.filter((log) => log.time <= currentTime);
+    }
+  }, [allLogs, currentTime, startTime, endTime, isRealTimeMode, isRangeMode]);
 
   const ingest = useCallback((batch: TimeStepLog[]) => {
     if (!batch || !batch.length) return;
@@ -405,16 +424,41 @@ const TimeAwareSimulationVisualizer: React.FC<
   );
 
   const headline = useMemo(() => {
-    const displayTime = isRealTimeMode ? day : currentTime;
-    return displayTime === null || horizon === null
-      ? "Awaiting data …"
-      : (() => {
-          const d = Math.floor(displayTime);
-          const h = Math.floor(horizon);
-          const snapped = h - d < DISPLAY_STEP ? h : d; // snap if within one step of horizon
-          return `Day\u00A0${snapped}\u00A0of\u00A0${h}`;
-        })();
-  }, [day, horizon, currentTime, isRealTimeMode]);
+    if (isRealTimeMode) {
+      return day === null || horizon === null
+        ? "Awaiting data …"
+        : (() => {
+            const d = Math.floor(day);
+            const h = Math.floor(horizon);
+            const snapped = h - d < DISPLAY_STEP ? h : d; // snap if within one step of horizon
+            return `Day\u00A0${snapped}\u00A0of\u00A0${h}`;
+          })();
+    } else if (isRangeMode) {
+      return horizon === null
+        ? "Awaiting data …"
+        : `Day\u00A0${Math.floor(startTime)}\u00A0to\u00A0${Math.floor(
+            endTime
+          )}\u00A0of\u00A0${Math.floor(horizon)}`;
+    } else {
+      const displayTime = currentTime;
+      return displayTime === null || horizon === null
+        ? "Awaiting data …"
+        : (() => {
+            const d = Math.floor(displayTime);
+            const h = Math.floor(horizon);
+            const snapped = h - d < DISPLAY_STEP ? h : d; // snap if within one step of horizon
+            return `Day\u00A0${snapped}\u00A0of\u00A0${h}`;
+          })();
+    }
+  }, [
+    day,
+    horizon,
+    currentTime,
+    startTime,
+    endTime,
+    isRealTimeMode,
+    isRangeMode,
+  ]);
 
   /* -------- render ------------------------------------------------ */
   return (
@@ -424,6 +468,10 @@ const TimeAwareSimulationVisualizer: React.FC<
         currentTime={currentTime}
         maxTime={maxTime}
         onTimeChange={setCurrentTime}
+        startTime={startTime}
+        endTime={endTime}
+        onStartTimeChange={setStartTime}
+        onEndTimeChange={setEndTime}
         isPlaying={isPlaying}
         onPlay={handlePlay}
         onPause={handlePause}
@@ -434,6 +482,8 @@ const TimeAwareSimulationVisualizer: React.FC<
         onSpeedChange={handleSpeedChange}
         isRealTimeMode={isRealTimeMode}
         onRealTimeModeChange={setIsRealTimeMode}
+        isRangeMode={isRangeMode}
+        onRangeModeChange={setIsRangeMode}
         availableTimes={availableTimes}
       />
 
@@ -452,7 +502,11 @@ const TimeAwareSimulationVisualizer: React.FC<
         </Typography>
         {!isRealTimeMode && (
           <Typography variant="caption" sx={{ opacity: 0.8 }}>
-            Viewing snapshot up to Day {Math.floor(currentTime)}
+            {isRangeMode
+              ? `Viewing range: Day ${Math.floor(
+                  startTime
+                )} to Day ${Math.floor(endTime)}`
+              : `Viewing snapshot up to Day ${Math.floor(currentTime)}`}
           </Typography>
         )}
       </Paper>
@@ -519,9 +573,13 @@ const TimeAwareSimulationVisualizer: React.FC<
                     <Grid container spacing={2}>
                       {PLOT_ORDER.map((type) => {
                         const series = ts[camp]?.[type] || [];
-                        // Filter series based on current time if not in real-time mode
+                        // Filter series based on mode
                         const displaySeries = isRealTimeMode
                           ? series
+                          : isRangeMode
+                          ? series.filter(
+                              (p) => p.t >= startTime && p.t <= endTime
+                            )
                           : series.filter((p) => p.t <= currentTime);
 
                         return (
@@ -555,10 +613,58 @@ const TimeAwareSimulationVisualizer: React.FC<
                                     },
                                     name: type,
                                   },
-                                  // Add a vertical line to show current time in snapshot mode
+                                  // Add indicators for time boundaries in snapshot mode
                                   ...(isRealTimeMode
                                     ? []
+                                    : isRangeMode
+                                    ? [
+                                        // Start time line
+                                        {
+                                          x: [startTime, startTime],
+                                          y: [
+                                            0,
+                                            Math.max(
+                                              ...displaySeries.map(
+                                                (p) => p.cost
+                                              ),
+                                              1
+                                            ) * 1.1,
+                                          ],
+                                          type: "scatter" as const,
+                                          mode: "lines" as const,
+                                          line: {
+                                            width: 2,
+                                            color: "rgba(0, 255, 0, 0.5)",
+                                            dash: "dash" as const,
+                                          },
+                                          name: "Start Time",
+                                          showlegend: false,
+                                        },
+                                        // End time line
+                                        {
+                                          x: [endTime, endTime],
+                                          y: [
+                                            0,
+                                            Math.max(
+                                              ...displaySeries.map(
+                                                (p) => p.cost
+                                              ),
+                                              1
+                                            ) * 1.1,
+                                          ],
+                                          type: "scatter" as const,
+                                          mode: "lines" as const,
+                                          line: {
+                                            width: 2,
+                                            color: "rgba(255, 0, 0, 0.5)",
+                                            dash: "dash" as const,
+                                          },
+                                          name: "End Time",
+                                          showlegend: false,
+                                        },
+                                      ]
                                     : [
+                                        // Current time line for single point mode
                                         {
                                           x: [currentTime, currentTime],
                                           y: [
@@ -566,7 +672,8 @@ const TimeAwareSimulationVisualizer: React.FC<
                                             Math.max(
                                               ...displaySeries.map(
                                                 (p) => p.cost
-                                              )
+                                              ),
+                                              1
                                             ) * 1.1,
                                           ],
                                           type: "scatter" as const,
@@ -595,6 +702,11 @@ const TimeAwareSimulationVisualizer: React.FC<
                                     title: { text: "Day" },
                                     range: isRealTimeMode
                                       ? undefined
+                                      : isRangeMode
+                                      ? [
+                                          Math.max(0, startTime - 5),
+                                          endTime + 5,
+                                        ]
                                       : [0, maxTime * 1.1],
                                   },
                                   yaxis: { title: { text: "Cost" } },

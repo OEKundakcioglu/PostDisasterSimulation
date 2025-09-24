@@ -9,6 +9,8 @@ import {
   Stack,
   FormControlLabel,
   Switch,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -20,6 +22,10 @@ interface TimeSliderControlProps {
   currentTime: number;
   maxTime: number;
   onTimeChange: (time: number) => void;
+  startTime: number;
+  endTime: number;
+  onStartTimeChange: (time: number) => void;
+  onEndTimeChange: (time: number) => void;
   isPlaying: boolean;
   onPlay: () => void;
   onPause: () => void;
@@ -30,6 +36,8 @@ interface TimeSliderControlProps {
   onSpeedChange: (speed: number) => void;
   isRealTimeMode: boolean;
   onRealTimeModeChange: (enabled: boolean) => void;
+  isRangeMode: boolean;
+  onRangeModeChange: (enabled: boolean) => void;
   availableTimes: number[];
 }
 
@@ -37,6 +45,10 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
   currentTime,
   maxTime,
   onTimeChange,
+  startTime,
+  endTime,
+  onStartTimeChange,
+  onEndTimeChange,
   isPlaying,
   onPlay,
   onPause,
@@ -47,6 +59,8 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
   onSpeedChange,
   isRealTimeMode,
   onRealTimeModeChange,
+  isRangeMode,
+  onRangeModeChange,
   availableTimes,
 }) => {
   const formatTime = (time: number) => {
@@ -59,15 +73,24 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
     }
   };
 
+  const handleStartTimeChange = (event: Event, newValue: number | number[]) => {
+    if (!isRealTimeMode && isRangeMode && typeof newValue === "number") {
+      onStartTimeChange(Math.min(newValue, endTime - 1));
+    }
+  };
+
+  const handleEndTimeChange = (event: Event, newValue: number | number[]) => {
+    if (!isRealTimeMode && isRangeMode && typeof newValue === "number") {
+      onEndTimeChange(Math.max(newValue, startTime + 1));
+    }
+  };
+
   return (
     <Box sx={{ p: 3, bgcolor: "background.paper", borderRadius: 2, mb: 3 }}>
       <Stack spacing={3}>
         {/* Mode Toggle */}
         <Box
           sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
             p: 2,
             bgcolor: "primary.main",
             borderRadius: 1,
@@ -79,89 +102,224 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
             sx={{
               fontWeight: 500,
               color: "white",
+              mb: 2,
             }}
           >
             Simulation Timeline
           </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={isRealTimeMode}
-                onChange={(e) => onRealTimeModeChange(e.target.checked)}
-                color="secondary"
-                sx={{
-                  "& .MuiSwitch-track": {
-                    bgcolor: "rgba(255,255,255,0.3)",
-                  },
-                  "& .MuiSwitch-thumb": {
-                    bgcolor: "white",
-                  },
-                }}
-              />
-            }
-            label={
-              <Typography
-                sx={{
-                  fontWeight: 500,
-                  color: "white",
-                  fontSize: "0.95rem",
-                }}
-              >
-                Real-time Mode
-              </Typography>
-            }
-            sx={{ m: 0 }}
-          />
+
+          <Stack spacing={2}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isRealTimeMode}
+                  onChange={(e) => onRealTimeModeChange(e.target.checked)}
+                  color="secondary"
+                  sx={{
+                    "& .MuiSwitch-track": {
+                      bgcolor: "rgba(255,255,255,0.3)",
+                    },
+                    "& .MuiSwitch-thumb": {
+                      bgcolor: "white",
+                    },
+                  }}
+                />
+              }
+              label={
+                <Typography
+                  sx={{
+                    fontWeight: 500,
+                    color: "white",
+                    fontSize: "0.95rem",
+                  }}
+                >
+                  Real-time Mode
+                </Typography>
+              }
+              sx={{ m: 0 }}
+            />
+
+            {!isRealTimeMode && (
+              <Box>
+                <Typography
+                  sx={{
+                    fontWeight: 500,
+                    color: "white",
+                    fontSize: "0.90rem",
+                    mb: 1,
+                  }}
+                >
+                  View Mode
+                </Typography>
+                <ToggleButtonGroup
+                  value={isRangeMode ? "range" : "point"}
+                  exclusive
+                  onChange={(e, newValue) => {
+                    if (newValue !== null) {
+                      onRangeModeChange(newValue === "range");
+                    }
+                  }}
+                  size="small"
+                  sx={{
+                    "& .MuiToggleButton-root": {
+                      color: "white",
+                      borderColor: "rgba(255,255,255,0.3)",
+                      "&.Mui-selected": {
+                        bgcolor: "rgba(255,255,255,0.2)",
+                        color: "white",
+                      },
+                    },
+                  }}
+                >
+                  <ToggleButton value="point">Single Point</ToggleButton>
+                  <ToggleButton value="range">Range</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            )}
+          </Stack>
         </Box>
 
         {/* Time Display */}
         <Box sx={{ textAlign: "center" }}>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 700, color: "primary.main" }}
-          >
-            {formatTime(currentTime)}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            of {formatTime(maxTime)} total
-          </Typography>
+          {isRangeMode && !isRealTimeMode ? (
+            <>
+              <Typography
+                variant="h4"
+                sx={{ fontWeight: 700, color: "primary.main" }}
+              >
+                {formatTime(startTime)} - {formatTime(endTime)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Range of {formatTime(maxTime)} total
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography
+                variant="h4"
+                sx={{ fontWeight: 700, color: "primary.main" }}
+              >
+                {formatTime(currentTime)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                of {formatTime(maxTime)} total
+              </Typography>
+            </>
+          )}
         </Box>
 
         {/* Time Slider */}
         <Box sx={{ px: 2 }}>
-          <Slider
-            value={currentTime}
-            max={maxTime}
-            step={1}
-            onChange={handleSliderChange}
-            disabled={isRealTimeMode || maxTime === 0}
-            marks={
-              availableTimes.length < 50
-                ? availableTimes.map((time) => ({
-                    value: time,
-                    label: time % 10 === 0 ? `${Math.floor(time)}` : "",
-                  }))
-                : undefined
-            }
-            valueLabelDisplay="auto"
-            valueLabelFormat={formatTime}
-            sx={{
-              "& .MuiSlider-thumb": {
-                width: 20,
-                height: 20,
-              },
-              "& .MuiSlider-track": {
-                height: 6,
-              },
-              "& .MuiSlider-rail": {
-                height: 6,
-              },
-            }}
-          />
+          {isRangeMode && !isRealTimeMode ? (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Start Time: {formatTime(startTime)}
+                </Typography>
+                <Slider
+                  value={startTime}
+                  max={maxTime}
+                  step={1}
+                  onChange={handleStartTimeChange}
+                  disabled={isRealTimeMode || maxTime === 0}
+                  marks={
+                    availableTimes.length < 50
+                      ? availableTimes.map((time) => ({
+                          value: time,
+                          label: time % 10 === 0 ? `${Math.floor(time)}` : "",
+                        }))
+                      : undefined
+                  }
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={formatTime}
+                  sx={{
+                    "& .MuiSlider-thumb": {
+                      width: 20,
+                      height: 20,
+                      bgcolor: "#4CAF50",
+                    },
+                    "& .MuiSlider-track": {
+                      height: 6,
+                      bgcolor: "#4CAF50",
+                    },
+                    "& .MuiSlider-rail": {
+                      height: 6,
+                    },
+                  }}
+                />
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  End Time: {formatTime(endTime)}
+                </Typography>
+                <Slider
+                  value={endTime}
+                  max={maxTime}
+                  step={1}
+                  onChange={handleEndTimeChange}
+                  disabled={isRealTimeMode || maxTime === 0}
+                  marks={
+                    availableTimes.length < 50
+                      ? availableTimes.map((time) => ({
+                          value: time,
+                          label: time % 10 === 0 ? `${Math.floor(time)}` : "",
+                        }))
+                      : undefined
+                  }
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={formatTime}
+                  sx={{
+                    "& .MuiSlider-thumb": {
+                      width: 20,
+                      height: 20,
+                      bgcolor: "#F44336",
+                    },
+                    "& .MuiSlider-track": {
+                      height: 6,
+                      bgcolor: "#F44336",
+                    },
+                    "& .MuiSlider-rail": {
+                      height: 6,
+                    },
+                  }}
+                />
+              </Box>
+            </Stack>
+          ) : (
+            <Slider
+              value={currentTime}
+              max={maxTime}
+              step={1}
+              onChange={handleSliderChange}
+              disabled={isRealTimeMode || maxTime === 0}
+              marks={
+                availableTimes.length < 50
+                  ? availableTimes.map((time) => ({
+                      value: time,
+                      label: time % 10 === 0 ? `${Math.floor(time)}` : "",
+                    }))
+                  : undefined
+              }
+              valueLabelDisplay="auto"
+              valueLabelFormat={formatTime}
+              sx={{
+                "& .MuiSlider-thumb": {
+                  width: 20,
+                  height: 20,
+                },
+                "& .MuiSlider-track": {
+                  height: 6,
+                },
+                "& .MuiSlider-rail": {
+                  height: 6,
+                },
+              }}
+            />
+          )}
         </Box>
 
         {/* Playback Controls */}
-        {!isRealTimeMode && (
+        {!isRealTimeMode && !isRangeMode && (
           <Stack
             direction="row"
             justifyContent="center"
@@ -212,7 +370,7 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
         )}
 
         {/* Playback Speed Control */}
-        {!isRealTimeMode && (
+        {!isRealTimeMode && !isRangeMode && (
           <Box sx={{ px: 2 }}>
             <Typography variant="body2" gutterBottom>
               Playback Speed: {playbackSpeed}x
@@ -246,6 +404,10 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
           >
             {isRealTimeMode
               ? "Real-time mode: Showing latest simulation data"
+              : isRangeMode
+              ? `Range mode: Viewing data from ${formatTime(
+                  startTime
+                )} to ${formatTime(endTime)}`
               : `Snapshot mode: Viewing data up to ${formatTime(currentTime)}`}
           </Typography>
         </Box>
