@@ -16,7 +16,7 @@ const GITHUB_REPO_URL =
 
 // ------------------ component ------------------
 const HomeLayout: React.FC<PropsWithChildren> = ({ children }) => {
-  const headerTitle = useMemo(() => "Post Disaster Simulation", []);
+  const headerTitle = useMemo(() => "AidSim", []);
 
   return (
     <ThemeProvider theme={theme}>

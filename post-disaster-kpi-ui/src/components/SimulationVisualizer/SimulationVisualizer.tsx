@@ -40,17 +40,17 @@ const Plot = dynamic(
 /* -------- colours & order ----------------------------------------- */
 const DISPLAY_STEP = 10; // desired visual increment
 const COST_COLOUR: Record<string, string> = {
-  "Replenishment Cost": "#4CAF50",
-  "Deprivation Cost": "#F44336",
-  "Holding Cost": "#FF9800",
-  "Referral Cost": "#2196F3",
+  Replenishment: "#4CAF50",
+  Deprivation: "#F44336",
+  Holding: "#FF9800",
+  Referral: "#2196F3",
 };
 /* order for 2 × 2 grid */
 const PLOT_ORDER = [
-  "Replenishment Cost",
-  "Deprivation Cost",
-  "Holding Cost",
-  "Referral Cost",
+  "Replenishment",
+  "Deprivation",
+  "Holding",
+  "Referral",
 ] as const;
 
 /* -------- sidebar styles ------------------------------------------ */
@@ -126,16 +126,16 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
       setHorizon(pkt.planningHorizon);
       const entries: CostEntry[] = [
         ...Object.entries(pkt.cumulativeReplenishmentCosts || {}).map(
-          ([camp, cost]) => ({ camp, type: "Replenishment Cost", cost })
+          ([camp, cost]) => ({ camp, type: "Replenishment", cost })
         ),
         ...Object.entries(pkt.cumulativeDeprivationCosts || {}).map(
-          ([camp, cost]) => ({ camp, type: "Deprivation Cost", cost })
+          ([camp, cost]) => ({ camp, type: "Deprivation", cost })
         ),
         ...Object.entries(pkt.cumulativeHoldingCosts || {}).map(
-          ([camp, cost]) => ({ camp, type: "Holding Cost", cost })
+          ([camp, cost]) => ({ camp, type: "Holding", cost })
         ),
         ...Object.entries(pkt.cumulativeReferralCosts || {}).map(
-          ([camp, cost]) => ({ camp, type: "Referral Cost", cost })
+          ([camp, cost]) => ({ camp, type: "Referral", cost })
         ),
       ];
       setRanking((r) =>
@@ -224,32 +224,17 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
 
   const headline =
     day === null || horizon === null
-      ? "Awaiting data …"
+      ? "Awaiting data …"
       : (() => {
           const d = Math.floor(day);
           const h = Math.floor(horizon);
           const snapped = h - d < DISPLAY_STEP ? h : d; // snap if within one step of horizon
-          return `Day\u00A0${snapped}\u00A0of\u00A0${h}`;
+          return `${snapped}\u00A0of\u00A0${h}`;
         })();
 
   /* -------- render ------------------------------------------------ */
   return (
     <Box>
-      {/* banner */}
-      <Paper
-        sx={{
-          mb: 3,
-          p: 2,
-          color: "primary.contrastText",
-          background: (t) =>
-            `linear-gradient(135deg, ${t.palette.primary.dark} 0%, ${t.palette.primary.main} 100%)`,
-        }}
-      >
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-          {headline}
-        </Typography>
-      </Paper>
-
       {!ready && (
         <Box sx={{ py: 6, textAlign: "center" }}>
           <CircularProgress />
@@ -354,8 +339,8 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
                                       color: COST_COLOUR[type],
                                     },
                                   },
-                                  xaxis: { title: { text: "Day" } },
-                                  yaxis: { title: { text: "Cost" } },
+                                  xaxis: {},
+                                  yaxis: {},
                                   paper_bgcolor: "white",
                                   plot_bgcolor: "white",
                                   showlegend: false,

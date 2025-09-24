@@ -9,7 +9,7 @@ import React from "react";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Post Disaster Simulation",
+  title: "AidSim",
   description:
     "Post Disaster Simulation is a sophisticated platform designed to model and analyze disaster response scenarios, enabling users to simulate key operational metrics such as replenishment costs, deprivation costs, and resource allocation. With an elegant, user-friendly interface, the application allows decision-makers to optimize strategies and improve post-disaster outcomes through data-driven insights. The simulation tool integrates modern technology and premium design, providing a seamless experience for users to visualize key performance indicators (KPIs) in a visually appealing, professional format.",
 };

@@ -275,9 +275,6 @@ export default function PageClient() {
 
   return (
     <Box sx={{ maxWidth: 1480, mx: "auto", p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ color: "#000000" }}>
-        Real-time Simulation Visualization
-      </Typography>
       {!connected && (
         <Alert severity="info" sx={{ mb: 2 }}>
           Live stream not available yet; falling back to polling updates.
@@ -288,25 +285,11 @@ export default function PageClient() {
           {error}
         </Alert>
       )}
-      <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<DownloadIcon />}
-          onClick={downloadEnv}
-        >
-          Environment JSON
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          startIcon={<RestartAltIcon />}
-          onClick={stopAndGoToInput}
-        >
-          Stop & Start New
-        </Button>
-      </Stack>
-      <TimeAwareSimulationVisualizer logs={logs} />
+      <TimeAwareSimulationVisualizer
+        logs={logs}
+        onDownloadEnv={downloadEnv}
+        onStopAndRestart={stopAndGoToInput}
+      />
     </Box>
   );
 }

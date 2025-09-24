@@ -11,12 +11,14 @@ import {
   Switch,
   ToggleButton,
   ToggleButtonGroup,
+  Button,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import SkipPreviousIcon from "@mui/icons-material/SkipPrevious";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import DownloadIcon from "@mui/icons-material/Download";
 
 interface TimeSliderControlProps {
   currentTime: number;
@@ -39,6 +41,8 @@ interface TimeSliderControlProps {
   isRangeMode: boolean;
   onRangeModeChange: (enabled: boolean) => void;
   availableTimes: number[];
+  onDownloadEnv?: () => void;
+  onStopAndRestart?: () => void;
 }
 
 const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
@@ -62,6 +66,8 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
   isRangeMode,
   onRangeModeChange,
   availableTimes,
+  onDownloadEnv,
+  onStopAndRestart,
 }) => {
   const formatTime = (time: number) => {
     return `Day ${Math.floor(time)}`;
@@ -97,85 +103,123 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
             color: "white",
           }}
         >
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 500,
-              color: "white",
-              mb: 2,
-            }}
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-start"
+            spacing={2}
           >
-            Simulation Timeline
-          </Typography>
-
-          <Stack spacing={2}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={isRealTimeMode}
-                  onChange={(e) => onRealTimeModeChange(e.target.checked)}
-                  color="secondary"
-                  sx={{
-                    "& .MuiSwitch-track": {
-                      bgcolor: "rgba(255,255,255,0.3)",
-                    },
-                    "& .MuiSwitch-thumb": {
-                      bgcolor: "white",
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography
-                  sx={{
-                    fontWeight: 500,
-                    color: "white",
-                    fontSize: "0.95rem",
-                  }}
-                >
-                  Real-time Mode
-                </Typography>
-              }
-              sx={{ m: 0 }}
-            />
-
-            {!isRealTimeMode && (
-              <Box>
-                <Typography
-                  sx={{
-                    fontWeight: 500,
-                    color: "white",
-                    fontSize: "0.90rem",
-                    mb: 1,
-                  }}
-                >
-                  View Mode
-                </Typography>
-                <ToggleButtonGroup
-                  value={isRangeMode ? "range" : "point"}
-                  exclusive
-                  onChange={(e, newValue) => {
-                    if (newValue !== null) {
-                      onRangeModeChange(newValue === "range");
-                    }
-                  }}
+            {/* Left side - Action buttons */}
+            <Stack direction="row" spacing={1}>
+              {onDownloadEnv && (
+                <Button
+                  variant="outlined"
                   size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={onDownloadEnv}
                   sx={{
-                    "& .MuiToggleButton-root": {
-                      color: "white",
-                      borderColor: "rgba(255,255,255,0.3)",
-                      "&.Mui-selected": {
-                        bgcolor: "rgba(255,255,255,0.2)",
-                        color: "white",
-                      },
+                    color: "white",
+                    borderColor: "rgba(255,255,255,0.3)",
+                    "&:hover": {
+                      borderColor: "white",
+                      bgcolor: "rgba(255,255,255,0.1)",
                     },
                   }}
                 >
-                  <ToggleButton value="point">Single Point</ToggleButton>
-                  <ToggleButton value="range">Range</ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
-            )}
+                  Environment JSON
+                </Button>
+              )}
+              {onStopAndRestart && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<RestartAltIcon />}
+                  onClick={onStopAndRestart}
+                  sx={{
+                    color: "white",
+                    borderColor: "rgba(255,255,255,0.3)",
+                    "&:hover": {
+                      borderColor: "white",
+                      bgcolor: "rgba(255,255,255,0.1)",
+                    },
+                  }}
+                >
+                  Stop & Start New
+                </Button>
+              )}
+            </Stack>
+
+            {/* Right side - Mode controls */}
+            <Stack spacing={2} alignItems="flex-end">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isRealTimeMode}
+                    onChange={(e) => onRealTimeModeChange(e.target.checked)}
+                    color="secondary"
+                    sx={{
+                      "& .MuiSwitch-track": {
+                        bgcolor: "rgba(255,255,255,0.3)",
+                      },
+                      "& .MuiSwitch-thumb": {
+                        bgcolor: "white",
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Typography
+                    sx={{
+                      fontWeight: 500,
+                      color: "white",
+                      fontSize: "0.95rem",
+                    }}
+                  >
+                    Real-time Mode
+                  </Typography>
+                }
+                sx={{ m: 0 }}
+              />
+
+              {!isRealTimeMode && (
+                <Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 500,
+                      color: "white",
+                      fontSize: "0.90rem",
+                      mb: 1,
+                      textAlign: "right",
+                    }}
+                  >
+                    View Mode
+                  </Typography>
+                  <ToggleButtonGroup
+                    value={isRangeMode ? "range" : "point"}
+                    exclusive
+                    onChange={(e, newValue) => {
+                      if (newValue !== null) {
+                        onRangeModeChange(newValue === "range");
+                      }
+                    }}
+                    size="small"
+                    sx={{
+                      "& .MuiToggleButton-root": {
+                        color: "white",
+                        borderColor: "rgba(255,255,255,0.3)",
+                        "&.Mui-selected": {
+                          bgcolor: "rgba(255,255,255,0.2)",
+                          color: "white",
+                        },
+                      },
+                    }}
+                  >
+                    <ToggleButton value="point">Single Point</ToggleButton>
+                    <ToggleButton value="range">Range</ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+              )}
+            </Stack>
           </Stack>
         </Box>
 
@@ -378,7 +422,7 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
             <Slider
               value={playbackSpeed}
               min={0.25}
-              max={4}
+              max={16}
               step={0.25}
               onChange={(_, value) => onSpeedChange(value as number)}
               marks={[
@@ -387,30 +431,13 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
                 { value: 1, label: "1x" },
                 { value: 2, label: "2x" },
                 { value: 4, label: "4x" },
+                { value: 8, label: "8x" },
+                { value: 16, label: "16x" },
               ]}
               size="small"
             />
           </Box>
         )}
-
-        {/* Timeline Info */}
-        <Box sx={{ textAlign: "center" }}>
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 600,
-              color: "text.secondary",
-            }}
-          >
-            {isRealTimeMode
-              ? "Real-time mode: Showing latest simulation data"
-              : isRangeMode
-              ? `Range mode: Viewing data from ${formatTime(
-                  startTime
-                )} to ${formatTime(endTime)}`
-              : `Snapshot mode: Viewing data up to ${formatTime(currentTime)}`}
-          </Typography>
-        </Box>
       </Stack>
     </Box>
   );
