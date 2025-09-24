@@ -383,16 +383,9 @@ const TimeAwareSimulationVisualizer: React.FC<
     handlePause();
   }, [handlePause]);
 
-  const handleSpeedChange = useCallback(
-    (speed: number) => {
-      setPlaybackSpeed(speed);
-      if (isPlaying) {
-        handlePause();
-        setTimeout(() => handlePlay(), 100);
-      }
-    },
-    [isPlaying, handlePause, handlePlay]
-  );
+  const handleSpeedChange = useCallback((speed: number) => {
+    setPlaybackSpeed(speed);
+  }, []);
 
   // Cleanup playback on unmount
   useEffect(() => {
@@ -405,8 +398,10 @@ const TimeAwareSimulationVisualizer: React.FC<
 
   // Update playback speed
   useEffect(() => {
-    if (isPlaying && playbackIntervalRef.current) {
-      clearInterval(playbackIntervalRef.current);
+    if (isPlaying) {
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current);
+      }
       playbackIntervalRef.current = setInterval(() => {
         setCurrentTime((prev) => {
           const nextTime = prev + 1;
@@ -593,12 +588,10 @@ const TimeAwareSimulationVisualizer: React.FC<
                                     },
                                     name: type,
                                   },
-                                  // Add indicators for time boundaries in snapshot mode
                                   ...(isRealTimeMode
                                     ? []
                                     : isRangeMode
                                     ? [
-                                        // Start time line
                                         {
                                           x: [startTime, startTime],
                                           y: [
@@ -620,7 +613,6 @@ const TimeAwareSimulationVisualizer: React.FC<
                                           name: "Start Time",
                                           showlegend: false,
                                         },
-                                        // End time line
                                         {
                                           x: [endTime, endTime],
                                           y: [
@@ -644,7 +636,6 @@ const TimeAwareSimulationVisualizer: React.FC<
                                         },
                                       ]
                                     : [
-                                        // Current time line for single point mode
                                         {
                                           x: [currentTime, currentTime],
                                           y: [

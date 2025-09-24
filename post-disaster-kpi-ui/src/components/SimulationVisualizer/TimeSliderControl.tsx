@@ -70,7 +70,7 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
   onStopAndRestart,
 }) => {
   const formatTime = (time: number) => {
-    return `Day ${Math.floor(time)}`;
+    return `${Math.floor(time)}`;
   };
 
   const handleSliderChange = (event: Event, newValue: number | number[]) => {
@@ -416,7 +416,7 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
         {/* Playback Speed Control */}
         {!isRealTimeMode && !isRangeMode && (
           <Box sx={{ px: 2 }}>
-            <Typography variant="body2" gutterBottom>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
               Playback Speed: {playbackSpeed}x
             </Typography>
             <Slider
@@ -427,11 +427,8 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
               onChange={(_, value) => onSpeedChange(value as number)}
               marks={[
                 { value: 0.25, label: "0.25x" },
-                { value: 0.5, label: "0.5x" },
                 { value: 1, label: "1x" },
-                { value: 2, label: "2x" },
                 { value: 4, label: "4x" },
-                { value: 8, label: "8x" },
                 { value: 16, label: "16x" },
               ]}
               size="small"
