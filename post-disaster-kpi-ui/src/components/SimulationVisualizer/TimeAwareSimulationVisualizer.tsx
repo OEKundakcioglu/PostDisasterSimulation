@@ -324,18 +324,10 @@ const TimeAwareSimulationVisualizer: React.FC<
           const sortedTimes = Object.keys(timeData)
             .map(Number)
             .sort((a, b) => a - b);
-          let previousValue = 0;
 
           sortedTimes.forEach((time) => {
             const cumulativeValue = timeData[time];
-            const incrementalValue = cumulativeValue - previousValue;
-
-            // Prevent negative incremental costs which can occur due to data inconsistencies
-            // or expired items being removed from inventory without proper cost accounting
-            const safeIncrementalValue = Math.max(0, incrementalValue);
-
-            next[camp][type].push({ t: time, cost: safeIncrementalValue });
-            previousValue = cumulativeValue;
+            next[camp][type].push({ t: time, cost: cumulativeValue });
           });
         });
       });

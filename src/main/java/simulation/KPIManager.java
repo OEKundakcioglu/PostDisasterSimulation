@@ -380,16 +380,25 @@ public class KPIManager {
     public void logState(State stateRef, double currentTime, double samplingInterval) {
         if (!useReactUI) return;
 
-        if (samplingInterval <= 0) {
-            if (stateRef.getEnvironment().getSimulationConfig().getInventoryControlType() == InventoryControlType.PERIODIC) {
-                samplingInterval = stateRef.getEnvironment().getSimulationConfig().getInventoryControlPeriod();
-            } else {
-                samplingInterval = 1.0;
-            }
+        // If this is the very first log, create a seed entry without looking at getLast()
+        if (timeStepLogs.isEmpty()) {
+            TimeStepLog seed = new TimeStepLog();
+            seed.time = 0.0;
+            seed.planningHorizon = stateRef.getEnvironment().getSimulationConfig().getPlanningHorizon();
+            seed.fundingReceived = 0.0;
+            timeStepLogs.add(seed);
         }
 
-        
-        if (timeStepLogs.isEmpty() || currentTime - timeStepLogs.get(timeStepLogs.size() - 1).time >= samplingInterval) {
+        double lastTime = timeStepLogs.get(timeStepLogs.size() - 1).time;
+
+        // Prefer an epsilon check for doubles instead of == 0.0 or % exact comparisons
+        double invCtrl = stateRef.getEnvironment().getSimulationConfig().getInventoryControlPeriod();
+        boolean onControlBoundary = Math.abs(currentTime / invCtrl - Math.rint(currentTime / invCtrl)) < 1e-9;
+
+        // Log at least every 1.0 time unit OR on inventory-control boundary
+        boolean conditionToLog = (currentTime - lastTime) >= 1.0 || onControlBoundary || lastTime == currentTime;
+
+        if (conditionToLog) {
             TimeStepLog log = new TimeStepLog();
             log.time = currentTime;
             log.planningHorizon = stateRef.getEnvironment().getSimulationConfig().getPlanningHorizon();
@@ -411,6 +420,7 @@ public class KPIManager {
                     var inventoryQueue = itemEntry.getValue();
                     int totalQuantity = inventoryQueue.stream().mapToInt(InventoryItem::getQuantity).sum();
                     log.itemQuantities.get(campName).put(item.getName(), totalQuantity);
+
                     // Calculate holding cost for current inventory items (still in inventory)
                     double currentInventoryHoldingCost = inventoryQueue.stream()
                         .mapToDouble(inv -> (currentTime - inv.getArrivalTime()) * inv.getQuantity() * item.getHoldingCost())
@@ -420,22 +430,23 @@ public class KPIManager {
                     double totalAccumulatedCost = totalHoldingCost.get(camp).get(item);
                     log.cumulativeHoldingCosts.put(campName, log.cumulativeHoldingCosts.get(campName) + totalAccumulatedCost + currentInventoryHoldingCost);
                     double referralCostAcc = totalReferralCost.get(camp).get(item);
-                    double deprivationCostAcc = totalDeprivationCost.get(camp).get(item);
                     log.cumulativeReferralCosts.put(campName, log.cumulativeReferralCosts.get(campName) + referralCostAcc);
-                    log.cumulativeDeprivationCosts.put(campName, log.cumulativeDeprivationCosts.get(campName) + deprivationCostAcc);
-                    double replCostAcc = campReplenishmentCost.get(camp).get(item);
-                    log.cumulativeReplenishmentCosts.put(campName, log.cumulativeReplenishmentCosts.get(campName) + replCostAcc);
+
+
+                    // Calculate deprivation cost as a final period
+                    double deprivationCostAcc = 0.0;
+                    for (DeprivingPerson deprivingPerson : stateRef.getDeprivingPopulation().get(camp).get(item)) {
+                        double totalTime = currentTime - deprivingPerson.getArrivalTime();
+                        deprivationCostAcc += item.getDeprivationCoefficient() * (Math.exp(totalTime * item.getDeprivationRate()) - 1) * deprivingPerson.getQuantity();
+                    }
+                    log.cumulativeDeprivationCosts.put(campName, totalDeprivationCost.get(camp).get(item)
+                            + log.cumulativeDeprivationCosts.get(campName) + deprivationCostAcc);
+
+                    if (currentTime % this.state.getEnvironment().getSimulationConfig().getInventoryControlPeriod() == 0.0)
+                        log.cumulativeReplenishmentCosts.put(campName, log.cumulativeReplenishmentCosts.get(campName) + campReplenishmentCost.get(camp).get(item));
                 }
             }
             timeStepLogs.add(log);
-            /*
-            if (timeStepLogs.size() > MAX_TIME_STEP_LOGS) {
-                int removeCount = (int)(MAX_TIME_STEP_LOGS * 0.1);
-                for (int i = 0; i < removeCount; i++) timeStepLogs.remove(0);
-                prunedCount += removeCount;
-            }
-             */
-
         }
     }
 

@@ -273,7 +273,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                 int reorderPoint = reorderPoints.get(camp).get(item);
                 int orderUpToLevel = orderUpToLevels.get(camp).get(item);
 
-                if (totalInventory < reorderPoint) {
+                if (totalInventory <= reorderPoint) {
                     int quantity = orderUpToLevel - totalInventory;
                     transferRequest.add(new TransferRequest(camp, item, quantity));
                 }
