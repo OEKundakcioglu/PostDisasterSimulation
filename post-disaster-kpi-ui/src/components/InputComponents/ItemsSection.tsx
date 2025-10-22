@@ -16,6 +16,14 @@ import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSect
 import { Item, DistParameters } from "../../types/Item";
 import DeleteIcon from "@mui/icons-material/Delete";
 
+// Helper function to convert uppercase macros to readable format
+const formatLabel = (value: string): string => {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
 interface Props {
   items: Item[];
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
@@ -991,13 +999,25 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                       }
                       variant="outlined"
                     >
-                      <MenuItem value="TRIANGULAR">TRIANGULAR</MenuItem>
-                      <MenuItem value="NORMAL">NORMAL</MenuItem>
-                      <MenuItem value="EXPONENTIAL">EXPONENTIAL</MenuItem>
-                      <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                      <MenuItem value="BERNOULLI">BERNOULLI</MenuItem>
-                      <MenuItem value="FIXED">FIXED</MenuItem>
-                      <MenuItem value="EQUAL_SHARE">EQUAL SHARE</MenuItem>
+                      <MenuItem value="TRIANGULAR">
+                        {formatLabel("TRIANGULAR")}
+                      </MenuItem>
+                      <MenuItem value="NORMAL">
+                        {formatLabel("NORMAL")}
+                      </MenuItem>
+                      <MenuItem value="EXPONENTIAL">
+                        {formatLabel("EXPONENTIAL")}
+                      </MenuItem>
+                      <MenuItem value="UNIFORM">
+                        {formatLabel("UNIFORM")}
+                      </MenuItem>
+                      <MenuItem value="BERNOULLI">
+                        {formatLabel("BERNOULLI")}
+                      </MenuItem>
+                      <MenuItem value="FIXED">{formatLabel("FIXED")}</MenuItem>
+                      <MenuItem value="EQUAL_SHARE">
+                        {formatLabel("EQUAL_SHARE")}
+                      </MenuItem>
                     </TextField>
                   </Grid>
 
@@ -1031,8 +1051,12 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         }
                         variant="outlined"
                       >
-                        <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                        <MenuItem value="NORMAL">NORMAL</MenuItem>
+                        <MenuItem value="UNIFORM">
+                          {formatLabel("UNIFORM")}
+                        </MenuItem>
+                        <MenuItem value="NORMAL">
+                          {formatLabel("NORMAL")}
+                        </MenuItem>
                       </TextField>
                     </Grid>
                     {renderDistributionParameters(item, index, "durationData")}

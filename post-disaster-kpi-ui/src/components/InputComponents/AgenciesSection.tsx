@@ -13,6 +13,14 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
+// Helper function to convert uppercase macros to readable format
+const formatLabel = (value: string): string => {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
 // Update the interfaces to have proper type separation
 interface CommonDistParameters {
   min?: string;
@@ -526,7 +534,8 @@ const AgenciesSection: React.FC<Props> = ({
                       }}
                     >
                       <Typography sx={{ flexGrow: 1 }}>
-                        Funding {fundingIndex + 1}: {funding.fundingType}
+                        Funding {fundingIndex + 1}:{" "}
+                        {formatLabel(funding.fundingType)}
                       </Typography>
                       <IconButton
                         size="small"
@@ -570,16 +579,16 @@ const AgenciesSection: React.FC<Props> = ({
                         }}
                       >
                         <MenuItem value="MONETARY_REGULAR">
-                          MONETARY_REGULAR
+                          {formatLabel("MONETARY_REGULAR")}
                         </MenuItem>
                         <MenuItem value="MONETARY_EARMARKED">
-                          MONETARY_EARMARKED
+                          {formatLabel("MONETARY_EARMARKED")}
                         </MenuItem>
                         <MenuItem value="INKIND_REGULAR">
-                          INKIND_REGULAR
+                          {formatLabel("INKIND_REGULAR")}
                         </MenuItem>
                         <MenuItem value="INKIND_EARMARKED">
-                          INKIND_EARMARKED
+                          {formatLabel("INKIND_EARMARKED")}
                         </MenuItem>
                       </TextField>
                     </Grid>
@@ -655,16 +664,26 @@ const AgenciesSection: React.FC<Props> = ({
                                 );
                               }}
                             >
-                              <MenuItem value="BERNOULLI">BERNOULLI</MenuItem>
-                              <MenuItem value="EXPONENTIAL">
-                                EXPONENTIAL
+                              <MenuItem value="BERNOULLI">
+                                {formatLabel("BERNOULLI")}
                               </MenuItem>
-                              <MenuItem value="NORMAL">NORMAL</MenuItem>
-                              <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                              <MenuItem value="TRIANGULAR">TRIANGULAR</MenuItem>
-                              <MenuItem value="FIXED">FIXED</MenuItem>
+                              <MenuItem value="EXPONENTIAL">
+                                {formatLabel("EXPONENTIAL")}
+                              </MenuItem>
+                              <MenuItem value="NORMAL">
+                                {formatLabel("NORMAL")}
+                              </MenuItem>
+                              <MenuItem value="UNIFORM">
+                                {formatLabel("UNIFORM")}
+                              </MenuItem>
+                              <MenuItem value="TRIANGULAR">
+                                {formatLabel("TRIANGULAR")}
+                              </MenuItem>
+                              <MenuItem value="FIXED">
+                                {formatLabel("FIXED")}
+                              </MenuItem>
                               <MenuItem value="EQUAL_SHARE">
-                                EQUAL SHARE
+                                {formatLabel("EQUAL_SHARE")}
                               </MenuItem>
                             </TextField>
                           </Grid>
@@ -710,16 +729,26 @@ const AgenciesSection: React.FC<Props> = ({
                               }}
                             >
                               <MenuItem value="EQUAL_SHARE">
-                                EQUAL SHARE
+                                {formatLabel("EQUAL_SHARE")}
                               </MenuItem>
-                              <MenuItem value="FIXED">FIXED</MenuItem>
-                              <MenuItem value="NORMAL">NORMAL</MenuItem>
-                              <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                              <MenuItem value="TRIANGULAR">TRIANGULAR</MenuItem>
+                              <MenuItem value="FIXED">
+                                {formatLabel("FIXED")}
+                              </MenuItem>
+                              <MenuItem value="NORMAL">
+                                {formatLabel("NORMAL")}
+                              </MenuItem>
+                              <MenuItem value="UNIFORM">
+                                {formatLabel("UNIFORM")}
+                              </MenuItem>
+                              <MenuItem value="TRIANGULAR">
+                                {formatLabel("TRIANGULAR")}
+                              </MenuItem>
                               <MenuItem value="EXPONENTIAL">
-                                EXPONENTIAL
+                                {formatLabel("EXPONENTIAL")}
                               </MenuItem>
-                              <MenuItem value="BERNOULLI">BERNOULLI</MenuItem>
+                              <MenuItem value="BERNOULLI">
+                                {formatLabel("BERNOULLI")}
+                              </MenuItem>
                             </TextField>
                           </Grid>
 

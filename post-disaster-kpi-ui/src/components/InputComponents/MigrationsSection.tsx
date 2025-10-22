@@ -14,6 +14,14 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
+// Helper function to convert uppercase macros to readable format
+const formatLabel = (value: string): string => {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
 // Updated interface to match Java backend implementation
 interface DistParams {
   min?: string;
@@ -522,22 +530,22 @@ const MigrationsSection: React.FC<Props> = ({
                   }
                 >
                   <MenuItem value="INTERNAL_WITHIN_SYSTEM">
-                    INTERNAL_WITHIN_SYSTEM
+                    {formatLabel("INTERNAL_WITHIN_SYSTEM")}
                   </MenuItem>
                   <MenuItem value="INTERNAL_TO_SYSTEM">
-                    INTERNAL_TO_SYSTEM
+                    {formatLabel("INTERNAL_TO_SYSTEM")}
                   </MenuItem>
                   <MenuItem value="INTERNAL_FROM_SYSTEM">
-                    INTERNAL_FROM_SYSTEM
+                    {formatLabel("INTERNAL_FROM_SYSTEM")}
                   </MenuItem>
                   <MenuItem value="EXTERNAL_WITHIN_SYSTEM">
-                    EXTERNAL_WITHIN_SYSTEM
+                    {formatLabel("EXTERNAL_WITHIN_SYSTEM")}
                   </MenuItem>
                   <MenuItem value="EXTERNAL_TO_SYSTEM">
-                    EXTERNAL_TO_SYSTEM
+                    {formatLabel("EXTERNAL_TO_SYSTEM")}
                   </MenuItem>
                   <MenuItem value="EXTERNAL_FROM_SYSTEM">
-                    EXTERNAL_FROM_SYSTEM
+                    {formatLabel("EXTERNAL_FROM_SYSTEM")}
                   </MenuItem>
                 </Select>
               </FormControl>
@@ -638,12 +646,24 @@ const MigrationsSection: React.FC<Props> = ({
                           );
                         }}
                       >
-                        <MenuItem value="FIXED">FIXED</MenuItem>
-                        <MenuItem value="EXPONENTIAL">EXPONENTIAL</MenuItem>
-                        <MenuItem value="NORMAL">NORMAL</MenuItem>
-                        <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                        <MenuItem value="TRIANGULAR">TRIANGULAR</MenuItem>
-                        <MenuItem value="BERNOULLI">BERNOULLI</MenuItem>
+                        <MenuItem value="FIXED">
+                          {formatLabel("FIXED")}
+                        </MenuItem>
+                        <MenuItem value="EXPONENTIAL">
+                          {formatLabel("EXPONENTIAL")}
+                        </MenuItem>
+                        <MenuItem value="NORMAL">
+                          {formatLabel("NORMAL")}
+                        </MenuItem>
+                        <MenuItem value="UNIFORM">
+                          {formatLabel("UNIFORM")}
+                        </MenuItem>
+                        <MenuItem value="TRIANGULAR">
+                          {formatLabel("TRIANGULAR")}
+                        </MenuItem>
+                        <MenuItem value="BERNOULLI">
+                          {formatLabel("BERNOULLI")}
+                        </MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
@@ -696,11 +716,21 @@ const MigrationsSection: React.FC<Props> = ({
                             );
                           }}
                         >
-                          <MenuItem value="FIXED">FIXED</MenuItem>
-                          <MenuItem value="EXPONENTIAL">EXPONENTIAL</MenuItem>
-                          <MenuItem value="NORMAL">NORMAL</MenuItem>
-                          <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                          <MenuItem value="TRIANGULAR">TRIANGULAR</MenuItem>
+                          <MenuItem value="FIXED">
+                            {formatLabel("FIXED")}
+                          </MenuItem>
+                          <MenuItem value="EXPONENTIAL">
+                            {formatLabel("EXPONENTIAL")}
+                          </MenuItem>
+                          <MenuItem value="NORMAL">
+                            {formatLabel("NORMAL")}
+                          </MenuItem>
+                          <MenuItem value="UNIFORM">
+                            {formatLabel("UNIFORM")}
+                          </MenuItem>
+                          <MenuItem value="TRIANGULAR">
+                            {formatLabel("TRIANGULAR")}
+                          </MenuItem>
                         </Select>
                       </FormControl>
                     </Grid>

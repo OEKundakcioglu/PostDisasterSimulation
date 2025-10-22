@@ -12,6 +12,14 @@ import {
 import InfoIcon from "@mui/icons-material/Info";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
+// Helper function to convert uppercase macros to readable format
+const formatLabel = (value: string): string => {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
 interface SimulationConfig {
   [key: string]: string | boolean;
 }
@@ -208,10 +216,12 @@ const SimulationConfigSection: React.FC<Props> = ({
                   inventoryControlType: e.target.value,
                 }))
               }
-              helperText="PERIODIC: review every period; CONTINUOUS: reorder immediately when position < target"
+              helperText="Periodic: review every period; Continuous: reorder immediately when position < target"
             >
-              <MenuItem value="PERIODIC">PERIODIC</MenuItem>
-              <MenuItem value="CONTINUOUS">CONTINUOUS</MenuItem>
+              <MenuItem value="PERIODIC">{formatLabel("PERIODIC")}</MenuItem>
+              <MenuItem value="CONTINUOUS">
+                {formatLabel("CONTINUOUS")}
+              </MenuItem>
             </TextField>
           </Grid>
           {simulationConfig["inventoryControlType"] === "PERIODIC" && (

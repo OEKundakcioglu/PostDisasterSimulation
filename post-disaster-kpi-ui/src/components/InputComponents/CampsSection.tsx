@@ -12,6 +12,14 @@ import {
 } from "@mui/material";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 import DeleteIcon from "@mui/icons-material/Delete";
+
+// Helper function to convert uppercase macros to readable format
+const formatLabel = (value: string): string => {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
 interface CampDemand {
   item: string;
   demandTimingType: string;
@@ -240,9 +248,11 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                         )
                       }
                     >
-                      <MenuItem value="FULLY">FULLY</MenuItem>
-                      <MenuItem value="THRESHOLD">THRESHOLD</MenuItem>
-                      <MenuItem value="NONE">NONE</MenuItem>
+                      <MenuItem value="FULLY">{formatLabel("FULLY")}</MenuItem>
+                      <MenuItem value="THRESHOLD">
+                        {formatLabel("THRESHOLD")}
+                      </MenuItem>
+                      <MenuItem value="NONE">{formatLabel("NONE")}</MenuItem>
                     </TextField>
                   </Grid>
 
@@ -282,10 +292,14 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                         )
                       }
                     >
-                      <MenuItem value="REGULAR">REGULAR</MenuItem>
-                      <MenuItem value="PRIORITIZED">PRIORITIZED</MenuItem>
+                      <MenuItem value="REGULAR">
+                        {formatLabel("REGULAR")}
+                      </MenuItem>
+                      <MenuItem value="PRIORITIZED">
+                        {formatLabel("PRIORITIZED")}
+                      </MenuItem>
                       <MenuItem value="DISADVANTAGEOUS">
-                        DISADVANTAGEOUS
+                        {formatLabel("DISADVANTAGEOUS")}
                       </MenuItem>
                     </TextField>
                   </Grid>
@@ -383,13 +397,25 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                         setCamps(newCamps);
                       }}
                     >
-                      <MenuItem value="BERNOULLI">BERNOULLI</MenuItem>
-                      <MenuItem value="EXPONENTIAL">EXPONENTIAL</MenuItem>
-                      <MenuItem value="NORMAL">NORMAL</MenuItem>
-                      <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                      <MenuItem value="TRIANGULAR">TRIANGULAR</MenuItem>
-                      <MenuItem value="FIXED">FIXED</MenuItem>
-                      <MenuItem value="EQUAL_SHARE">EQUAL SHARE</MenuItem>
+                      <MenuItem value="BERNOULLI">
+                        {formatLabel("BERNOULLI")}
+                      </MenuItem>
+                      <MenuItem value="EXPONENTIAL">
+                        {formatLabel("EXPONENTIAL")}
+                      </MenuItem>
+                      <MenuItem value="NORMAL">
+                        {formatLabel("NORMAL")}
+                      </MenuItem>
+                      <MenuItem value="UNIFORM">
+                        {formatLabel("UNIFORM")}
+                      </MenuItem>
+                      <MenuItem value="TRIANGULAR">
+                        {formatLabel("TRIANGULAR")}
+                      </MenuItem>
+                      <MenuItem value="FIXED">{formatLabel("FIXED")}</MenuItem>
+                      <MenuItem value="EQUAL_SHARE">
+                        {formatLabel("EQUAL_SHARE")}
+                      </MenuItem>
                     </TextField>
                   </Grid>
 
@@ -712,9 +738,15 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                                 setCamps(newCamps);
                               }}
                             >
-                              <MenuItem value="ONETIME">ONETIME</MenuItem>
-                              <MenuItem value="SPORADIC">SPORADIC</MenuItem>
-                              <MenuItem value="PERIODIC">PERIODIC</MenuItem>
+                              <MenuItem value="ONETIME">
+                                {formatLabel("ONETIME")}
+                              </MenuItem>
+                              <MenuItem value="SPORADIC">
+                                {formatLabel("SPORADIC")}
+                              </MenuItem>
+                              <MenuItem value="PERIODIC">
+                                {formatLabel("PERIODIC")}
+                              </MenuItem>
                             </TextField>
                           </Grid>
 
@@ -733,8 +765,12 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                                 setCamps(newCamps);
                               }}
                             >
-                              <MenuItem value="SINGLE">SINGLE</MenuItem>
-                              <MenuItem value="BATCH">BATCH</MenuItem>
+                              <MenuItem value="SINGLE">
+                                {formatLabel("SINGLE")}
+                              </MenuItem>
+                              <MenuItem value="BATCH">
+                                {formatLabel("BATCH")}
+                              </MenuItem>
                             </TextField>
                           </Grid>
                         </Grid>
@@ -811,16 +847,26 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                                 setCamps(newCamps);
                               }}
                             >
-                              <MenuItem value="BERNOULLI">BERNOULLI</MenuItem>
-                              <MenuItem value="EXPONENTIAL">
-                                EXPONENTIAL
+                              <MenuItem value="BERNOULLI">
+                                {formatLabel("BERNOULLI")}
                               </MenuItem>
-                              <MenuItem value="NORMAL">NORMAL</MenuItem>
-                              <MenuItem value="UNIFORM">UNIFORM</MenuItem>
-                              <MenuItem value="TRIANGULAR">TRIANGULAR</MenuItem>
-                              <MenuItem value="FIXED">FIXED</MenuItem>
+                              <MenuItem value="EXPONENTIAL">
+                                {formatLabel("EXPONENTIAL")}
+                              </MenuItem>
+                              <MenuItem value="NORMAL">
+                                {formatLabel("NORMAL")}
+                              </MenuItem>
+                              <MenuItem value="UNIFORM">
+                                {formatLabel("UNIFORM")}
+                              </MenuItem>
+                              <MenuItem value="TRIANGULAR">
+                                {formatLabel("TRIANGULAR")}
+                              </MenuItem>
+                              <MenuItem value="FIXED">
+                                {formatLabel("FIXED")}
+                              </MenuItem>
                               <MenuItem value="EQUAL_SHARE">
-                                EQUAL SHARE
+                                {formatLabel("EQUAL_SHARE")}
                               </MenuItem>
                             </TextField>
                           </Grid>
