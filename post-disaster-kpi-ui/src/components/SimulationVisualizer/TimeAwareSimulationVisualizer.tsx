@@ -534,7 +534,7 @@ const TimeAwareSimulationVisualizer: React.FC<
                 </RankBox>
               </Paper>
 
-              {/* Camp Population Pie Charts */}
+              {/* Camp Population Bar Chart */}
               <Paper sx={{ p: 2 }}>
                 <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
                   Camp Populations
@@ -547,7 +547,7 @@ const TimeAwareSimulationVisualizer: React.FC<
                         width: 12,
                         height: 12,
                         bgcolor: "#FF9800",
-                        borderRadius: "50%",
+                        borderRadius: "2px",
                       }}
                     />
                     <Typography variant="caption" sx={{ fontSize: "0.75rem" }}>
@@ -560,7 +560,7 @@ const TimeAwareSimulationVisualizer: React.FC<
                         width: 12,
                         height: 12,
                         bgcolor: "#2196F3",
-                        borderRadius: "50%",
+                        borderRadius: "2px",
                       }}
                     />
                     <Typography variant="caption" sx={{ fontSize: "0.75rem" }}>
@@ -605,173 +605,84 @@ const TimeAwareSimulationVisualizer: React.FC<
                     );
                   }
 
-                  const populations = Object.values(campPopulations).map(
-                    (pop) => pop.internal + pop.external
-                  );
-                  populations.sort((a, b) => b - a);
+                  // Sort camps by total population (descending) and take top 10
+                  const sortedCamps = Object.entries(campPopulations)
+                    .sort(
+                      ([, a], [, b]) =>
+                        b.internal + b.external - (a.internal + a.external)
+                    )
+                    .slice(0, 10);
 
-                  const maxPopulation =
-                    populations.length > 3
-                      ? populations[Math.floor(populations.length * 0.2)]
-                      : Math.max(...populations);
+                  const campNames = sortedCamps.map(([camp]) => camp);
+                  const internalPops = sortedCamps.map(
+                    ([, pop]) => pop.internal
+                  );
+                  const externalPops = sortedCamps.map(
+                    ([, pop]) => pop.external
+                  );
 
                   return (
-                    <Stack spacing={1.5}>
-                      {Object.entries(campPopulations)
-                        .sort(
-                          ([, a], [, b]) =>
-                            b.internal + b.external - (a.internal + a.external)
-                        )
-                        .slice(0, 6)
-                        .map(([camp, pop]) => {
-                          const total = pop.internal + pop.external;
-                          const internalRate =
-                            total > 0 ? pop.internal / total : 0;
-                          const externalRate =
-                            total > 0 ? pop.external / total : 0;
-
-                          const minSize = 35;
-                          const maxSize = 70;
-                          const sizeRatio = Math.min(
-                            total / maxPopulation,
-                            1.5
-                          );
-                          const pieSize = Math.min(
-                            maxSize,
-                            Math.max(
-                              minSize,
-                              minSize + (maxSize - minSize) * sizeRatio
-                            )
-                          );
-
-                          const isExtremelyLarge = total > maxPopulation * 1.2;
-
-                          return (
-                            <Box
-                              key={camp}
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1.5,
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  width: pieSize,
-                                  height: pieSize,
-                                  minWidth: pieSize,
-                                  border: isExtremelyLarge
-                                    ? "2px solid #FF5722"
-                                    : "none",
-                                  borderRadius: "50%",
-                                  p: isExtremelyLarge ? "2px" : 0,
-                                }}
-                              >
-                                <Plot
-                                  data={[
-                                    {
-                                      values: [pop.internal, pop.external],
-                                      labels: ["Internal", "External"],
-                                      type: "pie",
-                                      marker: {
-                                        colors: ["#FF9800", "#2196F3"],
-                                      },
-                                      textinfo: "none",
-                                      hovertemplate:
-                                        "%{label}<br>%{value:,}<br>%{percent}<extra></extra>",
-                                      showlegend: false,
-                                    },
-                                  ]}
-                                  layout={{
-                                    width: pieSize,
-                                    height: pieSize,
-                                    margin: { t: 0, l: 0, r: 0, b: 0 },
-                                    paper_bgcolor: "transparent",
-                                    plot_bgcolor: "transparent",
-                                  }}
-                                  config={{
-                                    responsive: false,
-                                    displayModeBar: false,
-                                  }}
-                                  style={{ width: pieSize, height: pieSize }}
-                                />
-                              </Box>
-
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                  }}
-                                >
-                                  <Typography
-                                    variant="body2"
-                                    sx={{ fontWeight: 600, fontSize: "0.9rem" }}
-                                  >
-                                    {camp}
-                                  </Typography>
-                                  {isExtremelyLarge && (
-                                    <Typography
-                                      variant="caption"
-                                      sx={{
-                                        color: "#FF5722",
-                                        fontWeight: 700,
-                                        fontSize: "0.7rem",
-                                      }}
-                                    >
-                                      ●●●
-                                    </Typography>
-                                  )}
-                                </Box>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ display: "block" }}
-                                >
-                                  {total.toLocaleString()} total
-                                  {isExtremelyLarge && (
-                                    <span
-                                      style={{
-                                        color: "#FF5722",
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      {" "}
-                                      (HIGH)
-                                    </span>
-                                  )}
-                                </Typography>
-                                <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
-                                  <Typography
-                                    variant="caption"
-                                    sx={{ color: "#FF9800" }}
-                                  >
-                                    {Math.round(internalRate * 100)}% int.
-                                  </Typography>
-                                  <Typography
-                                    variant="caption"
-                                    sx={{ color: "#2196F3" }}
-                                  >
-                                    {Math.round(externalRate * 100)}% ext.
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            </Box>
-                          );
-                        })}
-
-                      {Object.keys(campPopulations).length > 6 && (
+                    <Box>
+                      <Plot
+                        data={[
+                          {
+                            y: campNames,
+                            x: internalPops,
+                            type: "bar",
+                            orientation: "h",
+                            name: "Internal",
+                            marker: {
+                              color: "#FF9800",
+                            },
+                            hovertemplate:
+                              "%{y}<br>Internal: %{x:,}<extra></extra>",
+                          },
+                          {
+                            y: campNames,
+                            x: externalPops,
+                            type: "bar",
+                            orientation: "h",
+                            name: "External",
+                            marker: {
+                              color: "#2196F3",
+                            },
+                            hovertemplate:
+                              "%{y}<br>External: %{x:,}<extra></extra>",
+                          },
+                        ]}
+                        layout={{
+                          height: Math.max(300, campNames.length * 40),
+                          margin: { t: 10, l: 120, r: 20, b: 40 },
+                          barmode: "stack",
+                          xaxis: {
+                            title: { text: "Population" },
+                            gridcolor: "#f0f0f0",
+                          },
+                          yaxis: {
+                            automargin: true,
+                          },
+                          paper_bgcolor: "white",
+                          plot_bgcolor: "white",
+                          showlegend: false,
+                        }}
+                        config={{
+                          responsive: true,
+                          displayModeBar: false,
+                        }}
+                        useResizeHandler
+                        style={{ width: "100%" }}
+                      />
+                      {Object.keys(campPopulations).length > 10 && (
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{ textAlign: "center", pt: 1 }}
+                          sx={{ textAlign: "center", pt: 1, display: "block" }}
                         >
-                          +{Object.keys(campPopulations).length - 6} more
+                          +{Object.keys(campPopulations).length - 10} more
                           camps...
                         </Typography>
                       )}
-                    </Stack>
+                    </Box>
                   );
                 })()}
               </Paper>
