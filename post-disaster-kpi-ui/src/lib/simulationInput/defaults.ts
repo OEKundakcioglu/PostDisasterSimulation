@@ -27,8 +27,6 @@ export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
   seedReplenishmentTime: "0",
   seedTransferTime: "0",
   seedTransshipmentTime: "0",
-  inventoryControlType: "PERIODIC",
-  inventoryControlPeriod: "5",
   planningHorizon: "1080",
   reportEvents: false,
   reportKPIs: true,
@@ -42,6 +40,8 @@ export const DEFAULT_CAMPS: Camp[] = [];
 export const DEFAULT_AGENCIES: Agency[] = [];
 export const DEFAULT_MIGRATIONS: Migration[] = [];
 export const DEFAULT_INVENTORY_POLICY: InventoryPolicy = {
+  policyType: "ORDER_UP_TO",
+  inventoryControlPeriod: "5",
   bufferRatios: {},
   centralBufferRatios: {},
   periodicCounts: {},

@@ -13,8 +13,6 @@ export interface SimulationConfig {
   seedReplenishmentTime: string;
   seedTransferTime: string;
   seedTransshipmentTime: string;
-  inventoryControlType: "PERIODIC" | "CONTINUOUS";
-  inventoryControlPeriod: string;
   planningHorizon: string;
   reportEvents: boolean;
   reportKPIs: boolean;
@@ -107,12 +105,26 @@ export interface Migration {
   migrationRatio: number;
 }
 
-export interface InventoryPolicy {
+export type InventoryPolicyType = "ORDER_UP_TO" | "TARGET_LEVEL";
+
+export interface OrderUpToPolicy {
+  policyType: "ORDER_UP_TO";
+  inventoryControlPeriod: string;
   bufferRatios: Record<string, Record<string, string>>;
   centralBufferRatios: Record<string, string>;
   periodicCounts: Record<string, Record<string, string>>;
   centralPeriodicCounts: Record<string, string>;
 }
+
+export interface TargetLevelPolicy {
+  policyType: "TARGET_LEVEL";
+  inventoryControlPeriod: string;
+  targetLevels: Record<string, Record<string, string>>;
+  centralTargetLevels: Record<string, string>;
+  threshold: string;
+}
+
+export type InventoryPolicy = OrderUpToPolicy | TargetLevelPolicy;
 
 export interface InitialState {
   availableFunds: string;

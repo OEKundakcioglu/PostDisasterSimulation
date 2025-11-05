@@ -47,10 +47,7 @@ const SimulationConfigSection: React.FC<Props> = ({
             [name]: value,
           }));
         }
-      } else if (
-        name === "inventoryControlPeriod" ||
-        name === "planningHorizon"
-      ) {
+      } else if (name === "planningHorizon") {
         // For periods, only allow positive integers
         if (value === "" || /^\d*$/.test(value)) {
           setSimulationConfig((prev) => ({
@@ -125,15 +122,8 @@ const SimulationConfigSection: React.FC<Props> = ({
       return;
     }
 
-    // inventoryControlType gets its own explicit UI block (added below)
-    if (key === "inventoryControlType") return;
-
-    // Special case for inventory control period - move to inventory settings
-    if (
-      key === "inventoryControlPeriod" ||
-      key === "campBuffer" ||
-      key === "centralBuffer"
-    ) {
+    // Special case for buffer settings
+    if (key === "campBuffer" || key === "centralBuffer") {
       groupedConfig["Inventory Settings"].push(key);
     }
     // Group all seed parameters together
@@ -166,8 +156,6 @@ const SimulationConfigSection: React.FC<Props> = ({
   // Custom labels for specific fields
   const getCustomLabel = (key: string) => {
     switch (key) {
-      case "inventoryControlPeriod":
-        return "Inventory Control Period (days)";
       case "planningHorizon":
         return "Planning Horizon (days)";
       default:
@@ -180,7 +168,6 @@ const SimulationConfigSection: React.FC<Props> = ({
     // Fields that should be numbers
     return (
       key.toLowerCase().includes("seed") ||
-      key === "inventoryControlPeriod" ||
       key === "planningHorizon" ||
       key === "campBuffer" ||
       key === "centralBuffer" ||
@@ -197,54 +184,6 @@ const SimulationConfigSection: React.FC<Props> = ({
 
   return (
     <>
-      {/* Inventory Control Type explicit selector */}
-      <NestedCollapsibleSection title="Inventory Control" level="secondary">
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              select
-              fullWidth
-              name="inventoryControlType"
-              label="Inventory Control Type"
-              value={
-                (simulationConfig["inventoryControlType"] as string) ||
-                "PERIODIC"
-              }
-              onChange={(e) =>
-                setSimulationConfig((prev) => ({
-                  ...prev,
-                  inventoryControlType: e.target.value,
-                }))
-              }
-              helperText="Periodic: review every period; Continuous: reorder immediately when position < target"
-            >
-              <MenuItem value="PERIODIC">{formatLabel("PERIODIC")}</MenuItem>
-              <MenuItem value="CONTINUOUS">
-                {formatLabel("CONTINUOUS")}
-              </MenuItem>
-            </TextField>
-          </Grid>
-          {simulationConfig["inventoryControlType"] === "PERIODIC" && (
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                name="inventoryControlPeriod"
-                label={getCustomLabel("inventoryControlPeriod")}
-                type="number"
-                inputProps={{ min: 0, step: 1, inputMode: "numeric" }}
-                value={simulationConfig["inventoryControlPeriod"] as string}
-                onChange={(e) =>
-                  handleChange(
-                    e as unknown as React.ChangeEvent<HTMLInputElement>
-                  )
-                }
-                onKeyDown={handleNumericKeyDown}
-              />
-            </Grid>
-          )}
-        </Grid>
-      </NestedCollapsibleSection>
-
       {Object.entries(groupedConfig).map(([category, keys]) =>
         keys.length > 0 ? (
           <NestedCollapsibleSection

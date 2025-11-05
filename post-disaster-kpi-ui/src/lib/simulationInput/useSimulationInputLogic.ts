@@ -283,43 +283,61 @@ export const useSimulationInputLogic = () => {
         items.map((i: Item) => i.name).filter(Boolean)
       );
 
-      // Clean up bufferRatios: remove stale camps/items, add missing ones
-      const newBufferRatios: Record<string, Record<string, string>> = {};
-      validCampNames.forEach((campName) => {
-        newBufferRatios[campName] = {};
-        validItemNames.forEach((itemName) => {
-          newBufferRatios[campName][itemName] =
-            next.bufferRatios[campName]?.[itemName] ?? "0";
+      if (next.policyType === "ORDER_UP_TO") {
+        const newBufferRatios: Record<string, Record<string, string>> = {};
+        validCampNames.forEach((campName) => {
+          newBufferRatios[campName] = {};
+          validItemNames.forEach((itemName) => {
+            newBufferRatios[campName][itemName] =
+              next.bufferRatios[campName]?.[itemName] ?? "0";
+          });
         });
-      });
-      next.bufferRatios = newBufferRatios;
+        next.bufferRatios = newBufferRatios;
 
-      // Clean up periodicCounts: remove stale camps/items, add missing ones
-      const newPeriodicCounts: Record<string, Record<string, string>> = {};
-      validCampNames.forEach((campName) => {
-        newPeriodicCounts[campName] = {};
-        validItemNames.forEach((itemName) => {
-          newPeriodicCounts[campName][itemName] =
-            next.periodicCounts[campName]?.[itemName] ?? "0";
+        // Clean up periodicCounts: remove stale camps/items, add missing ones
+        const newPeriodicCounts: Record<string, Record<string, string>> = {};
+        validCampNames.forEach((campName) => {
+          newPeriodicCounts[campName] = {};
+          validItemNames.forEach((itemName) => {
+            newPeriodicCounts[campName][itemName] =
+              next.periodicCounts[campName]?.[itemName] ?? "0";
+          });
         });
-      });
-      next.periodicCounts = newPeriodicCounts;
+        next.periodicCounts = newPeriodicCounts;
 
-      // Clean up centralBufferRatios: remove stale items, add missing ones
-      const newCentralBufferRatios: Record<string, string> = {};
-      validItemNames.forEach((itemName) => {
-        newCentralBufferRatios[itemName] =
-          next.centralBufferRatios[itemName] ?? "0";
-      });
-      next.centralBufferRatios = newCentralBufferRatios;
+        // Clean up centralBufferRatios: remove stale items, add missing ones
+        const newCentralBufferRatios: Record<string, string> = {};
+        validItemNames.forEach((itemName) => {
+          newCentralBufferRatios[itemName] =
+            next.centralBufferRatios[itemName] ?? "0";
+        });
+        next.centralBufferRatios = newCentralBufferRatios;
 
-      // Clean up centralPeriodicCounts: remove stale items, add missing ones
-      const newCentralPeriodicCounts: Record<string, string> = {};
-      validItemNames.forEach((itemName) => {
-        newCentralPeriodicCounts[itemName] =
-          next.centralPeriodicCounts[itemName] ?? "0";
-      });
-      next.centralPeriodicCounts = newCentralPeriodicCounts;
+        // Clean up centralPeriodicCounts: remove stale items, add missing ones
+        const newCentralPeriodicCounts: Record<string, string> = {};
+        validItemNames.forEach((itemName) => {
+          newCentralPeriodicCounts[itemName] =
+            next.centralPeriodicCounts[itemName] ?? "0";
+        });
+        next.centralPeriodicCounts = newCentralPeriodicCounts;
+      } else if (next.policyType === "TARGET_LEVEL") {
+        const newTargetLevels: Record<string, Record<string, string>> = {};
+        validCampNames.forEach((campName) => {
+          newTargetLevels[campName] = {};
+          validItemNames.forEach((itemName) => {
+            newTargetLevels[campName][itemName] =
+              next.targetLevels[campName]?.[itemName] ?? "0";
+          });
+        });
+        next.targetLevels = newTargetLevels;
+
+        const newCentralTargetLevels: Record<string, string> = {};
+        validItemNames.forEach((itemName) => {
+          newCentralTargetLevels[itemName] =
+            next.centralTargetLevels[itemName] ?? "0";
+        });
+        next.centralTargetLevels = newCentralTargetLevels;
+      }
 
       return next;
     });
@@ -652,40 +670,84 @@ export const useSimulationInputLogic = () => {
       });
 
       // Inventory Policy completeness
-      camps.forEach((c: Camp) =>
+      if (inventoryPolicy.policyType === "ORDER_UP_TO") {
+        if (
+          !inventoryPolicy.inventoryControlPeriod ||
+          isNaN(Number(inventoryPolicy.inventoryControlPeriod)) ||
+          Number(inventoryPolicy.inventoryControlPeriod) <= 0
+        )
+          issues.push("Order Up To Policy: Inventory control period invalid");
+
+        camps.forEach((c: Camp) =>
+          items.forEach((it: Item) => {
+            const br = inventoryPolicy.bufferRatios?.[c.name]?.[it.name];
+            const pc = inventoryPolicy.periodicCounts?.[c.name]?.[it.name];
+            if (br === undefined)
+              issues.push(
+                `Inventory policy bufferRatio missing for ${c.name}/${it.name}`
+              );
+            else if (isNaN(Number(br)) || Number(br) < 0)
+              issues.push(
+                `Inventory policy bufferRatio invalid for ${c.name}/${it.name}`
+              );
+            if (pc === undefined)
+              issues.push(
+                `Inventory policy periodicCount missing for ${c.name}/${it.name}`
+              );
+            else if (!/^\d+$/.test(String(pc)) || Number(pc) < 0)
+              issues.push(
+                `Inventory policy periodicCount invalid for ${c.name}/${it.name}`
+              );
+          })
+        );
         items.forEach((it: Item) => {
-          const br = inventoryPolicy.bufferRatios?.[c.name]?.[it.name];
-          const pc = inventoryPolicy.periodicCounts?.[c.name]?.[it.name];
-          if (br === undefined)
-            issues.push(
-              `Inventory policy bufferRatio missing for ${c.name}/${it.name}`
-            );
-          else if (isNaN(Number(br)) || Number(br) < 0)
-            issues.push(
-              `Inventory policy bufferRatio invalid for ${c.name}/${it.name}`
-            );
-          if (pc === undefined)
-            issues.push(
-              `Inventory policy periodicCount missing for ${c.name}/${it.name}`
-            );
-          else if (!/^\d+$/.test(String(pc)) || Number(pc) < 0)
-            issues.push(
-              `Inventory policy periodicCount invalid for ${c.name}/${it.name}`
-            );
-        })
-      );
-      items.forEach((it: Item) => {
-        const cbr = inventoryPolicy.centralBufferRatios?.[it.name];
-        const cpc = inventoryPolicy.centralPeriodicCounts?.[it.name];
-        if (cbr === undefined)
-          issues.push(`Central bufferRatio missing for ${it.name}`);
-        else if (isNaN(Number(cbr)) || Number(cbr) < 0)
-          issues.push(`Central bufferRatio invalid for ${it.name}`);
-        if (cpc === undefined)
-          issues.push(`Central periodicCount missing for ${it.name}`);
-        else if (!/^\d+$/.test(String(cpc)) || Number(cpc) < 0)
-          issues.push(`Central periodicCount invalid for ${it.name}`);
-      });
+          const cbr = inventoryPolicy.centralBufferRatios?.[it.name];
+          const cpc = inventoryPolicy.centralPeriodicCounts?.[it.name];
+          if (cbr === undefined)
+            issues.push(`Central bufferRatio missing for ${it.name}`);
+          else if (isNaN(Number(cbr)) || Number(cbr) < 0)
+            issues.push(`Central bufferRatio invalid for ${it.name}`);
+          if (cpc === undefined)
+            issues.push(`Central periodicCount missing for ${it.name}`);
+          else if (!/^\d+$/.test(String(cpc)) || Number(cpc) < 0)
+            issues.push(`Central periodicCount invalid for ${it.name}`);
+        });
+      } else if (inventoryPolicy.policyType === "TARGET_LEVEL") {
+        if (
+          !inventoryPolicy.inventoryControlPeriod ||
+          isNaN(Number(inventoryPolicy.inventoryControlPeriod)) ||
+          Number(inventoryPolicy.inventoryControlPeriod) <= 0
+        )
+          issues.push("Target Level Policy: Inventory control period invalid");
+
+        const threshold = inventoryPolicy.threshold;
+        if (threshold === undefined || threshold === "")
+          issues.push("Target Level Policy threshold is missing");
+        else if (
+          isNaN(Number(threshold)) ||
+          Number(threshold) < 0 ||
+          Number(threshold) > 1
+        )
+          issues.push("Target Level Policy threshold must be between 0 and 1");
+
+        camps.forEach((c: Camp) =>
+          items.forEach((it: Item) => {
+            const tl = inventoryPolicy.targetLevels?.[c.name]?.[it.name];
+            if (tl === undefined)
+              issues.push(`Target level missing for ${c.name}/${it.name}`);
+            else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0)
+              issues.push(`Target level invalid for ${c.name}/${it.name}`);
+          })
+        );
+
+        items.forEach((it: Item) => {
+          const ctl = inventoryPolicy.centralTargetLevels?.[it.name];
+          if (ctl === undefined)
+            issues.push(`Central target level missing for ${it.name}`);
+          else if (!/^\d+$/.test(String(ctl)) || Number(ctl) < 0)
+            issues.push(`Central target level invalid for ${it.name}`);
+        });
+      }
 
       // Initial State
       if (
@@ -708,12 +770,6 @@ export const useSimulationInputLogic = () => {
         Number(simulationConfig.planningHorizon) <= 0
       )
         issues.push("Planning horizon invalid");
-      if (
-        !simulationConfig.inventoryControlPeriod ||
-        isNaN(Number(simulationConfig.inventoryControlPeriod)) ||
-        Number(simulationConfig.inventoryControlPeriod) <= 0
-      )
-        issues.push("Inventory control period invalid");
 
       return issues;
     },

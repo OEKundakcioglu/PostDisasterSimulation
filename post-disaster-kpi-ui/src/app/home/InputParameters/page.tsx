@@ -105,9 +105,6 @@ const InputParameters = () => {
             items={items}
             campBuffer={String(simulationConfig.campBuffer)}
             centralBuffer={String(simulationConfig.centralBuffer)}
-            inventoryControlPeriod={String(
-              simulationConfig.inventoryControlPeriod
-            )}
           />
         </CollapsibleSection>
         <CollapsibleSection title="Initial State">

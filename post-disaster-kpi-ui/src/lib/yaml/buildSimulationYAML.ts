@@ -34,7 +34,6 @@ interface MigrationWithOptionalQuantity extends Migration {
 
 // Integer-like keys (kept string in UI but numeric in YAML)
 const INT_KEYS = new Set<string>([
-  "inventoryControlPeriod",
   "planningHorizon",
   "initialInternalPopulation",
   "initialExternalPopulation",
@@ -51,7 +50,6 @@ const DIST_TAG: Record<string, string> = {
 };
 
 const ANCHORED_FIELDS: Record<string, string> = {
-  inventoryControlPeriod: "&period",
   campBuffer: "&campBuffer",
   centralBuffer: "&centralBuffer",
 };
@@ -89,11 +87,17 @@ export function buildSimulationYAML(data: SimulationInputDTO): string {
 
 // ------------------ Builders ------------------
 function buildSimulationConfig(cfg: Record<string, unknown>): string {
-  return (
-    Object.entries(cfg)
-      .map(([k, v]) => `  ${k}: ${formatValue(k, v, ANCHORED_FIELDS[k])}`)
-      .join("\n") + "\n"
+  const filtered = Object.entries(cfg).filter(
+    ([k]) => k !== "inventoryControlType" && k !== "inventoryControlPeriod"
   );
+
+  const lines = ["  inventoryControlType: PERIODIC"];
+
+  filtered.forEach(([k, v]) => {
+    lines.push(`  ${k}: ${formatValue(k, v, ANCHORED_FIELDS[k])}`);
+  });
+
+  return lines.join("\n") + "\n";
 }
 
 function buildItems(data: SimulationInputDTO, a: AnchorMaps): string {
@@ -376,8 +380,30 @@ function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
 }
 
 function buildInventoryPolicy(data: SimulationInputDTO, a: AnchorMaps): string {
-  const ip = data.inventoryPolicy || ({} as InventoryPolicy);
+  const ip = data.inventoryPolicy;
+  if (!ip) {
+    return buildOrderUpToPolicy(data, a, {} as any);
+  }
+
+  if (ip.policyType === "ORDER_UP_TO") {
+    return buildOrderUpToPolicy(data, a, ip);
+  } else if (ip.policyType === "TARGET_LEVEL") {
+    return buildTargetLevelPolicy(data, a, ip);
+  }
+
+  return buildOrderUpToPolicy(data, a, {} as any);
+}
+
+function buildOrderUpToPolicy(
+  data: SimulationInputDTO,
+  a: AnchorMaps,
+  ip: any
+): string {
   let out = "inventoryPolicy: !!simulation.decision.OrderUpToPolicy\n";
+
+  const period = ip.inventoryControlPeriod || "5";
+  out += `  inventoryControlPeriod: &period ${period}\n`;
+
   out += "  bufferRatios:\n";
   data.camps.forEach((c) => {
     if (!c.name) return;
@@ -415,6 +441,39 @@ function buildInventoryPolicy(data: SimulationInputDTO, a: AnchorMaps): string {
     const iA = a.item.get(i.name);
     const v = ip.centralPeriodicCounts?.[i.name] ?? "*period";
     out += `    *${iA}: ${v}\n`;
+  });
+  return out;
+}
+
+function buildTargetLevelPolicy(
+  data: SimulationInputDTO,
+  a: AnchorMaps,
+  ip: any
+): string {
+  let out = "inventoryPolicy: !!simulation.decision.TargetLevelPolicy\n";
+
+  const period = ip.inventoryControlPeriod || "5";
+  out += `  inventoryControlPeriod: ${period}\n`;
+
+  out += `  threshold: ${formatNumber(ip.threshold)}\n`;
+  out += "  targetLevels:\n";
+  data.camps.forEach((c) => {
+    if (!c.name) return;
+    const cA = a.camp.get(c.name);
+    out += `    *${cA}:\n`;
+    data.items.forEach((i) => {
+      if (!i.name) return;
+      const iA = a.item.get(i.name);
+      const v = ip.targetLevels?.[c.name]?.[i.name] ?? "0";
+      out += `      *${iA}: ${formatInt(v)}\n`;
+    });
+  });
+  out += "  centralTargetLevels:\n";
+  data.items.forEach((i) => {
+    if (!i.name) return;
+    const iA = a.item.get(i.name);
+    const v = ip.centralTargetLevels?.[i.name] ?? "0";
+    out += `    *${iA}: ${formatInt(v)}\n`;
   });
   return out;
 }

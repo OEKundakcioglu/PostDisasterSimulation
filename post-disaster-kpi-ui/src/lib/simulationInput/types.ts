@@ -57,12 +57,26 @@ export interface Migration {
   migrationRatio: number;
 }
 
-export interface InventoryPolicy {
+export type InventoryPolicyType = "ORDER_UP_TO" | "TARGET_LEVEL";
+
+export interface OrderUpToPolicy {
+  policyType: "ORDER_UP_TO";
+  inventoryControlPeriod: string;
   bufferRatios: { [campName: string]: { [itemName: string]: string } };
   centralBufferRatios: { [itemName: string]: string };
   periodicCounts: { [campName: string]: { [itemName: string]: string } };
   centralPeriodicCounts: { [itemName: string]: string };
 }
+
+export interface TargetLevelPolicy {
+  policyType: "TARGET_LEVEL";
+  inventoryControlPeriod: string;
+  targetLevels: { [campName: string]: { [itemName: string]: string } };
+  centralTargetLevels: { [itemName: string]: string };
+  threshold: string; // decimal between 0 and 1
+}
+
+export type InventoryPolicy = OrderUpToPolicy | TargetLevelPolicy;
 
 export interface InitialState {
   availableFunds: string;
