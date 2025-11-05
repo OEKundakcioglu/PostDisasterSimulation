@@ -56,13 +56,15 @@ const InventoryPoliciesSection: React.FC<Props> = ({
         newPolicy.periodicCounts[camp.name] = {};
         items.forEach((item) => {
           newPolicy.bufferRatios[camp.name][item.name] = campBuffer;
-          newPolicy.periodicCounts[camp.name][item.name] = newPolicy.inventoryControlPeriod;
+          newPolicy.periodicCounts[camp.name][item.name] =
+            newPolicy.inventoryControlPeriod;
         });
       });
 
       items.forEach((item) => {
         newPolicy.centralBufferRatios[item.name] = centralBuffer;
-        newPolicy.centralPeriodicCounts[item.name] = newPolicy.inventoryControlPeriod;
+        newPolicy.centralPeriodicCounts[item.name] =
+          newPolicy.inventoryControlPeriod;
       });
 
       setInventoryPolicy(newPolicy);
