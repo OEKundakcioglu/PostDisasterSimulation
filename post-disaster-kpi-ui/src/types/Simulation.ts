@@ -116,10 +116,17 @@ export interface OrderUpToPolicy {
   centralPeriodicCounts: Record<string, string>;
 }
 
+export type TargetLevelValue =
+  | string
+  | {
+      internal: string;
+      external: string;
+    };
+
 export interface TargetLevelPolicy {
   policyType: "TARGET_LEVEL";
   inventoryControlPeriod: string;
-  targetLevels: Record<string, Record<string, string>>;
+  targetLevels: Record<string, Record<string, TargetLevelValue>>;
   centralTargetLevels: Record<string, string>;
   threshold: string;
 }
@@ -133,4 +140,25 @@ export interface InitialState {
   earmarkedFunds: Record<string, string>;
   initialEarmarkedInKind: Record<string, Record<string, string>>;
   isItemAvailable: Record<string, boolean>;
+}
+
+export interface DistributionParameters {
+  min?: string;
+  mode?: string;
+  max?: string;
+  mean?: string;
+  stdDev?: string;
+  arrivalInterval?: string;
+  initialArrival?: boolean;
+}
+
+export interface DistributionBlock {
+  distributionType: string;
+  distParameters: DistributionParameters;
+}
+
+export interface SupplyDisruption {
+  item: string;
+  disruptionArrivalData: DistributionBlock;
+  recoveryArrivalData: DistributionBlock;
 }

@@ -7,9 +7,6 @@ interface InitialState {
   initialInventory: { [campName: string]: { [itemName: string]: string } };
   initialCentralWarehouseInventory: { [itemName: string]: string };
   earmarkedFunds: { [campName: string]: string };
-  initialEarmarkedInKind: {
-    [campName: string]: { [itemName: string]: string };
-  };
   isItemAvailable: { [itemName: string]: boolean };
 }
 
@@ -84,26 +81,6 @@ const InitialStateSection: React.FC<Props> = ({
       setInitialState((prev) => ({
         ...prev,
         earmarkedFunds: newEarmarkedFunds,
-      }));
-    }
-  };
-
-  const handleInitialEarmarkedInKindChange = (
-    campName: string,
-    itemName: string,
-    value: string
-  ) => {
-    if (value === "" || /^\d*$/.test(value)) {
-      const newInitialEarmarkedInKind = {
-        ...initialState.initialEarmarkedInKind,
-      };
-      if (!newInitialEarmarkedInKind[campName]) {
-        newInitialEarmarkedInKind[campName] = {};
-      }
-      newInitialEarmarkedInKind[campName][itemName] = value;
-      setInitialState((prev) => ({
-        ...prev,
-        initialEarmarkedInKind: newInitialEarmarkedInKind,
       }));
     }
   };
@@ -223,51 +200,6 @@ const InitialStateSection: React.FC<Props> = ({
             </Grid>
           ))}
         </Grid>
-      </NestedCollapsibleSection>
-
-      {/* Initial Earmarked In-Kind */}
-      <NestedCollapsibleSection
-        title="Initial Earmarked In-Kind"
-        level="secondary"
-      >
-        {camps.map((camp) => (
-          <NestedCollapsibleSection
-            key={`in-kind-${camp.name}`}
-            title={`Camp: ${camp.name}`}
-            level="tertiary"
-          >
-            <Grid container spacing={2}>
-              {items.map((item) => (
-                <Grid
-                  item
-                  xs={12}
-                  sm={6}
-                  md={4}
-                  key={`${camp.name}-${item.name}-in-kind`}
-                >
-                  <TextField
-                    fullWidth
-                    label={`${item.name} In-Kind`}
-                    type="number"
-                    inputProps={{ step: 1, min: 0 }}
-                    value={
-                      initialState.initialEarmarkedInKind[camp.name]?.[
-                        item.name
-                      ] || "0"
-                    }
-                    onChange={(e) =>
-                      handleInitialEarmarkedInKindChange(
-                        camp.name,
-                        item.name,
-                        e.target.value
-                      )
-                    }
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </NestedCollapsibleSection>
-        ))}
       </NestedCollapsibleSection>
 
       {/* Is Item Available */}

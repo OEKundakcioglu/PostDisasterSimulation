@@ -6,6 +6,7 @@ import {
   Migration,
   InventoryPolicy,
   InitialState,
+  SupplyDisruption,
 } from "./types";
 import { Item } from "@/types/Item";
 
@@ -32,8 +33,6 @@ export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
   reportEvents: false,
   reportKPIs: true,
   fileName: "C-0.10",
-  campBuffer: "0.0",
-  centralBuffer: "0.0",
 };
 
 export const DEFAULT_ITEMS: Item[] = [
@@ -101,8 +100,6 @@ export const DEFAULT_CAMPS: Camp[] = ["Hatay-1", "Hatay-2"].map((name) => ({
       externalRatio: "0.02",
     },
   ],
-  campExternalDemandSatisfactionType: "FULLY",
-  populationType: "REGULAR",
   initialInternalPopulation: "2142",
   initialExternalPopulation: "144105",
 }));
@@ -143,6 +140,8 @@ export const DEFAULT_MIGRATIONS: Migration[] = [
   },
 ];
 
+export const DEFAULT_SUPPLY_DISRUPTIONS: SupplyDisruption[] = [];
+
 export const DEFAULT_INVENTORY_POLICY: InventoryPolicy = {
   policyType: "ORDER_UP_TO",
   inventoryControlPeriod: "5",
@@ -157,6 +156,5 @@ export const DEFAULT_INITIAL_STATE: InitialState = {
   initialInventory: {},
   initialCentralWarehouseInventory: {},
   earmarkedFunds: {},
-  initialEarmarkedInKind: {},
   isItemAvailable: { HygieneKit: true, Medicine: true },
 };

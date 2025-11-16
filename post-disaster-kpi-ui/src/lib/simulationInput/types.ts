@@ -21,11 +21,8 @@ export interface Camp {
     distParameters: { min?: string; mode?: string; max?: string };
   };
   demands: CampDemand[];
-  campExternalDemandSatisfactionType: string;
-  populationType: string;
   initialInternalPopulation: string;
   initialExternalPopulation: string;
-  externalDemandSatisfactionThreshold?: string;
 }
 
 export interface AgencyFunding {
@@ -71,7 +68,14 @@ export interface OrderUpToPolicy {
 export interface TargetLevelPolicy {
   policyType: "TARGET_LEVEL";
   inventoryControlPeriod: string;
-  targetLevels: { [campName: string]: { [itemName: string]: string } };
+  targetLevels: {
+    [campName: string]: {
+      [itemName: string]: {
+        internal: string; // float between 0 and 1
+        external: string; // float between 0 and 1
+      };
+    };
+  };
   centralTargetLevels: { [itemName: string]: string };
   threshold: string; // decimal between 0 and 1
 }
@@ -83,9 +87,6 @@ export interface InitialState {
   initialInventory: { [campName: string]: { [itemName: string]: string } };
   initialCentralWarehouseInventory: { [itemName: string]: string };
   earmarkedFunds: { [campName: string]: string };
-  initialEarmarkedInKind: {
-    [campName: string]: { [itemName: string]: string };
-  };
   isItemAvailable: { [itemName: string]: boolean };
 }
 
@@ -102,6 +103,12 @@ export interface DistParams {
 export interface DistBlock {
   distributionType: string;
   distParameters: DistParams;
+}
+
+export interface SupplyDisruption {
+  item: string;
+  disruptionArrivalData: DistBlock;
+  recoveryArrivalData: DistBlock;
 }
 
 export type { Item };

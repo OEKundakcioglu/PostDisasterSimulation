@@ -80,7 +80,10 @@ const InventoryPoliciesSection: React.FC<Props> = ({
       camps.forEach((camp) => {
         newPolicy.targetLevels[camp.name] = {};
         items.forEach((item) => {
-          newPolicy.targetLevels[camp.name][item.name] = "0";
+          newPolicy.targetLevels[camp.name][item.name] = {
+            internal: "0",
+            external: "0",
+          };
         });
       });
 

@@ -3,7 +3,6 @@
 import React from "react";
 import {
   Box,
-  Typography,
   Paper,
   Button,
   CircularProgress,
@@ -15,6 +14,7 @@ import ItemsSection from "@/components/InputComponents/ItemsSection";
 import CampsSection from "@/components/InputComponents/CampsSection";
 import AgenciesSection from "@/components/InputComponents/AgenciesSection";
 import MigrationsSection from "@/components/InputComponents/MigrationsSection";
+import SupplyDisruptionsSection from "@/components/InputComponents/SupplyDisruptionsSection";
 import InventoryPoliciesSection from "@/components/InputComponents/InventoryPoliciesSection";
 import InitialStateSection from "@/components/InputComponents/InitialStateSection";
 import { useSimulationInputLogic } from "@/lib/simulationInput/useSimulationInputLogic";
@@ -32,6 +32,7 @@ const InputParameters = () => {
     camps,
     agencies,
     migrations,
+    supplyDisruptions,
     inventoryPolicy,
     initialState,
     // Setters
@@ -40,6 +41,7 @@ const InputParameters = () => {
     setCamps,
     setAgencies,
     setMigrations,
+    setSupplyDisruptions,
     setInventoryPolicy,
     setInitialState,
     // Actions
@@ -97,14 +99,21 @@ const InputParameters = () => {
             camps={camps}
           />
         </CollapsibleSection>
+        <CollapsibleSection title="Supply Disruptions">
+          <SupplyDisruptionsSection
+            supplyDisruptions={supplyDisruptions}
+            setSupplyDisruptions={setSupplyDisruptions}
+            items={items}
+          />
+        </CollapsibleSection>
         <CollapsibleSection title="Inventory Policies">
           <InventoryPoliciesSection
             inventoryPolicy={inventoryPolicy}
             setInventoryPolicy={setInventoryPolicy}
             camps={camps}
             items={items}
-            campBuffer={String(simulationConfig.campBuffer)}
-            centralBuffer={String(simulationConfig.centralBuffer)}
+            campBuffer="0"
+            centralBuffer="0"
           />
         </CollapsibleSection>
         <CollapsibleSection title="Initial State">
@@ -141,6 +150,7 @@ const InputParameters = () => {
                 camps,
                 agencies,
                 migrations,
+                supplyDisruptions,
                 inventoryPolicy,
                 initialState,
               };
@@ -180,6 +190,8 @@ const InputParameters = () => {
                       if (config.camps) setCamps(config.camps);
                       if (config.agencies) setAgencies(config.agencies);
                       if (config.migrations) setMigrations(config.migrations);
+                      if (config.supplyDisruptions)
+                        setSupplyDisruptions(config.supplyDisruptions);
                       if (config.inventoryPolicy)
                         setInventoryPolicy(config.inventoryPolicy);
                       if (config.initialState)

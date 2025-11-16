@@ -46,7 +46,6 @@ const Plot = dynamic(
 );
 
 /* -------- colours & order ----------------------------------------- */
-const DISPLAY_STEP = 10; // desired visual increment
 const COST_COLOUR: Record<string, string> = {
   Replenishment: "#4CAF50",
   Deprivation: "#F44336",
@@ -126,8 +125,6 @@ const TimeAwareSimulationVisualizer: React.FC<
   const [allLogs, setAllLogs] = useState<TimeStepLog[]>([]);
   const [ranking, setRanking] = useState<CostEntry[]>([]);
   const [ts, setTs] = useState<Record<string, Record<string, Point[]>>>({});
-  const [day, setDay] = useState<number | null>(null);
-  const [horizon, setHorizon] = useState<number | null>(null);
   const ready = true;
   const lastIngestedRef = useRef(0); // track how many logs already processed
 
@@ -200,8 +197,6 @@ const TimeAwareSimulationVisualizer: React.FC<
     if (!filteredLogs.length) return;
 
     const latestLog = filteredLogs[filteredLogs.length - 1];
-    setDay(latestLog.time);
-    setHorizon(latestLog.planningHorizon);
 
     // Update current time in real-time mode
     if (isRealTimeMode) {
@@ -421,43 +416,6 @@ const TimeAwareSimulationVisualizer: React.FC<
     [ranking]
   );
 
-  const headline = useMemo(() => {
-    if (isRealTimeMode) {
-      return day === null || horizon === null
-        ? "Awaiting data …"
-        : (() => {
-            const d = Math.floor(day);
-            const h = Math.floor(horizon);
-            const snapped = h - d < DISPLAY_STEP ? h : d;
-            return `${snapped}\u00A0of\u00A0${h}`;
-          })();
-    } else if (isRangeMode) {
-      return horizon === null
-        ? "Awaiting data …"
-        : `${Math.floor(startTime)}\u00A0to\u00A0${Math.floor(
-            endTime
-          )}\u00A0of\u00A0${Math.floor(horizon)}`;
-    } else {
-      const displayTime = currentTime;
-      return displayTime === null || horizon === null
-        ? "Awaiting data …"
-        : (() => {
-            const d = Math.floor(displayTime);
-            const h = Math.floor(horizon);
-            const snapped = h - d < DISPLAY_STEP ? h : d;
-            return `${snapped}\u00A0of\u00A0${h}`;
-          })();
-    }
-  }, [
-    day,
-    horizon,
-    currentTime,
-    startTime,
-    endTime,
-    isRealTimeMode,
-    isRangeMode,
-  ]);
-
   /* -------- render ------------------------------------------------ */
   return (
     <Box>
@@ -570,12 +528,6 @@ const TimeAwareSimulationVisualizer: React.FC<
                 </Box>
                 {(() => {
                   const latestLog = filteredLogs[filteredLogs.length - 1];
-                  const currentDisplayTime = isRealTimeMode
-                    ? latestLog?.time || 0
-                    : isRangeMode
-                    ? endTime
-                    : currentTime;
-
                   let campPopulations: Record<
                     string,
                     { internal: number; external: number }

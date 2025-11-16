@@ -1,17 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Box,
-  Typography,
-  Stack,
-  Button,
-  CircularProgress,
-  Alert,
-} from "@mui/material";
+import { Box, CircularProgress, Alert } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
-import DownloadIcon from "@mui/icons-material/Download";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import nextDynamic from "next/dynamic";
 
 // Lazy‑load visualizer for faster initial paint

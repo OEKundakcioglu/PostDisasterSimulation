@@ -112,6 +112,7 @@ const OrderUpToPolicy: React.FC<Props> = ({
     items,
     hasManualEdits,
     setPolicy,
+    policy,
   ]);
 
   const handleBufferRatioChange = (

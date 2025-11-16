@@ -24,19 +24,30 @@ const TargetLevelPolicy: React.FC<Props> = ({
   const handleTargetLevelChange = (
     campName: string,
     itemName: string,
+    field: "internal" | "external",
     value: string
   ) => {
-    if (value === "" || /^-?\d*$/.test(value)) {
-      setPolicy({
-        ...policy,
-        targetLevels: {
-          ...policy.targetLevels,
-          [campName]: {
-            ...policy.targetLevels[campName],
-            [itemName]: value,
+    // Allow values between 0 and 1 with decimals
+    if (value === "" || /^0(\.\d*)?$|^1(\.0*)?$/.test(value)) {
+      const numValue = parseFloat(value);
+      if (value === "" || (numValue >= 0 && numValue <= 1)) {
+        setPolicy({
+          ...policy,
+          targetLevels: {
+            ...policy.targetLevels,
+            [campName]: {
+              ...policy.targetLevels[campName],
+              [itemName]: {
+                ...(policy.targetLevels[campName]?.[itemName] || {
+                  internal: "0",
+                  external: "0",
+                }),
+                [field]: value,
+              },
+            },
           },
-        },
-      });
+        });
+      }
     }
   };
 
@@ -127,28 +138,55 @@ const TargetLevelPolicy: React.FC<Props> = ({
           >
             <Grid container spacing={2}>
               {items.map((item) => (
-                <Grid
-                  item
-                  xs={12}
-                  sm={6}
-                  md={4}
-                  key={`${camp.name}-${item.name}-target`}
-                >
-                  <TextField
-                    fullWidth
-                    label={`${item.name} Target Level`}
-                    type="number"
-                    inputProps={{ step: 1, min: 0 }}
-                    value={policy.targetLevels[camp.name]?.[item.name] || ""}
-                    onChange={(e) =>
-                      handleTargetLevelChange(
-                        camp.name,
-                        item.name,
-                        e.target.value
-                      )
-                    }
-                  />
-                </Grid>
+                <React.Fragment key={`${camp.name}-${item.name}-target`}>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      {item.name}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <TextField
+                      fullWidth
+                      label="Internal Target Level"
+                      type="number"
+                      inputProps={{ step: 0.01, min: 0, max: 1 }}
+                      value={
+                        policy.targetLevels[camp.name]?.[item.name]?.internal ||
+                        ""
+                      }
+                      onChange={(e) =>
+                        handleTargetLevelChange(
+                          camp.name,
+                          item.name,
+                          "internal",
+                          e.target.value
+                        )
+                      }
+                      helperText="0-1 (fraction of internal population)"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <TextField
+                      fullWidth
+                      label="External Target Level"
+                      type="number"
+                      inputProps={{ step: 0.01, min: 0, max: 1 }}
+                      value={
+                        policy.targetLevels[camp.name]?.[item.name]?.external ||
+                        ""
+                      }
+                      onChange={(e) =>
+                        handleTargetLevelChange(
+                          camp.name,
+                          item.name,
+                          "external",
+                          e.target.value
+                        )
+                      }
+                      helperText="0-1 (fraction of external population)"
+                    />
+                  </Grid>
+                </React.Fragment>
               ))}
             </Grid>
           </NestedCollapsibleSection>

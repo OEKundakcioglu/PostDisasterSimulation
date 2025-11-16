@@ -12,6 +12,7 @@ import {
   CampDemand,
   AgencyFunding,
   DistBlock,
+  SupplyDisruption,
 } from "./types";
 import {
   DEFAULT_SIMULATION_CONFIG,
@@ -19,6 +20,7 @@ import {
   DEFAULT_CAMPS,
   DEFAULT_AGENCIES,
   DEFAULT_MIGRATIONS,
+  DEFAULT_SUPPLY_DISRUPTIONS,
   DEFAULT_INVENTORY_POLICY,
   DEFAULT_INITIAL_STATE,
   LS_KEYS,
@@ -41,6 +43,9 @@ export const useSimulationInputLogic = () => {
   const [camps, setCamps] = useState<Camp[]>(DEFAULT_CAMPS);
   const [agencies, setAgencies] = useState<Agency[]>(DEFAULT_AGENCIES);
   const [migrations, setMigrations] = useState<Migration[]>(DEFAULT_MIGRATIONS);
+  const [supplyDisruptions, setSupplyDisruptions] = useState<
+    SupplyDisruption[]
+  >(DEFAULT_SUPPLY_DISRUPTIONS);
   const [inventoryPolicy, setInventoryPolicy] = useState<InventoryPolicy>(
     DEFAULT_INVENTORY_POLICY
   );
@@ -228,7 +233,6 @@ export const useSimulationInputLogic = () => {
         .map((m: Migration) => {
           let fromCamp = m.fromCamp;
           let toCamp = m.toCamp;
-          const type = m.migrationType || "";
           // Attempt rename substitution first
           if (fromCamp && renameMap[fromCamp]) {
             fromCamp = renameMap[fromCamp];
@@ -321,12 +325,19 @@ export const useSimulationInputLogic = () => {
         });
         next.centralPeriodicCounts = newCentralPeriodicCounts;
       } else if (next.policyType === "TARGET_LEVEL") {
-        const newTargetLevels: Record<string, Record<string, string>> = {};
+        const newTargetLevels: Record<
+          string,
+          Record<string, { internal: string; external: string }>
+        > = {};
         validCampNames.forEach((campName) => {
           newTargetLevels[campName] = {};
           validItemNames.forEach((itemName) => {
-            newTargetLevels[campName][itemName] =
-              next.targetLevels[campName]?.[itemName] ?? "0";
+            newTargetLevels[campName][itemName] = next.targetLevels[campName]?.[
+              itemName
+            ] ?? {
+              internal: "0",
+              external: "0",
+            };
           });
         });
         next.targetLevels = newTargetLevels;
@@ -378,18 +389,6 @@ export const useSimulationInputLogic = () => {
         newEarmarkedFunds[campName] = next.earmarkedFunds[campName] ?? "0";
       });
       next.earmarkedFunds = newEarmarkedFunds;
-
-      // initialEarmarkedInKind
-      const newInKind: Record<string, Record<string, string>> = {};
-      campNames.forEach((campName) => {
-        const existing = next.initialEarmarkedInKind[campName] || {};
-        const newItems: Record<string, string> = {};
-        itemNames.forEach((itemName) => {
-          newItems[itemName] = existing[itemName] ?? "0";
-        });
-        newInKind[campName] = newItems;
-      });
-      next.initialEarmarkedInKind = newInKind;
 
       // isItemAvailable
       const newAvailability: Record<string, boolean> = {};
@@ -816,6 +815,7 @@ export const useSimulationInputLogic = () => {
         camps,
         agencies,
         migrations,
+        supplyDisruptions,
         inventoryPolicy,
         initialState: normalizedState,
       });
@@ -901,6 +901,7 @@ export const useSimulationInputLogic = () => {
     camps,
     agencies,
     migrations,
+    supplyDisruptions,
     inventoryPolicy,
     initialState,
     router,
@@ -917,6 +918,7 @@ export const useSimulationInputLogic = () => {
     camps,
     agencies,
     migrations,
+    supplyDisruptions,
     inventoryPolicy,
     initialState,
     // Setters
@@ -929,6 +931,7 @@ export const useSimulationInputLogic = () => {
     setCamps,
     setAgencies,
     setMigrations,
+    setSupplyDisruptions,
     setInventoryPolicy,
     setInitialState,
     // Actions

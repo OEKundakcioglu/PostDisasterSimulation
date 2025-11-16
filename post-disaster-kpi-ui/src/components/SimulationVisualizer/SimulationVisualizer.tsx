@@ -114,16 +114,12 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
   const externalMode = !!logs;
   const [ranking, setRanking] = useState<CostEntry[]>([]);
   const [ts, setTs] = useState<Record<string, Record<string, Point[]>>>({});
-  const [day, setDay] = useState<number | null>(null);
-  const [horizon, setHorizon] = useState<number | null>(null);
   const ready = true;
   const lastIngestedRef = useRef(0); // track how many logs already processed
 
   const ingest = useCallback((batch: TimeStepLog[]) => {
     if (!batch || !batch.length) return;
     batch.forEach((pkt) => {
-      setDay(pkt.time);
-      setHorizon(pkt.planningHorizon);
       const entries: CostEntry[] = [
         ...Object.entries(pkt.cumulativeReplenishmentCosts || {}).map(
           ([camp, cost]) => ({ camp, type: "Replenishment", cost })
@@ -221,16 +217,6 @@ const SimulationVisualizer: React.FC<SimulationVisualizerProps> = ({
     () => Array.from(new Set(ranking.map((e) => e.camp))).slice(0, 4),
     [ranking]
   );
-
-  const headline =
-    day === null || horizon === null
-      ? "Awaiting data …"
-      : (() => {
-          const d = Math.floor(day);
-          const h = Math.floor(horizon);
-          const snapped = h - d < DISPLAY_STEP ? h : d; // snap if within one step of horizon
-          return `${snapped}\u00A0of\u00A0${h}`;
-        })();
 
   /* -------- render ------------------------------------------------ */
   return (

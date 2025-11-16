@@ -11,6 +11,9 @@ import {
   InventoryPolicy,
   InitialState,
   AgencyFunding,
+  SupplyDisruption,
+  OrderUpToPolicy,
+  TargetLevelPolicy,
 } from "@/types/Simulation";
 
 // Public shape consumed by builder
@@ -20,6 +23,7 @@ export interface SimulationInputDTO {
   camps: Camp[];
   agencies?: Agency[];
   migrations?: MigrationWithOptionalQuantity[];
+  supplyDisruptions?: SupplyDisruption[];
   inventoryPolicy?: InventoryPolicy;
   initialState: InitialState;
 }
@@ -71,7 +75,7 @@ export function buildSimulationYAML(data: SimulationInputDTO): string {
   let out = "";
   out += section(
     "simulationConfig",
-    buildSimulationConfig(data.simulationConfig)
+    buildSimulationConfig(data.simulationConfig, data.inventoryPolicy)
   );
   out += section("items", buildItems(data, anchors));
   out += section("camps", buildCamps(data, anchors));
@@ -79,6 +83,11 @@ export function buildSimulationYAML(data: SimulationInputDTO): string {
     out += section("agencies", buildAgencies(data, anchors));
   if (data.migrations?.length)
     out += section("migrations", buildMigrations(data, anchors));
+  if (data.supplyDisruptions?.length)
+    out += section(
+      "supplyStatusSwitches",
+      buildSupplyDisruptions(data, anchors)
+    );
   out += sectionRaw(buildInventoryPolicy(data, anchors));
   out += sectionRaw(buildInitialState(data, anchors));
 
@@ -86,12 +95,22 @@ export function buildSimulationYAML(data: SimulationInputDTO): string {
 }
 
 // ------------------ Builders ------------------
-function buildSimulationConfig(cfg: Record<string, unknown>): string {
+function buildSimulationConfig(
+  cfg: Record<string, unknown>,
+  inventoryPolicy?: InventoryPolicy
+): string {
   const filtered = Object.entries(cfg).filter(
     ([k]) => k !== "inventoryControlType" && k !== "inventoryControlPeriod"
   );
 
   const lines = ["  inventoryControlType: PERIODIC"];
+
+  // Add inventoryControlPeriod from the inventory policy
+  if (inventoryPolicy?.inventoryControlPeriod) {
+    lines.push(
+      `  inventoryControlPeriod: ${inventoryPolicy.inventoryControlPeriod}`
+    );
+  }
 
   filtered.forEach(([k, v]) => {
     lines.push(`  ${k}: ${formatValue(k, v, ANCHORED_FIELDS[k])}`);
@@ -207,21 +226,6 @@ function buildCamps(data: SimulationInputDTO, a: AnchorMaps): string {
           lines.push(`        externalRatio: ${formatNumber(d.externalRatio)}`);
         });
       }
-      lines.push(
-        `    campExternalDemandSatisfactionType: ${camp.campExternalDemandSatisfactionType}`
-      );
-      const threshold = (
-        camp as unknown as { externalDemandSatisfactionThreshold?: string }
-      ).externalDemandSatisfactionThreshold;
-      if (
-        camp.campExternalDemandSatisfactionType === "THRESHOLD" &&
-        threshold
-      ) {
-        lines.push(
-          `    externalDemandSatisfactionThreshold: ${formatNumber(threshold)}`
-        );
-      }
-      lines.push(`    populationType: ${camp.populationType}`);
       lines.push(
         `    initialInternalPopulation: ${formatInt(
           camp.initialInternalPopulation
@@ -379,10 +383,64 @@ function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
     .join("\n");
 }
 
+function buildSupplyDisruptions(
+  data: SimulationInputDTO,
+  a: AnchorMaps
+): string {
+  return data
+    .supplyDisruptions!.map((sd) => {
+      if (!sd.item) return "";
+      const iA = a.item.get(sd.item);
+      if (!iA) return "";
+
+      const lines: string[] = [`  - item: *${iA}`];
+
+      // Disruption arrival data
+      lines.push("    disruptionArrivalData:");
+      lines.push(
+        `      distributionType: ${sd.disruptionArrivalData.distributionType}`
+      );
+      lines.push(
+        `      distParameters: !!data.distribution.${distTag(
+          sd.disruptionArrivalData.distributionType
+        )}`
+      );
+      lines.push(
+        formatDistParameters(
+          sd.disruptionArrivalData.distParameters as Record<string, unknown>,
+          8,
+          sd.disruptionArrivalData.distributionType
+        )
+      );
+
+      // Recovery arrival data
+      lines.push("    recoveryArrivalData:");
+      lines.push(
+        `      distributionType: ${sd.recoveryArrivalData.distributionType}`
+      );
+      lines.push(
+        `      distParameters: !!data.distribution.${distTag(
+          sd.recoveryArrivalData.distributionType
+        )}`
+      );
+      lines.push(
+        formatDistParameters(
+          sd.recoveryArrivalData.distParameters as Record<string, unknown>,
+          8,
+          sd.recoveryArrivalData.distributionType
+        )
+      );
+
+      return lines.join("\n");
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 function buildInventoryPolicy(data: SimulationInputDTO, a: AnchorMaps): string {
   const ip = data.inventoryPolicy;
   if (!ip) {
-    return buildOrderUpToPolicy(data, a, {} as any);
+    return buildOrderUpToPolicy(data, a);
   }
 
   if (ip.policyType === "ORDER_UP_TO") {
@@ -391,17 +449,17 @@ function buildInventoryPolicy(data: SimulationInputDTO, a: AnchorMaps): string {
     return buildTargetLevelPolicy(data, a, ip);
   }
 
-  return buildOrderUpToPolicy(data, a, {} as any);
+  return buildOrderUpToPolicy(data, a);
 }
 
 function buildOrderUpToPolicy(
   data: SimulationInputDTO,
   a: AnchorMaps,
-  ip: any
+  ip?: Partial<OrderUpToPolicy>
 ): string {
   let out = "inventoryPolicy: !!simulation.decision.OrderUpToPolicy\n";
 
-  const period = ip.inventoryControlPeriod || "5";
+  const period = ip?.inventoryControlPeriod || "5";
   out += `  inventoryControlPeriod: &period ${period}\n`;
 
   out += "  bufferRatios:\n";
@@ -412,7 +470,7 @@ function buildOrderUpToPolicy(
     data.items.forEach((i) => {
       if (!i.name) return;
       const iA = a.item.get(i.name);
-      const v = ip.bufferRatios?.[c.name]?.[i.name] ?? "*campBuffer";
+      const v = ip?.bufferRatios?.[c.name]?.[i.name] ?? "*campBuffer";
       out += `      *${iA}: ${v}\n`;
     });
   });
@@ -420,7 +478,7 @@ function buildOrderUpToPolicy(
   data.items.forEach((i) => {
     if (!i.name) return;
     const iA = a.item.get(i.name);
-    const v = ip.centralBufferRatios?.[i.name] ?? "*centralBuffer";
+    const v = ip?.centralBufferRatios?.[i.name] ?? "*centralBuffer";
     out += `    *${iA}: ${v}\n`;
   });
   out += "  periodicCounts:\n";
@@ -431,7 +489,7 @@ function buildOrderUpToPolicy(
     data.items.forEach((i) => {
       if (!i.name) return;
       const iA = a.item.get(i.name);
-      const v = ip.periodicCounts?.[c.name]?.[i.name] ?? "*period";
+      const v = ip?.periodicCounts?.[c.name]?.[i.name] ?? "*period";
       out += `      *${iA}: ${v}\n`;
     });
   });
@@ -439,7 +497,7 @@ function buildOrderUpToPolicy(
   data.items.forEach((i) => {
     if (!i.name) return;
     const iA = a.item.get(i.name);
-    const v = ip.centralPeriodicCounts?.[i.name] ?? "*period";
+    const v = ip?.centralPeriodicCounts?.[i.name] ?? "*period";
     out += `    *${iA}: ${v}\n`;
   });
   return out;
@@ -448,14 +506,15 @@ function buildOrderUpToPolicy(
 function buildTargetLevelPolicy(
   data: SimulationInputDTO,
   a: AnchorMaps,
-  ip: any
+  ip?: Partial<TargetLevelPolicy>
 ): string {
   let out = "inventoryPolicy: !!simulation.decision.TargetLevelPolicy\n";
 
-  const period = ip.inventoryControlPeriod || "5";
+  const period = ip?.inventoryControlPeriod || "5";
   out += `  inventoryControlPeriod: ${period}\n`;
 
-  out += `  threshold: ${formatNumber(ip.threshold)}\n`;
+  const threshold = ip?.threshold ?? "0";
+  out += `  threshold: ${formatNumber(threshold)}\n`;
   out += "  targetLevels:\n";
   data.camps.forEach((c) => {
     if (!c.name) return;
@@ -464,15 +523,27 @@ function buildTargetLevelPolicy(
     data.items.forEach((i) => {
       if (!i.name) return;
       const iA = a.item.get(i.name);
-      const v = ip.targetLevels?.[c.name]?.[i.name] ?? "0";
-      out += `      *${iA}: ${formatInt(v)}\n`;
+      const targetLevel = ip?.targetLevels?.[c.name]?.[i.name];
+      // Handle new structure with internal/external or legacy single value
+      if (
+        targetLevel &&
+        typeof targetLevel === "object" &&
+        "internal" in targetLevel
+      ) {
+        out += `      *${iA}:\n`;
+        out += `        internal: ${formatNumber(targetLevel.internal)}\n`;
+        out += `        external: ${formatNumber(targetLevel.external)}\n`;
+      } else {
+        // Legacy format or default
+        out += `      *${iA}: ${formatInt(targetLevel ?? "0")}\n`;
+      }
     });
   });
   out += "  centralTargetLevels:\n";
   data.items.forEach((i) => {
     if (!i.name) return;
     const iA = a.item.get(i.name);
-    const v = ip.centralTargetLevels?.[i.name] ?? "0";
+    const v = ip?.centralTargetLevels?.[i.name] ?? "0";
     out += `    *${iA}: ${formatInt(v)}\n`;
   });
   return out;
@@ -507,18 +578,6 @@ function buildInitialState(data: SimulationInputDTO, a: AnchorMaps): string {
     const cA = a.camp.get(c.name);
     const v = s.earmarkedFunds?.[c.name] ?? 0;
     out += `    *${cA}: ${formatInt(v)}\n`;
-  });
-  out += "  initialEarmarkedInKind:\n";
-  data.camps.forEach((c) => {
-    if (!c.name) return;
-    const cA = a.camp.get(c.name);
-    out += `    *${cA}:\n`;
-    data.items.forEach((i) => {
-      if (!i.name) return;
-      const iA = a.item.get(i.name);
-      const v = s.initialEarmarkedInKind?.[c.name]?.[i.name] ?? 0;
-      out += `      *${iA}: ${formatInt(v)}\n`;
-    });
   });
   out += "  isItemAvailable:\n";
   data.items.forEach((i) => {

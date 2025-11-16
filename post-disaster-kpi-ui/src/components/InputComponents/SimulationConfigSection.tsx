@@ -7,18 +7,9 @@ import {
   Tooltip,
   Box,
   IconButton,
-  MenuItem,
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
-
-// Helper function to convert uppercase macros to readable format
-const formatLabel = (value: string): string => {
-  return value
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
 
 interface SimulationConfig {
   [key: string]: string | boolean;
@@ -38,31 +29,12 @@ const SimulationConfigSection: React.FC<Props> = ({
 
     // For number inputs, only update if it's a valid number or empty string
     if (type === "number") {
-      // Different validation for different types of numeric fields
-      if (name === "campBuffer" || name === "centralBuffer") {
-        // For buffer ratios, allow decimals (0-1 range typically)
-        if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
-          setSimulationConfig((prev) => ({
-            ...prev,
-            [name]: value,
-          }));
-        }
-      } else if (name === "planningHorizon") {
-        // For periods, only allow positive integers
-        if (value === "" || /^\d*$/.test(value)) {
-          setSimulationConfig((prev) => ({
-            ...prev,
-            [name]: value,
-          }));
-        }
-      } else {
-        // For other numeric inputs
-        if (value === "" || /^-?\d*\.?\d*$/.test(value)) {
-          setSimulationConfig((prev) => ({
-            ...prev,
-            [name]: value,
-          }));
-        }
+      // For planning horizon and seeds, only allow positive integers
+      if (value === "" || /^\d*$/.test(value)) {
+        setSimulationConfig((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
       }
     } else if (type === "checkbox") {
       setSimulationConfig((prev) => ({
@@ -109,10 +81,8 @@ const SimulationConfigSection: React.FC<Props> = ({
 
   // Group configuration items by type or purpose if needed
   const groupedConfig: { [category: string]: string[] } = {
-    "Inventory Settings": [],
-    "Time Parameters": [],
+    "Planning Horizon": [],
     "Seed Parameters": [],
-    "Advanced Options": [],
   };
 
   // Sort configuration keys into categories based on name patterns
@@ -122,30 +92,13 @@ const SimulationConfigSection: React.FC<Props> = ({
       return;
     }
 
-    // Special case for buffer settings
-    if (key === "campBuffer" || key === "centralBuffer") {
-      groupedConfig["Inventory Settings"].push(key);
-    }
     // Group all seed parameters together
-    else if (key.toLowerCase().includes("seed")) {
+    if (key.toLowerCase().includes("seed")) {
       groupedConfig["Seed Parameters"].push(key);
     } else if (key === "planningHorizon") {
-      groupedConfig["Time Parameters"].push(key);
-    } else if (
-      key.toLowerCase().includes("time") ||
-      key.toLowerCase().includes("period") ||
-      key.toLowerCase().includes("duration")
-    ) {
-      groupedConfig["Time Parameters"].push(key);
-    } else if (
-      key.toLowerCase().includes("enable") ||
-      key.toLowerCase().includes("use") ||
-      typeof simulationConfig[key] === "boolean"
-    ) {
-      groupedConfig["Advanced Options"].push(key);
-    } else {
-      groupedConfig["Inventory Settings"].push(key);
+      groupedConfig["Planning Horizon"].push(key);
     }
+    // Skip all other fields (like campBuffer, centralBuffer, etc.)
   });
 
   const seedExplanation =
@@ -165,21 +118,8 @@ const SimulationConfigSection: React.FC<Props> = ({
 
   // Determine if a field should be numeric input
   const isNumericField = (key: string): boolean => {
-    // Fields that should be numbers
-    return (
-      key.toLowerCase().includes("seed") ||
-      key === "planningHorizon" ||
-      key === "campBuffer" ||
-      key === "centralBuffer" ||
-      key.toLowerCase().includes("time") ||
-      key.toLowerCase().includes("period") ||
-      key.toLowerCase().includes("duration") ||
-      key.toLowerCase().includes("ratio") ||
-      key.toLowerCase().includes("quantity") ||
-      key.toLowerCase().includes("amount") ||
-      key.toLowerCase().includes("rate") ||
-      key.toLowerCase().includes("coefficient")
-    );
+    // Fields that should be numbers (only seeds and planning horizon)
+    return key.toLowerCase().includes("seed") || key === "planningHorizon";
   };
 
   return (
@@ -225,15 +165,9 @@ const SimulationConfigSection: React.FC<Props> = ({
                       label={getCustomLabel(key)}
                       type={isNumericField(key) ? "number" : "text"}
                       inputProps={{
-                        min: 0, // Assuming all numeric values should be positive
-                        step:
-                          key === "campBuffer" || key === "centralBuffer"
-                            ? "0.01"
-                            : "1", // Use decimal steps for ratios
+                        min: 0,
+                        step: "1",
                         inputMode: isNumericField(key) ? "numeric" : "text",
-                        pattern: isNumericField(key)
-                          ? "[0-9]*(.[0-9]+)?"
-                          : undefined,
                       }}
                       value={simulationConfig[key] as string}
                       onChange={handleChange}

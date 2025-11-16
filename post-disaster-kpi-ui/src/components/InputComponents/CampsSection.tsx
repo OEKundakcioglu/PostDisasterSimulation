@@ -55,11 +55,8 @@ interface Camp {
     };
   };
   demands: CampDemand[];
-  campExternalDemandSatisfactionType: string;
-  populationType: string;
   initialInternalPopulation: string;
   initialExternalPopulation: string;
-  externalDemandSatisfactionThreshold?: string;
 }
 
 interface Item {
@@ -123,10 +120,6 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
     } else {
       // Default handling for top-level simple fields
       if (field === "name") newCamps[index].name = value as string;
-      if (field === "campExternalDemandSatisfactionType")
-        newCamps[index].campExternalDemandSatisfactionType = value as string;
-      if (field === "populationType")
-        newCamps[index].populationType = value as string;
     }
 
     setCamps(newCamps);
@@ -169,9 +162,6 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
           },
         },
         demands: defaultDemands, // Populate with demands for all existing items
-        campExternalDemandSatisfactionType: "FULLY",
-        externalDemandSatisfactionThreshold: "0.5",
-        populationType: "REGULAR",
         initialInternalPopulation: "0",
         initialExternalPopulation: "0",
       },
@@ -231,77 +221,6 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                         handleCampChange(campIndex, "name", e.target.value)
                       }
                     />
-                  </Grid>
-
-                  {/* External Demand Satisfaction Type */}
-                  <Grid item xs={12} sm={6} md={4}>
-                    <TextField
-                      select
-                      fullWidth
-                      label="External Demand Satisfaction Type"
-                      value={camp.campExternalDemandSatisfactionType}
-                      onChange={(e) =>
-                        handleCampChange(
-                          campIndex,
-                          "campExternalDemandSatisfactionType",
-                          e.target.value
-                        )
-                      }
-                    >
-                      <MenuItem value="FULLY">{formatLabel("FULLY")}</MenuItem>
-                      <MenuItem value="THRESHOLD">
-                        {formatLabel("THRESHOLD")}
-                      </MenuItem>
-                      <MenuItem value="NONE">{formatLabel("NONE")}</MenuItem>
-                    </TextField>
-                  </Grid>
-
-                  {camp.campExternalDemandSatisfactionType === "THRESHOLD" && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      <TextField
-                        fullWidth
-                        label="External Demand Satisfaction Threshold"
-                        type="number"
-                        inputProps={{ min: 0, max: 1, step: 0.01 }}
-                        value={
-                          camp.externalDemandSatisfactionThreshold || "0.5"
-                        }
-                        onChange={(e) =>
-                          handleCampChange(
-                            campIndex,
-                            "externalDemandSatisfactionThreshold",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </Grid>
-                  )}
-
-                  {/* Population Type */}
-                  <Grid item xs={12} sm={6} md={4}>
-                    <TextField
-                      select
-                      fullWidth
-                      label="Population Type"
-                      value={camp.populationType}
-                      onChange={(e) =>
-                        handleCampChange(
-                          campIndex,
-                          "populationType",
-                          e.target.value
-                        )
-                      }
-                    >
-                      <MenuItem value="REGULAR">
-                        {formatLabel("REGULAR")}
-                      </MenuItem>
-                      <MenuItem value="PRIORITIZED">
-                        {formatLabel("PRIORITIZED")}
-                      </MenuItem>
-                      <MenuItem value="DISADVANTAGEOUS">
-                        {formatLabel("DISADVANTAGEOUS")}
-                      </MenuItem>
-                    </TextField>
                   </Grid>
 
                   {/* Initial Population */}
