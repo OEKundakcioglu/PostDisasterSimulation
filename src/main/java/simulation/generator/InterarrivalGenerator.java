@@ -44,8 +44,13 @@ public class InterarrivalGenerator {
     public double generateReplenishment(Item item){
         return item.getLeadTimeData().distParameters.generate(this.rngReplenishment);
     }
-    public double generateTransferTime(Camp camp){
-        return camp.getLeadTimeData().distParameters.generate(this.rngTransferTime);
+    public double generateTransferTime(Camp camp, Item item, Environment environment){
+        Demand demand = environment.getCorrespondingDemand(item, camp);
+        if (demand == null || demand.getLeadTimeData() == null) {
+            // Fallback to 0 if no demand or lead time data exists
+            return 0.0;
+        }
+        return demand.getLeadTimeData().distParameters.generate(this.rngTransferTime);
     }
 
 }

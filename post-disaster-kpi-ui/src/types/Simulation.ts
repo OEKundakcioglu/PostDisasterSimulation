@@ -59,13 +59,16 @@ export interface CampDemand {
     distributionType: string;
     distParameters: { mean?: string };
   };
+  leadTimeData?: {
+    distributionType: string;
+    distParameters: { min?: string; mode?: string; max?: string; mean?: string };
+  };
   internalRatio: string;
   externalRatio: string;
 }
 
 export interface Camp {
   name: string;
-  leadTimeData: LeadTime;
   demands: CampDemand[];
   campExternalDemandSatisfactionType: string;
   populationType: string;
@@ -128,7 +131,8 @@ export interface TargetLevelPolicy {
   inventoryControlPeriod: string;
   targetLevels: Record<string, Record<string, TargetLevelValue>>;
   centralTargetLevels: Record<string, string>;
-  threshold: string;
+  thresholdRatios: Record<string, Record<string, string>>;
+  centralThresholdRatios: Record<string, string>;
 }
 
 export type InventoryPolicy = OrderUpToPolicy | TargetLevelPolicy;

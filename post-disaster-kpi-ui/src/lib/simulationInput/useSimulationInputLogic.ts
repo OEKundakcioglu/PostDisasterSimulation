@@ -116,6 +116,10 @@ export const useSimulationInputLogic = () => {
                   distributionType: "EXPONENTIAL",
                   distParameters: { mean: "0.033" },
                 },
+                leadTimeData: {
+                  distributionType: "TRIANGULAR",
+                  distParameters: { min: "1", mode: "2", max: "4" },
+                },
                 internalRatio: "0.2",
                 externalRatio: "0.02",
               }));
@@ -332,12 +336,15 @@ export const useSimulationInputLogic = () => {
         validCampNames.forEach((campName) => {
           newTargetLevels[campName] = {};
           validItemNames.forEach((itemName) => {
-            newTargetLevels[campName][itemName] = next.targetLevels[campName]?.[
-              itemName
-            ] ?? {
-              internal: "0",
-              external: "0",
-            };
+            const existingVal = next.targetLevels[campName]?.[itemName];
+            if (typeof existingVal === "object" && existingVal !== null) {
+              newTargetLevels[campName][itemName] = existingVal;
+            } else {
+              newTargetLevels[campName][itemName] = {
+                internal: "0",
+                external: "0",
+              };
+            }
           });
         });
         next.targetLevels = newTargetLevels;
@@ -554,13 +561,7 @@ export const useSimulationInputLogic = () => {
           Number(c.initialExternalPopulation) < 0
         )
           issues.push(`Camp ${c.name || i + 1}: external population invalid`);
-        // camp lead time
-        issues.push(
-          ...validateDistribution(
-            c.leadTimeData as unknown as DistBlock,
-            `Camp ${c.name} leadTimeData`
-          )
-        );
+
         c.demands.forEach((d: CampDemand, di: number) => {
           if (!d.item)
             issues.push(`Camp ${c.name}: demand ${di + 1} missing item`);
@@ -570,6 +571,15 @@ export const useSimulationInputLogic = () => {
               `Camp ${c.name} / ${d.item || "demand"} arrivalData`
             )
           );
+          // demand lead time
+          if (d.leadTimeData) {
+            issues.push(
+              ...validateDistribution(
+                d.leadTimeData as unknown as DistBlock,
+                `Camp ${c.name} / ${d.item || "demand"} leadTimeData`
+              )
+            );
+          }
           // ratios
           [d.internalRatio, d.externalRatio].forEach(
             (r: string, ri: number) => {
@@ -719,32 +729,61 @@ export const useSimulationInputLogic = () => {
         )
           issues.push("Target Level Policy: Inventory control period invalid");
 
-        const threshold = inventoryPolicy.threshold;
-        if (threshold === undefined || threshold === "")
-          issues.push("Target Level Policy threshold is missing");
-        else if (
-          isNaN(Number(threshold)) ||
-          Number(threshold) < 0 ||
-          Number(threshold) > 1
-        )
-          issues.push("Target Level Policy threshold must be between 0 and 1");
-
         camps.forEach((c: Camp) =>
           items.forEach((it: Item) => {
+            // Validate Target Level
             const tl = inventoryPolicy.targetLevels?.[c.name]?.[it.name];
-            if (tl === undefined)
+            if (tl === undefined) {
               issues.push(`Target level missing for ${c.name}/${it.name}`);
-            else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0)
+            } else if (typeof tl === "object") {
+              if (
+                !/^\d*\.?\d+$/.test(String(tl.internal)) ||
+                Number(tl.internal) < 0 ||
+                Number(tl.internal) > 1
+              )
+                issues.push(
+                  `Internal target level invalid for ${c.name}/${it.name} (must be 0-1)`
+                );
+              if (
+                !/^\d*\.?\d+$/.test(String(tl.external)) ||
+                Number(tl.external) < 0 ||
+                Number(tl.external) > 1
+              )
+                issues.push(
+                  `External target level invalid for ${c.name}/${it.name} (must be 0-1)`
+                );
+            } else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0) {
               issues.push(`Target level invalid for ${c.name}/${it.name}`);
+            }
+
+            // Validate Threshold Ratio
+            const tr = inventoryPolicy.thresholdRatios?.[c.name]?.[it.name];
+            if (tr === undefined) {
+              issues.push(`Threshold ratio missing for ${c.name}/${it.name}`);
+            } else if (isNaN(Number(tr)) || Number(tr) < 0 || Number(tr) > 1) {
+              issues.push(
+                `Threshold ratio for ${c.name}/${it.name} must be between 0 and 1`
+              );
+            }
           })
         );
 
         items.forEach((it: Item) => {
+          // Validate Central Target Level
           const ctl = inventoryPolicy.centralTargetLevels?.[it.name];
           if (ctl === undefined)
             issues.push(`Central target level missing for ${it.name}`);
           else if (!/^\d+$/.test(String(ctl)) || Number(ctl) < 0)
             issues.push(`Central target level invalid for ${it.name}`);
+
+          // Validate Central Threshold Ratio
+          const ctr = inventoryPolicy.centralThresholdRatios?.[it.name];
+          if (ctr === undefined)
+            issues.push(`Central threshold ratio missing for ${it.name}`);
+          else if (isNaN(Number(ctr)) || Number(ctr) < 0 || Number(ctr) > 1)
+            issues.push(
+              `Central threshold ratio for ${it.name} must be between 0 and 1`
+            );
         });
       }
 

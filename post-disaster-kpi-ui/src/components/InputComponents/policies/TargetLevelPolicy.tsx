@@ -1,5 +1,5 @@
 import React from "react";
-import { Grid, TextField, Typography, Box } from "@mui/material";
+import { Grid, TextField, Typography } from "@mui/material";
 import { Item } from "../../../types/Item";
 import { NestedCollapsibleSection } from "../../CollapsibleSections/CollapsibleSections";
 import { TargetLevelPolicy as TargetLevelPolicyType } from "@/lib/simulationInput/types";
@@ -38,7 +38,10 @@ const TargetLevelPolicy: React.FC<Props> = ({
             [campName]: {
               ...policy.targetLevels[campName],
               [itemName]: {
-                ...(policy.targetLevels[campName]?.[itemName] || {
+                ...((policy.targetLevels[campName]?.[itemName] as {
+                  internal: string;
+                  external: string;
+                }) || {
                   internal: "0",
                   external: "0",
                 }),
@@ -63,13 +66,38 @@ const TargetLevelPolicy: React.FC<Props> = ({
     }
   };
 
-  const handleThresholdChange = (value: string) => {
+  const handleThresholdChange = (
+    campName: string,
+    itemName: string,
+    value: string
+  ) => {
     if (value === "" || /^0(\.\d*)?$|^1(\.0*)?$/.test(value)) {
       const numValue = parseFloat(value);
       if (value === "" || (numValue >= 0 && numValue <= 1)) {
         setPolicy({
           ...policy,
-          threshold: value,
+          thresholdRatios: {
+            ...policy.thresholdRatios,
+            [campName]: {
+              ...(policy.thresholdRatios[campName] || {}),
+              [itemName]: value,
+            },
+          },
+        });
+      }
+    }
+  };
+
+  const handleCentralThresholdChange = (itemName: string, value: string) => {
+    if (value === "" || /^0(\.\d*)?$|^1(\.0*)?$/.test(value)) {
+      const numValue = parseFloat(value);
+      if (value === "" || (numValue >= 0 && numValue <= 1)) {
+        setPolicy({
+          ...policy,
+          centralThresholdRatios: {
+            ...policy.centralThresholdRatios,
+            [itemName]: value,
+          },
         });
       }
     }
@@ -82,6 +110,18 @@ const TargetLevelPolicy: React.FC<Props> = ({
         inventoryControlPeriod: value,
       });
     }
+  };
+
+  const getTargetValue = (
+    campName: string,
+    itemName: string,
+    field: "internal" | "external"
+  ) => {
+    const val = policy.targetLevels[campName]?.[itemName];
+    if (val && typeof val === "object") {
+      return val[field];
+    }
+    return "";
   };
 
   return (
@@ -108,37 +148,20 @@ const TargetLevelPolicy: React.FC<Props> = ({
         </Grid>
       </NestedCollapsibleSection>
 
-      {/* Threshold Section */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Reorder Threshold
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Orders are placed when inventory falls below this fraction of the
-          target level (0-1)
-        </Typography>
-        <TextField
-          label="Threshold"
-          type="number"
-          inputProps={{ step: 0.01, min: 0, max: 1 }}
-          value={policy.threshold || ""}
-          onChange={(e) => handleThresholdChange(e.target.value)}
-          sx={{ width: "200px" }}
-          helperText="Value between 0 and 1"
-        />
-      </Box>
-
-      {/* Target Levels Section */}
-      <NestedCollapsibleSection title="Camp Target Levels" level="secondary">
+      {/* Camp Settings Section */}
+      <NestedCollapsibleSection
+        title="Camp Inventory Settings"
+        level="secondary"
+      >
         {camps.map((camp) => (
           <NestedCollapsibleSection
-            key={`target-${camp.name}`}
-            title={`${camp.name} Target Levels`}
+            key={`camp-settings-${camp.name}`}
+            title={`${camp.name} Settings`}
             level="tertiary"
           >
             <Grid container spacing={2}>
               {items.map((item) => (
-                <React.Fragment key={`${camp.name}-${item.name}-target`}>
+                <React.Fragment key={`${camp.name}-${item.name}-settings`}>
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" gutterBottom>
                       {item.name}
@@ -150,10 +173,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       label="Internal Target Level"
                       type="number"
                       inputProps={{ step: 0.01, min: 0, max: 1 }}
-                      value={
-                        policy.targetLevels[camp.name]?.[item.name]?.internal ||
-                        ""
-                      }
+                      value={getTargetValue(camp.name, item.name, "internal")}
                       onChange={(e) =>
                         handleTargetLevelChange(
                           camp.name,
@@ -171,10 +191,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       label="External Target Level"
                       type="number"
                       inputProps={{ step: 0.01, min: 0, max: 1 }}
-                      value={
-                        policy.targetLevels[camp.name]?.[item.name]?.external ||
-                        ""
-                      }
+                      value={getTargetValue(camp.name, item.name, "external")}
                       onChange={(e) =>
                         handleTargetLevelChange(
                           camp.name,
@@ -186,6 +203,25 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       helperText="0-1 (fraction of external population)"
                     />
                   </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <TextField
+                      fullWidth
+                      label="Threshold Ratio"
+                      type="number"
+                      inputProps={{ step: 0.01, min: 0, max: 1 }}
+                      value={
+                        policy.thresholdRatios[camp.name]?.[item.name] || ""
+                      }
+                      onChange={(e) =>
+                        handleThresholdChange(
+                          camp.name,
+                          item.name,
+                          e.target.value
+                        )
+                      }
+                      helperText="0-1 (fraction of target level)"
+                    />
+                  </Grid>
                 </React.Fragment>
               ))}
             </Grid>
@@ -193,28 +229,45 @@ const TargetLevelPolicy: React.FC<Props> = ({
         ))}
       </NestedCollapsibleSection>
 
-      {/* Central Target Levels Section */}
-      <NestedCollapsibleSection title="Central Target Levels" level="secondary">
+      {/* Central Warehouse Settings Section */}
+      <NestedCollapsibleSection
+        title="Central Warehouse Settings"
+        level="secondary"
+      >
         <Grid container spacing={2}>
           {items.map((item) => (
-            <Grid
-              item
-              xs={12}
-              sm={6}
-              md={4}
-              key={`central-target-${item.name}`}
-            >
-              <TextField
-                fullWidth
-                label={`${item.name} Central Target Level`}
-                type="number"
-                inputProps={{ step: 1, min: 0 }}
-                value={policy.centralTargetLevels[item.name] || ""}
-                onChange={(e) =>
-                  handleCentralTargetLevelChange(item.name, e.target.value)
-                }
-              />
-            </Grid>
+            <React.Fragment key={`central-settings-${item.name}`}>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" gutterBottom>
+                  {item.name}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Central Target Level"
+                  type="number"
+                  inputProps={{ step: 1, min: 0 }}
+                  value={policy.centralTargetLevels[item.name] || ""}
+                  onChange={(e) =>
+                    handleCentralTargetLevelChange(item.name, e.target.value)
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Central Threshold Ratio"
+                  type="number"
+                  inputProps={{ step: 0.01, min: 0, max: 1 }}
+                  value={policy.centralThresholdRatios[item.name] || ""}
+                  onChange={(e) =>
+                    handleCentralThresholdChange(item.name, e.target.value)
+                  }
+                  helperText="0-1 (fraction of target level)"
+                />
+              </Grid>
+            </React.Fragment>
           ))}
         </Grid>
       </NestedCollapsibleSection>

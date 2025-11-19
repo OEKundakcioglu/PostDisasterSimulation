@@ -35,6 +35,69 @@ export const ensureNumericValues = <T>(data: T): T => {
   return coerce(data) as T;
 };
 
+const DEFAULT_LEAD_TIME_DATA = {
+  distributionType: "TRIANGULAR",
+  distParameters: { min: "1", mode: "2", max: "4" },
+};
+
+const DEFAULT_ARRIVAL_DATA = {
+  distributionType: "EXPONENTIAL",
+  distParameters: { mean: "0.033" },
+};
+
+interface LegacyItem extends Omit<Partial<Item>, "leadTimeData"> {
+  leadTimeData?: unknown;
+}
+
+interface LegacyDemand {
+  arrivalData?: unknown;
+  leadTimeData?: unknown;
+  [key: string]: unknown;
+}
+
+interface LegacyCamp extends Omit<Partial<Camp>, "demands"> {
+  demands?: LegacyDemand[];
+}
+
+interface LegacyConfig {
+  simulationConfig?: SimulationConfig;
+  items?: LegacyItem[];
+  camps?: LegacyCamp[];
+  agencies?: Agency[];
+  migrations?: Migration[];
+  inventoryPolicy?: InventoryPolicy;
+  initialState?: InitialState;
+}
+
+const sanitizeConfig = (config: unknown): Partial<LegacyConfig> => {
+  if (!config || typeof config !== "object") return {};
+
+  const typedConfig = config as LegacyConfig;
+
+  if (Array.isArray(typedConfig.items)) {
+    typedConfig.items = typedConfig.items.map((item) => ({
+      ...item,
+      leadTimeData: item.leadTimeData || deepClone(DEFAULT_LEAD_TIME_DATA),
+    }));
+  }
+
+  if (Array.isArray(typedConfig.camps)) {
+    typedConfig.camps = typedConfig.camps.map((camp) => ({
+      ...camp,
+      demands: Array.isArray(camp.demands)
+        ? camp.demands.map((demand) => ({
+            ...demand,
+            arrivalData: demand.arrivalData || deepClone(DEFAULT_ARRIVAL_DATA),
+            leadTimeData:
+              demand.leadTimeData || deepClone(DEFAULT_LEAD_TIME_DATA),
+          }))
+        : [],
+    }));
+  }
+
+  return typedConfig;
+};
+
 export const loadSavedConfig = (): Partial<{
   simulationConfig: SimulationConfig;
   items: Item[];
@@ -46,7 +109,11 @@ export const loadSavedConfig = (): Partial<{
 }> | null => {
   try {
     const raw = localStorage.getItem(LS_KEYS.simulationInput);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // We know sanitizeConfig returns a structure compatible with the return type
+    // providing we trust the LegacyConfig shape overlaps sufficiently.
+    return sanitizeConfig(parsed) as any;
   } catch {
     return null;
   }

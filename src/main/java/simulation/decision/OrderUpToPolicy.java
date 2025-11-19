@@ -68,7 +68,9 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                     continue;
                 }
 
-                var leadTime = camp.getLeadTimeData().distParameters.getMean();
+                var leadTime = onePeriodDemand.getLeadTimeData() != null 
+                    ? onePeriodDemand.getLeadTimeData().distParameters.getMean() 
+                    : 0.0;
                 var mean = onePeriodDemand.getArrivalData().getDistParameters().getMean();
 
                 var internalPopulation = state.getInternalPopulation().get(camp) * onePeriodDemand.getInternalRatio();
@@ -315,7 +317,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                             if (ie.getQuantity() >= tr.getQuantity()) {
                                 inventoryItems.add(new InventoryItem(tr.getQuantity(), ie.getExpiration(), ie.getArrivalTime()));
                                 ie.setQuantity(ie.getQuantity() - tr.getQuantity());
-                                transferEvents.add(new TransferEvent(tr.getToCamp(), item, inventoryItems, interarrivalGenerator, time));
+                                transferEvents.add(new TransferEvent(tr.getToCamp(), item, inventoryItems, interarrivalGenerator, environment, time));
                                 tr.setQuantity(0); // Request quantity fulfilled
                                 fulfilled = true;
                                 break;
@@ -323,7 +325,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
                                 inventoryItems.add(new InventoryItem(ie.getQuantity(), ie.getExpiration(), ie.getArrivalTime()));
                                 tr.setQuantity(tr.getQuantity() - ie.getQuantity());
                                 iterator.remove(); // Remove the inventory item from the list
-                                transferEvents.add(new TransferEvent(tr.getToCamp(), item, inventoryItems, interarrivalGenerator, time));
+                                transferEvents.add(new TransferEvent(tr.getToCamp(), item, inventoryItems, interarrivalGenerator, environment, time));
                             }
                         }
                         if (!fulfilled) {

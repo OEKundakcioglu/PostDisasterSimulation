@@ -1,6 +1,7 @@
 package simulation.event;
 
 import data.Camp;
+import data.Environment;
 import data.Item;
 import simulation.KPIManager;
 import simulation.State;
@@ -16,11 +17,11 @@ public class TransferEvent implements IEvent {
     public ArrayList<InventoryItem> inventoryToSend;
     public double time;
 
-    public TransferEvent(Camp camp, Item item, ArrayList<InventoryItem> inventoryToSend, InterarrivalGenerator interarrivalGenerator, double tNow) {
+    public TransferEvent(Camp camp, Item item, ArrayList<InventoryItem> inventoryToSend, InterarrivalGenerator interarrivalGenerator, Environment environment, double tNow) {
         this.camp = camp;
         this.item = item;
         this.inventoryToSend = inventoryToSend;
-        this.time = tNow + interarrivalGenerator.generateTransferTime(camp);
+        this.time = tNow + interarrivalGenerator.generateTransferTime(camp, item, environment);
     }
 
     @Override

@@ -184,20 +184,7 @@ function buildCamps(data: SimulationInputDTO, a: AnchorMaps): string {
     .map((camp) => {
       if (!camp.name) return "";
       const cA = a.camp.get(camp.name);
-      const lines: string[] = [
-        `  - &${cA}`,
-        `    name: ${camp.name}`,
-        "    leadTimeData:",
-        `      distributionType: ${camp.leadTimeData.distributionType}`,
-        `      distParameters: !!data.distribution.${distTag(
-          camp.leadTimeData.distributionType
-        )}`,
-        formatDistParameters(
-          camp.leadTimeData.distParameters as Record<string, unknown>,
-          8,
-          camp.leadTimeData.distributionType
-        ),
-      ];
+      const lines: string[] = [`  - &${cA}`, `    name: ${camp.name}`];
       if (camp.demands?.length) {
         lines.push("    demands:");
         camp.demands.forEach((d) => {
@@ -222,6 +209,24 @@ function buildCamps(data: SimulationInputDTO, a: AnchorMaps): string {
               d.arrivalData.distributionType
             )
           );
+          if (d.leadTimeData) {
+            lines.push("        leadTimeData:");
+            lines.push(
+              `          distributionType: ${d.leadTimeData.distributionType}`
+            );
+            lines.push(
+              `          distParameters: !!data.distribution.${distTag(
+                d.leadTimeData.distributionType
+              )}`
+            );
+            lines.push(
+              formatDistParameters(
+                d.leadTimeData.distParameters as Record<string, unknown>,
+                12,
+                d.leadTimeData.distributionType
+              )
+            );
+          }
           lines.push(`        internalRatio: ${formatNumber(d.internalRatio)}`);
           lines.push(`        externalRatio: ${formatNumber(d.externalRatio)}`);
         });
@@ -461,6 +466,7 @@ function buildOrderUpToPolicy(
 
   const period = ip?.inventoryControlPeriod || "5";
   out += `  inventoryControlPeriod: &period ${period}\n`;
+  out += `  policyType: ORDER_UP_TO\n`;
 
   out += "  bufferRatios:\n";
   data.camps.forEach((c) => {
@@ -512,9 +518,8 @@ function buildTargetLevelPolicy(
 
   const period = ip?.inventoryControlPeriod || "5";
   out += `  inventoryControlPeriod: ${period}\n`;
+  out += `  policyType: TARGET_LEVEL\n`;
 
-  const threshold = ip?.threshold ?? "0";
-  out += `  threshold: ${formatNumber(threshold)}\n`;
   out += "  targetLevels:\n";
   data.camps.forEach((c) => {
     if (!c.name) return;
@@ -524,7 +529,6 @@ function buildTargetLevelPolicy(
       if (!i.name) return;
       const iA = a.item.get(i.name);
       const targetLevel = ip?.targetLevels?.[c.name]?.[i.name];
-      // Handle new structure with internal/external or legacy single value
       if (
         targetLevel &&
         typeof targetLevel === "object" &&
@@ -534,7 +538,6 @@ function buildTargetLevelPolicy(
         out += `        internal: ${formatNumber(targetLevel.internal)}\n`;
         out += `        external: ${formatNumber(targetLevel.external)}\n`;
       } else {
-        // Legacy format or default
         out += `      *${iA}: ${formatInt(targetLevel ?? "0")}\n`;
       }
     });
@@ -545,6 +548,25 @@ function buildTargetLevelPolicy(
     const iA = a.item.get(i.name);
     const v = ip?.centralTargetLevels?.[i.name] ?? "0";
     out += `    *${iA}: ${formatInt(v)}\n`;
+  });
+  out += "  thresholdRatios:\n";
+  data.camps.forEach((c) => {
+    if (!c.name) return;
+    const cA = a.camp.get(c.name);
+    out += `    *${cA}:\n`;
+    data.items.forEach((i) => {
+      if (!i.name) return;
+      const iA = a.item.get(i.name);
+      const v = ip?.thresholdRatios?.[c.name]?.[i.name] ?? "0.2";
+      out += `      *${iA}: ${formatNumber(v)}\n`;
+    });
+  });
+  out += "  centralThresholdRatios:\n";
+  data.items.forEach((i) => {
+    if (!i.name) return;
+    const iA = a.item.get(i.name);
+    const v = ip?.centralThresholdRatios?.[i.name] ?? "0.2";
+    out += `    *${iA}: ${formatNumber(v)}\n`;
   });
   return out;
 }

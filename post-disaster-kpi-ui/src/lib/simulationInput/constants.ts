@@ -72,10 +72,6 @@ export const DEFAULT_ITEMS: Item[] = [
 
 export const DEFAULT_CAMPS: Camp[] = ["Hatay-1", "Hatay-2"].map((name) => ({
   name,
-  leadTimeData: {
-    distributionType: "TRIANGULAR",
-    distParameters: { min: "1", mode: "2", max: "4" },
-  },
   demands: [
     {
       item: "HygieneKit",
@@ -84,6 +80,10 @@ export const DEFAULT_CAMPS: Camp[] = ["Hatay-1", "Hatay-2"].map((name) => ({
       arrivalData: {
         distributionType: "EXPONENTIAL",
         distParameters: { mean: "0.033" },
+      },
+      leadTimeData: {
+        distributionType: "TRIANGULAR",
+        distParameters: { min: "1", mode: "2", max: "4" },
       },
       internalRatio: "0.5",
       externalRatio: "0.05",
@@ -95,6 +95,10 @@ export const DEFAULT_CAMPS: Camp[] = ["Hatay-1", "Hatay-2"].map((name) => ({
       arrivalData: {
         distributionType: "EXPONENTIAL",
         distParameters: { mean: "0.0167" },
+      },
+      leadTimeData: {
+        distributionType: "TRIANGULAR",
+        distParameters: { min: "1", mode: "2", max: "4" },
       },
       internalRatio: "0.2",
       externalRatio: "0.02",

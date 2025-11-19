@@ -2,7 +2,6 @@ package data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import data.distribution.ProbabilityData;
 import data.event_info.Demand;
 import enums.CampExternalDemandSatisfactionType;
 import enums.PopulationType;
@@ -12,7 +11,6 @@ public class Camp {
     private String name;
 
     private Demand[] demands;
-    private ProbabilityData leadTimeData;
     private CampExternalDemandSatisfactionType campExternalDemandSatisfactionType;
     private PopulationType populationType;
 
@@ -86,14 +84,6 @@ public class Camp {
 
     public void setExternalDemandSatisfactionThreshold(double externalDemandSatisfactionThreshold) {
         this.externalDemandSatisfactionThreshold = externalDemandSatisfactionThreshold;
-    }
-
-    public ProbabilityData getLeadTimeData() {
-        return leadTimeData;
-    }
-
-    public void setLeadTimeData(ProbabilityData leadTimeData) {
-        this.leadTimeData = leadTimeData;
     }
 
 }

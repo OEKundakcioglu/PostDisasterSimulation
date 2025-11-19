@@ -10,16 +10,16 @@ export interface CampDemand {
   demandTimingType: string;
   demandQuantityType: string;
   arrivalData: { distributionType: string; distParameters: { mean?: string } };
+  leadTimeData: {
+    distributionType: string;
+    distParameters: { min?: string; mode?: string; max?: string; mean?: string };
+  };
   internalRatio: string;
   externalRatio: string;
 }
 
 export interface Camp {
   name: string;
-  leadTimeData: {
-    distributionType: string;
-    distParameters: { min?: string; mode?: string; max?: string };
-  };
   demands: CampDemand[];
   initialInternalPopulation: string;
   initialExternalPopulation: string;
@@ -70,14 +70,15 @@ export interface TargetLevelPolicy {
   inventoryControlPeriod: string;
   targetLevels: {
     [campName: string]: {
-      [itemName: string]: {
+      [itemName: string]: string | {
         internal: string; // float between 0 and 1
         external: string; // float between 0 and 1
       };
     };
   };
   centralTargetLevels: { [itemName: string]: string };
-  threshold: string; // decimal between 0 and 1
+  thresholdRatios: { [campName: string]: { [itemName: string]: string } };
+  centralThresholdRatios: { [itemName: string]: string };
 }
 
 export type InventoryPolicy = OrderUpToPolicy | TargetLevelPolicy;

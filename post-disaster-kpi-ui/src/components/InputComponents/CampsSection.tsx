@@ -36,12 +36,6 @@ interface CampDemand {
       initialArrival?: boolean;
     };
   };
-  internalRatio: string;
-  externalRatio: string;
-}
-
-interface Camp {
-  name: string;
   leadTimeData: {
     distributionType: string;
     distParameters: {
@@ -54,6 +48,12 @@ interface Camp {
       initialArrival?: boolean;
     };
   };
+  internalRatio: string;
+  externalRatio: string;
+}
+
+interface Camp {
+  name: string;
   demands: CampDemand[];
   initialInternalPopulation: string;
   initialExternalPopulation: string;
@@ -73,11 +73,7 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
   const handleCampChange = (
     index: number,
     field: keyof Camp,
-    value: string | boolean,
-    subField?: keyof Camp["leadTimeData"] | keyof CampDemand,
-    subSubField?:
-      | keyof Camp["leadTimeData"]["distParameters"]
-      | keyof CampDemand["arrivalData"]["distParameters"]
+    value: string | boolean
   ) => {
     const newCamps = [...camps];
 
@@ -90,32 +86,6 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
         newCamps[index][field] = value;
       } else {
         return; // Skip update if invalid
-      }
-    } else if (subField && subSubField) {
-      // Handle nested subField and subSubField
-      if (field === "leadTimeData") {
-        const data = newCamps[index].leadTimeData;
-        const params = { ...data.distParameters } as Record<
-          string,
-          string | boolean
-        >;
-        params[subSubField as string] = value as string | boolean;
-        data.distParameters = params;
-      } else if (
-        typeof subField === "string" &&
-        (subField as keyof CampDemand) &&
-        field === "demands"
-      ) {
-        // when updating a demand's arrivalData parameters via callers
-        // this branch expects callers pass the concrete demand index externally
-      }
-    } else if (subField) {
-      // Handle nested subField
-      if (field === "leadTimeData") {
-        const data = newCamps[index].leadTimeData;
-        (data as Record<string, unknown>)[subField as string] = value as
-          | string
-          | boolean;
       }
     } else {
       // Default handling for top-level simple fields
@@ -137,6 +107,14 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
           mean: "0.033",
         },
       },
+      leadTimeData: {
+        distributionType: "TRIANGULAR",
+        distParameters: {
+          min: "1",
+          mode: "2",
+          max: "4",
+        },
+      },
       internalRatio: "0.2",
       externalRatio: "0.02",
     };
@@ -153,14 +131,6 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
       ...camps,
       {
         name: "",
-        leadTimeData: {
-          distributionType: "TRIANGULAR",
-          distParameters: {
-            min: "1",
-            mode: "2",
-            max: "4",
-          },
-        },
         demands: defaultDemands, // Populate with demands for all existing items
         initialInternalPopulation: "0",
         initialExternalPopulation: "0",
@@ -257,289 +227,6 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                       }
                     />
                   </Grid>
-                </Grid>
-              </NestedCollapsibleSection>
-            </Grid>
-
-            {/* Lead Time Data - Collapsible */}
-            <Grid item xs={12}>
-              <NestedCollapsibleSection title="Lead Time Data" level="tertiary">
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={4}>
-                    <TextField
-                      select
-                      fullWidth
-                      label="Lead Time Distribution Type"
-                      value={camp.leadTimeData.distributionType}
-                      onChange={(e) => {
-                        const newCamps = [...camps];
-                        const newType = e.target.value;
-                        newCamps[campIndex].leadTimeData.distributionType =
-                          newType;
-
-                        // Reset parameters based on the new distribution type
-                        switch (newType) {
-                          case "TRIANGULAR":
-                            newCamps[campIndex].leadTimeData.distParameters = {
-                              min: "1",
-                              mode: "2",
-                              max: "4",
-                            };
-                            break;
-                          case "EXPONENTIAL":
-                          case "FIXED":
-                          case "EQUAL_SHARE":
-                            newCamps[campIndex].leadTimeData.distParameters = {
-                              mean: "2",
-                            };
-                            break;
-                          case "BERNOULLI":
-                            newCamps[campIndex].leadTimeData.distParameters = {
-                              mean: "0.5",
-                              arrivalInterval: "10",
-                              initialArrival: true,
-                            };
-                            break;
-                          case "NORMAL":
-                            newCamps[campIndex].leadTimeData.distParameters = {
-                              mean: "10",
-                              stdDev: "2",
-                            };
-                            break;
-                          case "UNIFORM":
-                            newCamps[campIndex].leadTimeData.distParameters = {
-                              min: "1",
-                              max: "5",
-                            };
-                            break;
-                        }
-                        setCamps(newCamps);
-                      }}
-                    >
-                      <MenuItem value="BERNOULLI">
-                        {formatLabel("BERNOULLI")}
-                      </MenuItem>
-                      <MenuItem value="EXPONENTIAL">
-                        {formatLabel("EXPONENTIAL")}
-                      </MenuItem>
-                      <MenuItem value="NORMAL">
-                        {formatLabel("NORMAL")}
-                      </MenuItem>
-                      <MenuItem value="UNIFORM">
-                        {formatLabel("UNIFORM")}
-                      </MenuItem>
-                      <MenuItem value="TRIANGULAR">
-                        {formatLabel("TRIANGULAR")}
-                      </MenuItem>
-                      <MenuItem value="FIXED">{formatLabel("FIXED")}</MenuItem>
-                      <MenuItem value="EQUAL_SHARE">
-                        {formatLabel("EQUAL_SHARE")}
-                      </MenuItem>
-                    </TextField>
-                  </Grid>
-
-                  {/* Render different parameter fields based on distribution type */}
-                  {camp.leadTimeData.distributionType === "EXPONENTIAL" ||
-                  camp.leadTimeData.distributionType === "FIXED" ||
-                  camp.leadTimeData.distributionType === "EQUAL_SHARE" ? (
-                    <Grid item xs={12} sm={6} md={4}>
-                      <TextField
-                        fullWidth
-                        label="Mean (days)"
-                        value={camp.leadTimeData.distParameters.mean || ""}
-                        onChange={(e) =>
-                          handleCampChange(
-                            campIndex,
-                            "leadTimeData",
-                            e.target.value,
-                            "distParameters",
-                            "mean"
-                          )
-                        }
-                      />
-                    </Grid>
-                  ) : camp.leadTimeData.distributionType === "NORMAL" ? (
-                    <>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Mean (days)"
-                          value={camp.leadTimeData.distParameters.mean || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "mean"
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Standard Deviation (days)"
-                          value={camp.leadTimeData.distParameters.stdDev || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "stdDev"
-                            )
-                          }
-                        />
-                      </Grid>
-                    </>
-                  ) : camp.leadTimeData.distributionType === "TRIANGULAR" ? (
-                    <>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Minimum (days)"
-                          value={camp.leadTimeData.distParameters.min || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "min"
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Mode (days)"
-                          value={camp.leadTimeData.distParameters.mode || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "mode"
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Maximum (days)"
-                          value={camp.leadTimeData.distParameters.max || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "max"
-                            )
-                          }
-                        />
-                      </Grid>
-                    </>
-                  ) : camp.leadTimeData.distributionType === "UNIFORM" ? (
-                    <>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Minimum (days)"
-                          value={camp.leadTimeData.distParameters.min || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "min"
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Maximum (days)"
-                          value={camp.leadTimeData.distParameters.max || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "max"
-                            )
-                          }
-                        />
-                      </Grid>
-                    </>
-                  ) : camp.leadTimeData.distributionType === "BERNOULLI" ? (
-                    <>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Mean Probability"
-                          value={camp.leadTimeData.distParameters.mean || ""}
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "mean"
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          fullWidth
-                          label="Arrival Interval (days)"
-                          value={
-                            camp.leadTimeData.distParameters.arrivalInterval ||
-                            ""
-                          }
-                          onChange={(e) =>
-                            handleCampChange(
-                              campIndex,
-                              "leadTimeData",
-                              e.target.value,
-                              "distParameters",
-                              "arrivalInterval"
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={
-                                !!camp.leadTimeData.distParameters
-                                  .initialArrival
-                              }
-                              onChange={(e) =>
-                                handleCampChange(
-                                  campIndex,
-                                  "leadTimeData",
-                                  e.target.checked,
-                                  "distParameters",
-                                  "initialArrival"
-                                )
-                              }
-                            />
-                          }
-                          label="Initial Arrival"
-                        />
-                      </Grid>
-                    </>
-                  ) : null}
                 </Grid>
               </NestedCollapsibleSection>
             </Grid>
@@ -1010,6 +697,245 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                       </NestedCollapsibleSection>
                     </Grid>
 
+                    {/* Section 2b: Lead Time Data */}
+                    <Grid item xs={12}>
+                      <NestedCollapsibleSection
+                        title="Lead Time Data (Depot to Camp)"
+                        level="tertiary"
+                      >
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Lead Time Distribution Type"
+                              value={demand.leadTimeData.distributionType}
+                              onChange={(e) => {
+                                const newCamps = [...camps];
+                                const newType = e.target.value;
+                                newCamps[campIndex].demands[
+                                  demandIndex
+                                ].leadTimeData.distributionType = newType;
+
+                                // Reset parameters based on the new distribution type
+                                switch (newType) {
+                                  case "TRIANGULAR":
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters = {
+                                      min: "1",
+                                      mode: "2",
+                                      max: "4",
+                                    };
+                                    break;
+                                  case "EXPONENTIAL":
+                                  case "FIXED":
+                                  case "EQUAL_SHARE":
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters = {
+                                      mean: "2",
+                                    };
+                                    break;
+                                  case "NORMAL":
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters = {
+                                      mean: "2",
+                                      stdDev: "0.5",
+                                    };
+                                    break;
+                                  case "UNIFORM":
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters = {
+                                      min: "1",
+                                      max: "5",
+                                    };
+                                    break;
+                                }
+
+                                setCamps(newCamps);
+                              }}
+                            >
+                              <MenuItem value="EXPONENTIAL">
+                                {formatLabel("EXPONENTIAL")}
+                              </MenuItem>
+                              <MenuItem value="NORMAL">
+                                {formatLabel("NORMAL")}
+                              </MenuItem>
+                              <MenuItem value="UNIFORM">
+                                {formatLabel("UNIFORM")}
+                              </MenuItem>
+                              <MenuItem value="TRIANGULAR">
+                                {formatLabel("TRIANGULAR")}
+                              </MenuItem>
+                              <MenuItem value="FIXED">
+                                {formatLabel("FIXED")}
+                              </MenuItem>
+                            </TextField>
+                          </Grid>
+
+                          {/* Render different parameter fields based on distribution type */}
+                          {demand.leadTimeData.distributionType ===
+                            "EXPONENTIAL" ||
+                          demand.leadTimeData.distributionType === "FIXED" ||
+                          demand.leadTimeData.distributionType ===
+                            "EQUAL_SHARE" ? (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <TextField
+                                fullWidth
+                                label="Mean (days)"
+                                value={
+                                  demand.leadTimeData.distParameters.mean || ""
+                                }
+                                onChange={(e) => {
+                                  const newCamps = [...camps];
+                                  newCamps[campIndex].demands[
+                                    demandIndex
+                                  ].leadTimeData.distParameters.mean =
+                                    e.target.value;
+                                  setCamps(newCamps);
+                                }}
+                              />
+                            </Grid>
+                          ) : demand.leadTimeData.distributionType ===
+                            "NORMAL" ? (
+                            <>
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  fullWidth
+                                  label="Mean (days)"
+                                  value={
+                                    demand.leadTimeData.distParameters.mean || ""
+                                  }
+                                  onChange={(e) => {
+                                    const newCamps = [...camps];
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters.mean =
+                                      e.target.value;
+                                    setCamps(newCamps);
+                                  }}
+                                />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  fullWidth
+                                  label="Standard Deviation (days)"
+                                  value={
+                                    demand.leadTimeData.distParameters.stdDev ||
+                                    ""
+                                  }
+                                  onChange={(e) => {
+                                    const newCamps = [...camps];
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters.stdDev =
+                                      e.target.value;
+                                    setCamps(newCamps);
+                                  }}
+                                />
+                              </Grid>
+                            </>
+                          ) : demand.leadTimeData.distributionType ===
+                            "TRIANGULAR" ? (
+                            <>
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  fullWidth
+                                  label="Minimum (days)"
+                                  value={
+                                    demand.leadTimeData.distParameters.min || ""
+                                  }
+                                  onChange={(e) => {
+                                    const newCamps = [...camps];
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters.min =
+                                      e.target.value;
+                                    setCamps(newCamps);
+                                  }}
+                                />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  fullWidth
+                                  label="Mode (days)"
+                                  value={
+                                    demand.leadTimeData.distParameters.mode || ""
+                                  }
+                                  onChange={(e) => {
+                                    const newCamps = [...camps];
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters.mode =
+                                      e.target.value;
+                                    setCamps(newCamps);
+                                  }}
+                                />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  fullWidth
+                                  label="Maximum (days)"
+                                  value={
+                                    demand.leadTimeData.distParameters.max || ""
+                                  }
+                                  onChange={(e) => {
+                                    const newCamps = [...camps];
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters.max =
+                                      e.target.value;
+                                    setCamps(newCamps);
+                                  }}
+                                />
+                              </Grid>
+                            </>
+                          ) : demand.leadTimeData.distributionType ===
+                            "UNIFORM" ? (
+                            <>
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  fullWidth
+                                  label="Minimum (days)"
+                                  value={
+                                    demand.leadTimeData.distParameters.min || ""
+                                  }
+                                  onChange={(e) => {
+                                    const newCamps = [...camps];
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters.min =
+                                      e.target.value;
+                                    setCamps(newCamps);
+                                  }}
+                                />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  fullWidth
+                                  label="Maximum (days)"
+                                  value={
+                                    demand.leadTimeData.distParameters.max || ""
+                                  }
+                                  onChange={(e) => {
+                                    const newCamps = [...camps];
+                                    newCamps[campIndex].demands[
+                                      demandIndex
+                                    ].leadTimeData.distParameters.max =
+                                      e.target.value;
+                                    setCamps(newCamps);
+                                  }}
+                                />
+                              </Grid>
+                            </>
+                          ) : null}
+                        </Grid>
+                      </NestedCollapsibleSection>
+                    </Grid>
+
                     {/* Section 3: Demand Ratios */}
                     <Grid item xs={12}>
                       <NestedCollapsibleSection
@@ -1072,6 +998,14 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                         mean: "0.5",
                         arrivalInterval: "10",
                         initialArrival: true,
+                      },
+                    },
+                    leadTimeData: {
+                      distributionType: "TRIANGULAR",
+                      distParameters: {
+                        min: "1",
+                        mode: "2",
+                        max: "4",
                       },
                     },
                     internalRatio: "0.2",

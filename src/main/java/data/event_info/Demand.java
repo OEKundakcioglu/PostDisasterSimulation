@@ -11,6 +11,7 @@ public class Demand {
     private DemandQuantityType demandQuantityType;
     private ProbabilityData arrivalData;
     private ProbabilityData quantityData;
+    private ProbabilityData leadTimeData;
     private double internalRatio;
     private double externalRatio;
 
@@ -72,6 +73,14 @@ public class Demand {
 
     public void setExternalRatio(double externalRatio) {
         this.externalRatio = externalRatio;
+    }
+
+    public ProbabilityData getLeadTimeData() {
+        return leadTimeData;
+    }
+
+    public void setLeadTimeData(ProbabilityData leadTimeData) {
+        this.leadTimeData = leadTimeData;
     }
 
 
