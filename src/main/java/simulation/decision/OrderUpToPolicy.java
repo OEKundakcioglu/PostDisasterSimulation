@@ -125,7 +125,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
 
                 reorderPoints.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (leadTime) * (1 + bufferRatio)));
                 orderUpToLevels.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (periodicCount + leadTime) * (1 + bufferRatio)));
-                thresholdLevels.get(camp).put(item, 0);
+                thresholdLevels.get(camp).put(item, reorderPoints.get(camp).get(item));
             }
         }
     }
