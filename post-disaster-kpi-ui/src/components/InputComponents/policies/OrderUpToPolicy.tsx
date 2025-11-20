@@ -244,6 +244,7 @@ const OrderUpToPolicy: React.FC<Props> = ({
                         e.target.value
                       )
                     }
+                    helperText={`Scaling factor for the order-up-to level (float)`}
                   />
                 </Grid>
               ))}
@@ -273,6 +274,7 @@ const OrderUpToPolicy: React.FC<Props> = ({
                 onChange={(e) =>
                   handleCentralBufferRatioChange(item.name, e.target.value)
                 }
+                helperText={`Scaling factor for the order-up-to level (float)`}
               />
             </Grid>
           ))}

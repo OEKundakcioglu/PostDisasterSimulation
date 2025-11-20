@@ -130,9 +130,8 @@ export interface TargetLevelPolicy {
   policyType: "TARGET_LEVEL";
   inventoryControlPeriod: string;
   targetLevels: Record<string, Record<string, TargetLevelValue>>;
-  centralTargetLevels: Record<string, string>;
+  centralTargetLevels: Record<string, TargetLevelValue>;
   thresholdRatios: Record<string, Record<string, string>>;
-  centralThresholdRatios: Record<string, string>;
 }
 
 export type InventoryPolicy = OrderUpToPolicy | TargetLevelPolicy;

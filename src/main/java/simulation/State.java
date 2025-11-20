@@ -261,56 +261,66 @@ public class State implements Cloneable {
         }
         // External consumption
         else {
-            // No need to satisfy the demand
-            if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
-                int val = referralPopulation.get(camp).get(item) + quantity;
-                referralPopulation.get(camp).put(item, val);
-                // Incrementally update referral cost KPI so UI reflects non-zero earlier
-                if (kpiManager.totalReferralCost.containsKey(camp) && kpiManager.totalReferralCost.get(camp).containsKey(item)) {
-                    kpiManager.totalReferralCost.get(camp).put(item, referralPopulation.get(camp).get(item) * item.getReferralCost());
-                }
+            int threshold = inventoryPolicy.getThreshold(camp, item);
+
+            int currentStock = 0;
+            if (this.inventoryPosition.containsKey(camp) && this.inventoryPosition.get(camp).containsKey(item)) {
+                currentStock = this.inventoryPosition.get(camp).get(item);
             }
-            // Fully satisfy the demand
-            else if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.FULLY){
-                if (inventory.containsKey(camp) && inventory.get(camp).containsKey(item)) {
-                    HashMap<Item, PriorityQueue<InventoryItem>> innerMap = inventory.get(camp);
-                    PriorityQueue<InventoryItem> items = innerMap.get(item);
-                    while (quantity > 0 && !items.isEmpty()) {
-                        InventoryItem inventoryItem = items.peek();
-                        if (inventoryItem.getQuantity() <= quantity) {
-                            double totalTime = tNow - inventoryItem.getArrivalTime();
-                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * inventoryItem.getQuantity()));
-                            quantity -= inventoryItem.getQuantity();
-                            this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - inventoryItem.getQuantity());
-                            items.poll();
-                        }
-                        else {
-                            double totalTime = tNow - inventoryItem.getArrivalTime();
-                            kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * quantity));
-                            inventoryItem.setQuantity(inventoryItem.getQuantity() - (int) quantity);
-                            this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - (int) quantity);
-                            quantity = 0; // Exit the loop
-                        }
+
+            int availableAboveThreshold = Math.max(0, currentStock - threshold);
+
+            int allowedQuantity = Math.min(quantity, availableAboveThreshold);
+
+            int deniedDueToThreshold = quantity - allowedQuantity;
+
+
+            int quantityToProcess = allowedQuantity;
+
+            if (inventory.containsKey(camp) && inventory.get(camp).containsKey(item)) {
+                HashMap<Item, PriorityQueue<InventoryItem>> innerMap = inventory.get(camp);
+                PriorityQueue<InventoryItem> items = innerMap.get(item);
+
+                while (quantityToProcess > 0 && !items.isEmpty()) {
+                    InventoryItem inventoryItem = items.peek();
+
+                    if (inventoryItem.getQuantity() <= quantityToProcess) {
+                        double totalTime = tNow - inventoryItem.getArrivalTime();
+                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * inventoryItem.getQuantity()));
+
+                        quantityToProcess -= inventoryItem.getQuantity(); // İşlenecek miktarı düş
+                        this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - inventoryItem.getQuantity());
+                        items.poll();
                     }
-                }
-                // If no inventory is available, then add it to the referral
-                if (quantity > 0) {
-                    if (!referralPopulation.containsKey(camp)) {
-                        referralPopulation.put(camp, new HashMap<>());
-                    }
-                    if (!referralPopulation.get(camp).containsKey(item)) {
-                        referralPopulation.get(camp).put(item, quantity);
-                    } else {
-                        int val = referralPopulation.get(camp).get(item) + quantity;
-                        referralPopulation.get(camp).put(item, val);
-                    }
-                    // Update referral KPI map
-                    if (kpiManager.totalReferralCost.containsKey(camp)) {
-                        kpiManager.totalReferralCost.get(camp).put(item, referralPopulation.get(camp).get(item) * item.getReferralCost());
+                    else {
+                        double totalTime = tNow - inventoryItem.getArrivalTime();
+                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * quantityToProcess));
+
+                        inventoryItem.setQuantity(inventoryItem.getQuantity() - (int) quantityToProcess);
+                        this.inventoryPosition.get(camp).put(item, this.inventoryPosition.get(camp).get(item) - (int) quantityToProcess);
+                        quantityToProcess = 0; // Exit the loop
                     }
                 }
             }
 
+            int totalUnmetDemand = quantityToProcess + deniedDueToThreshold;
+
+            if (totalUnmetDemand > 0) {
+                if (!referralPopulation.containsKey(camp)) {
+                    referralPopulation.put(camp, new HashMap<>());
+                }
+                if (!referralPopulation.get(camp).containsKey(item)) {
+                    referralPopulation.get(camp).put(item, totalUnmetDemand);
+                } else {
+                    int val = referralPopulation.get(camp).get(item) + totalUnmetDemand;
+                    referralPopulation.get(camp).put(item, val);
+                }
+
+                // Update referral KPI map
+                if (kpiManager.totalReferralCost.containsKey(camp)) {
+                    kpiManager.totalReferralCost.get(camp).put(item, referralPopulation.get(camp).get(item) * item.getReferralCost());
+                }
+            }
         }
     }
 

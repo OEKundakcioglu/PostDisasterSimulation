@@ -1,6 +1,8 @@
 package simulation.decision;
 
+import data.Camp;
 import data.Environment;
+import data.Item;
 import simulation.State;
 import simulation.event.IEvent;
 import simulation.generator.InterarrivalGenerator;
@@ -40,4 +42,8 @@ public interface IPolicy extends Cloneable {
     public void setState(State state);
 
     public Object clone() throws CloneNotSupportedException;
+
+    int getThreshold(Camp camp, Item item);
+
+    void setThreshold(Camp camp, Item item, int level);
 }

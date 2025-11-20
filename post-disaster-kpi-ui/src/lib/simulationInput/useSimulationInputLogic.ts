@@ -349,12 +349,24 @@ export const useSimulationInputLogic = () => {
         });
         next.targetLevels = newTargetLevels;
 
-        const newCentralTargetLevels: Record<string, string> = {};
-        validItemNames.forEach((itemName) => {
-          newCentralTargetLevels[itemName] =
-            next.centralTargetLevels[itemName] ?? "0";
-        });
-        next.centralTargetLevels = newCentralTargetLevels;
+          const newCentralTargetLevels: Record<
+              string,
+              { internal: string; external: string }
+          > = {};
+
+          validItemNames.forEach((itemName) => {
+              const existingVal = next.centralTargetLevels[itemName];
+
+              if (typeof existingVal === "object" && existingVal !== null) {
+                  newCentralTargetLevels[itemName] = existingVal;
+              } else {
+                  newCentralTargetLevels[itemName] = {
+                      internal: "0",
+                      external: "0"
+                  };
+              }
+          });
+          next.centralTargetLevels = newCentralTargetLevels;
       }
 
       return next;
@@ -768,23 +780,29 @@ export const useSimulationInputLogic = () => {
           })
         );
 
-        items.forEach((it: Item) => {
-          // Validate Central Target Level
-          const ctl = inventoryPolicy.centralTargetLevels?.[it.name];
-          if (ctl === undefined)
-            issues.push(`Central target level missing for ${it.name}`);
-          else if (!/^\d+$/.test(String(ctl)) || Number(ctl) < 0)
-            issues.push(`Central target level invalid for ${it.name}`);
-
-          // Validate Central Threshold Ratio
-          const ctr = inventoryPolicy.centralThresholdRatios?.[it.name];
-          if (ctr === undefined)
-            issues.push(`Central threshold ratio missing for ${it.name}`);
-          else if (isNaN(Number(ctr)) || Number(ctr) < 0 || Number(ctr) > 1)
-            issues.push(
-              `Central threshold ratio for ${it.name} must be between 0 and 1`
-            );
-        });
+          items.forEach((it: Item) => {
+              const ctl = inventoryPolicy.centralTargetLevels?.[it.name] as any;
+              if (ctl === undefined) {
+                  issues.push(`Central target level missing for ${it.name}`);
+              } else if (typeof ctl === 'object') {
+                  if (
+                      !/^\d*\.?\d+$/.test(String(ctl.internal)) ||
+                      Number(ctl.internal) < 0 ||
+                      Number(ctl.internal) > 1
+                  ) {
+                      issues.push(`Central Internal target for ${it.name} must be 0-1`);
+                  }
+                  if (
+                      !/^\d*\.?\d+$/.test(String(ctl.external)) ||
+                      Number(ctl.external) < 0 ||
+                      Number(ctl.external) > 1
+                  ) {
+                      issues.push(`Central External target for ${it.name} must be 0-1`);
+                  }
+              } else {
+                  issues.push(`Central target level format invalid for ${it.name}`);
+              }
+          });
       }
 
       // Initial State

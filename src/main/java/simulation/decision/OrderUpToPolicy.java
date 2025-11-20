@@ -34,6 +34,8 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
     private HashMap<Camp, HashMap<Item, Integer>> periodicCounts;
     private HashMap<Item, Integer> centralPeriodicCounts;
 
+    private HashMap<Camp, HashMap<Item, Integer>> thresholdLevels;
+
 
     public OrderUpToPolicy() {
 
@@ -50,6 +52,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
         this.centralReorderPoints = new HashMap<>();
         this.centralOrderUpToLevels = new HashMap<>();
 
+        this.thresholdLevels = new HashMap<>();
 
         setCampLevels();
         setCentralLevels();
@@ -59,6 +62,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
         for (Camp camp : environment.getCamps()) {
             reorderPoints.put(camp, new HashMap<>());
             orderUpToLevels.put(camp, new HashMap<>());
+            thresholdLevels.put(camp, new HashMap<>());
 
             for (Item item : environment.getItems()) {
                 Demand onePeriodDemand = this.environment.getCorrespondingDemand(item, camp);
@@ -121,6 +125,7 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
 
                 reorderPoints.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (leadTime) * (1 + bufferRatio)));
                 orderUpToLevels.get(camp).put(item, (int) (mean * (internalPopulation + externalPopulation) * (periodicCount + leadTime) * (1 + bufferRatio)));
+                thresholdLevels.get(camp).put(item, 0);
             }
         }
     }
@@ -431,4 +436,23 @@ public class OrderUpToPolicy implements IPolicy, Cloneable {
     public void setCentralPeriodicCounts(HashMap<Item, Integer> centralPeriodicCounts) {
         this.centralPeriodicCounts = centralPeriodicCounts;
     }
+
+    public HashMap<Camp, HashMap<Item, Integer>> getThresholdLevels() {
+        return thresholdLevels;
+    }
+    public void setThresholdLevels(HashMap<Camp, HashMap<Item, Integer>> thresholdLevels) {
+        this.thresholdLevels = thresholdLevels;
+    }
+    @Override
+    public int getThreshold(Camp camp, Item item) {
+        if (thresholdLevels.containsKey(camp) && thresholdLevels.get(camp).containsKey(item)) {
+            return this.thresholdLevels.get(camp).get(item);
+        }
+        return 0;
+    }
+    @Override
+    public void setThreshold(Camp camp, Item item, int level) {
+        this.thresholdLevels.computeIfAbsent(camp, k -> new HashMap<>()).put(item, level);
+    }
+
 }

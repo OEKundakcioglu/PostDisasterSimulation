@@ -76,9 +76,13 @@ export interface TargetLevelPolicy {
       };
     };
   };
-  centralTargetLevels: { [itemName: string]: string };
+  centralTargetLevels: {
+    [itemName: string]: string | {
+        internal: string; // float between 0 and 1
+        external: string; // float between 0 and 1
+    };
+  };
   thresholdRatios: { [campName: string]: { [itemName: string]: string } };
-  centralThresholdRatios: { [itemName: string]: string };
 }
 
 export type InventoryPolicy = OrderUpToPolicy | TargetLevelPolicy;

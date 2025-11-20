@@ -75,7 +75,6 @@ const InventoryPoliciesSection: React.FC<Props> = ({
         targetLevels: {},
         centralTargetLevels: {},
         thresholdRatios: {},
-        centralThresholdRatios: {},
       };
 
       camps.forEach((camp) => {
@@ -90,10 +89,12 @@ const InventoryPoliciesSection: React.FC<Props> = ({
         });
       });
 
-      items.forEach((item) => {
-        newPolicy.centralTargetLevels[item.name] = "0";
-        newPolicy.centralThresholdRatios[item.name] = "0.2";
-      });
+        items.forEach((item) => {
+            newPolicy.centralTargetLevels[item.name]  = {
+                internal: "0",
+                external: "0",
+            };
+        });
 
       setInventoryPolicy(newPolicy);
     }

@@ -133,7 +133,7 @@ public final class SimulationEnvironmentMapper {
         }
         Migration[] migrationsArr = migrations.toArray(Migration[]::new);
 
-        // 5. SupplyStatusSwitches (optional)
+        // 5. SupplyStatusSwitches
         List<Map<String, Object>> switchesJson = list(root.get("supplyStatusSwitches"));
         List<SupplyStatusSwitch> switches = new ArrayList<>();
         for (Map<String, Object> sm : switchesJson) {
@@ -171,6 +171,7 @@ public final class SimulationEnvironmentMapper {
             if (sc.containsKey("centralBuffer")) config.setCentralBuffer(dbl(sc.get("centralBuffer")));
         }
 
+        // 7. Inventory Policy (UPDATED)
         IPolicy policy = null;
         Map<String,Object> ip = map(root.get("inventoryPolicy"));
         if (ip != null) {
@@ -178,15 +179,15 @@ public final class SimulationEnvironmentMapper {
             if (policyType == null) {
                 policyType = "ORDER_UP_TO";
             }
-            
+
             if ("TARGET_LEVEL".equals(policyType)) {
                 TargetLevelPolicy targetPolicy = new TargetLevelPolicy();
-                targetPolicy.setTargetLevels(convertNestedCampItemInt(ip.get("targetLevels"), campByName, itemByName));
-                targetPolicy.setCentralTargetLevels(convertItemInt(ip.get("centralTargetLevels"), itemByName));
+                targetPolicy.setTargetLevels(convertNestedCampItemTargetDef(ip.get("targetLevels"), campByName, itemByName));
+                targetPolicy.setCentralTargetLevels(convertItemTargetDef(ip.get("centralTargetLevels"), itemByName));
                 targetPolicy.setThresholdRatios(convertNestedCampItemDouble(ip.get("thresholdRatios"), campByName, itemByName));
-                targetPolicy.setCentralThresholdRatios(convertItemDouble(ip.get("centralThresholdRatios"), itemByName));
+
                 policy = targetPolicy;
-            } else {
+            } else if ("ORDER_UP_TO".equals(policyType)) {
                 OrderUpToPolicy orderPolicy = new OrderUpToPolicy();
                 orderPolicy.setBufferRatios(convertNestedCampItemDouble(ip.get("bufferRatios"), campByName, itemByName));
                 orderPolicy.setCentralBufferRatios(convertItemDouble(ip.get("centralBufferRatios"), itemByName));
@@ -235,11 +236,11 @@ public final class SimulationEnvironmentMapper {
     private static <E extends Enum<E>> E enumVal(Class<E> cls, Object o) { return o==null? null: Enum.valueOf(cls, str(o)); }
     private static String str(Object o) { return o==null? null : String.valueOf(o); }
     private static double dbl(Object o) { if(o==null) return 0; if(o instanceof Number n) return n.doubleValue(); return Double.parseDouble(o.toString()); }
-    private static int intVal(Object o){ 
-        if(o==null) return 0; 
-        if(o instanceof Number n) return n.intValue(); 
+    private static int intVal(Object o){
+        if(o==null) return 0;
+        if(o instanceof Number n) return n.intValue();
         String s = o.toString();
-        if(s.startsWith("{")) return 0; 
+        if(s.startsWith("{")) return 0;
         try {
             return Integer.parseInt(s);
         } catch (NumberFormatException e) {
@@ -253,8 +254,55 @@ public final class SimulationEnvironmentMapper {
     private static boolean bool(Object o){ if(o==null) return false; if(o instanceof Boolean b) return b; return Boolean.parseBoolean(o.toString()); }
     private static Map<String,Object> map(Object o){ return o instanceof Map ? (Map<String,Object>) o : null; }
     private static List<Map<String,Object>> list(Object o){ if(o instanceof List<?> l){ List<Map<String,Object>> out=new ArrayList<>(); for(Object v:l) if(v instanceof Map<?,?> m) out.add((Map<String,Object>)m); return out;} return Collections.emptyList(); }
-
     private static void optInt(Map<String,Object> m, String key, java.util.function.IntConsumer c){ if(m.containsKey(key)) c.accept(intVal(m.get(key))); }
+
+    /* --- YENİ HELPER: Camp -> Item -> TargetLevelDefinition ({internal: X, external: Y}) --- */
+    private static HashMap<Camp, HashMap<Item, TargetLevelPolicy.TargetLevelDefinition>> convertNestedCampItemTargetDef(Object o, Map<String,Camp> camps, Map<String,Item> items){
+        HashMap<Camp, HashMap<Item, TargetLevelPolicy.TargetLevelDefinition>> result = new HashMap<>();
+        if(!(o instanceof Map<?,?> outer)) return result;
+
+        for (var e : outer.entrySet()) {
+            Camp camp = camps.get(str(e.getKey())); if(camp==null) continue;
+            HashMap<Item, TargetLevelPolicy.TargetLevelDefinition> innerMap = new HashMap<>();
+            if (e.getValue() instanceof Map<?,?> inner) {
+                for (var ie : inner.entrySet()) {
+                    Item item = items.get(str(ie.getKey())); if(item==null) continue;
+
+                    Object val = ie.getValue();
+                    if (val instanceof Map<?,?> valMap) {
+                        double internal = dbl(valMap.get("internal"));
+                        double external = dbl(valMap.get("external"));
+                        innerMap.put(item, new TargetLevelPolicy.TargetLevelDefinition(internal, external));
+                    } else {
+                        double valDbl = dbl(val);
+                        innerMap.put(item, new TargetLevelPolicy.TargetLevelDefinition(valDbl, 0.0));
+                    }
+                }
+            }
+            result.put(camp, innerMap);
+        }
+        return result;
+    }
+
+    private static HashMap<Item, TargetLevelPolicy.TargetLevelDefinition> convertItemTargetDef(Object o, Map<String,Item> items){
+        HashMap<Item, TargetLevelPolicy.TargetLevelDefinition> result = new HashMap<>();
+        if(!(o instanceof Map<?,?> m)) return result;
+
+        for (var e : m.entrySet()) {
+            Item item = items.get(str(e.getKey())); if(item==null) continue;
+
+            Object val = e.getValue();
+            if (val instanceof Map<?,?> valMap) {
+                double internal = dbl(valMap.get("internal"));
+                double external = dbl(valMap.get("external"));
+                result.put(item, new TargetLevelPolicy.TargetLevelDefinition(internal, external));
+            } else {
+                double valDbl = dbl(val);
+                result.put(item, new TargetLevelPolicy.TargetLevelDefinition(valDbl, 0.0));
+            }
+        }
+        return result;
+    }
 
     private static HashMap<Camp, HashMap<Item, Integer>> convertNestedCampItemInt(Object o, Map<String,Camp> camps, Map<String,Item> items){
         HashMap<Camp, HashMap<Item, Integer>> result = new HashMap<>();
@@ -265,41 +313,14 @@ public final class SimulationEnvironmentMapper {
             if (e.getValue() instanceof Map<?,?> inner) {
                 for (var ie : inner.entrySet()) {
                     Item item = items.get(str(ie.getKey())); if(item==null) continue;
-                    
-                    // Handle nested object {internal: "0.8", external: "0.7"} case for target levels
-                    Object val = ie.getValue();
-                    if (val instanceof Map) {
-                        // The backend TargetLevelPolicy expects a single Integer target level.
-                        // However, the UI sends ratios (internal/external) for calculating this level dynamically.
-                        //
-                        // Since the backend implementation of TargetLevelPolicy currently stores a static Integer
-                        // in `targetLevels`, we must either:
-                        // 1. Update TargetLevelPolicy to store these ratios and calculate the level dynamically.
-                        // 2. Calculate an initial static level here based on some assumption.
-                        //
-                        // Given the existing code structure, Option 1 requires significant refactoring of the Policy class.
-                        // For now, to prevent the 400 Bad Request error and allow the simulation to proceed (albeit potentially with 0 target level if logic mismatches),
-                        // we treat this as a valid input format but extract a safe integer value.
-                        //
-                        // The UI likely intends these to be ratios that multiply against population.
-                        // The backend might need to be updated to support `internal` and `external` target ratios instead of a fixed integer level.
-                        
-                        Map<?,?> valMap = (Map<?,?>) val;
-                        // Attempt to use "internal" value if present, otherwise 0.
-                        if (valMap.containsKey("internal")) {
-                             innerMap.put(item, intVal(valMap.get("internal")));
-                        } else {
-                             innerMap.put(item, 0);
-                        }
-                    } else {
-                        innerMap.put(item, intVal(val));
-                    }
+                    innerMap.put(item, intVal(ie.getValue()));
                 }
             }
             result.put(camp, innerMap);
         }
         return result;
     }
+
     private static HashMap<Camp, HashMap<Item, Double>> convertNestedCampItemDouble(Object o, Map<String,Camp> camps, Map<String,Item> items){
         HashMap<Camp, HashMap<Item, Double>> result = new HashMap<>();
         if(!(o instanceof Map<?,?> outer)) return result;

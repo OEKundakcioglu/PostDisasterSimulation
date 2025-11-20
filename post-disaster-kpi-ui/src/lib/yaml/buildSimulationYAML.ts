@@ -510,65 +510,69 @@ function buildOrderUpToPolicy(
 }
 
 function buildTargetLevelPolicy(
-  data: SimulationInputDTO,
-  a: AnchorMaps,
-  ip?: Partial<TargetLevelPolicy>
+    data: SimulationInputDTO,
+    a: AnchorMaps,
+    ip?: Partial<TargetLevelPolicy>
 ): string {
-  let out = "inventoryPolicy: !!simulation.decision.TargetLevelPolicy\n";
+    let out = "inventoryPolicy: !!simulation.decision.TargetLevelPolicy\n";
 
-  const period = ip?.inventoryControlPeriod || "5";
-  out += `  inventoryControlPeriod: ${period}\n`;
-  out += `  policyType: TARGET_LEVEL\n`;
+    const period = ip?.inventoryControlPeriod || "5";
+    out += `  inventoryControlPeriod: ${period}\n`;
+    out += `  policyType: TARGET_LEVEL\n`;
 
-  out += "  targetLevels:\n";
-  data.camps.forEach((c) => {
-    if (!c.name) return;
-    const cA = a.camp.get(c.name);
-    out += `    *${cA}:\n`;
-    data.items.forEach((i) => {
-      if (!i.name) return;
-      const iA = a.item.get(i.name);
-      const targetLevel = ip?.targetLevels?.[c.name]?.[i.name];
-      if (
-        targetLevel &&
-        typeof targetLevel === "object" &&
-        "internal" in targetLevel
-      ) {
-        out += `      *${iA}:\n`;
-        out += `        internal: ${formatNumber(targetLevel.internal)}\n`;
-        out += `        external: ${formatNumber(targetLevel.external)}\n`;
-      } else {
-        out += `      *${iA}: ${formatInt(targetLevel ?? "0")}\n`;
-      }
+    out += "  targetLevels:\n";
+    data.camps.forEach((c) => {
+        if (!c.name) return;
+        const cA = a.camp.get(c.name);
+        out += `    *${cA}:\n`;
+        data.items.forEach((i) => {
+            if (!i.name) return;
+            const iA = a.item.get(i.name);
+            const targetLevel = ip?.targetLevels?.[c.name]?.[i.name];
+
+            if (
+                targetLevel &&
+                typeof targetLevel === "object" &&
+                "internal" in targetLevel
+            ) {
+                out += `      *${iA}:\n`;
+                out += `        internal: ${formatNumber(targetLevel.internal)}\n`;
+                out += `        external: ${formatNumber(targetLevel.external)}\n`;
+            } else {
+                out += `      *${iA}: ${formatNumber(targetLevel ?? "0")}\n`;
+            }
+        });
     });
-  });
-  out += "  centralTargetLevels:\n";
-  data.items.forEach((i) => {
-    if (!i.name) return;
-    const iA = a.item.get(i.name);
-    const v = ip?.centralTargetLevels?.[i.name] ?? "0";
-    out += `    *${iA}: ${formatInt(v)}\n`;
-  });
-  out += "  thresholdRatios:\n";
-  data.camps.forEach((c) => {
-    if (!c.name) return;
-    const cA = a.camp.get(c.name);
-    out += `    *${cA}:\n`;
+
+    out += "  centralTargetLevels:\n";
     data.items.forEach((i) => {
-      if (!i.name) return;
-      const iA = a.item.get(i.name);
-      const v = ip?.thresholdRatios?.[c.name]?.[i.name] ?? "0.2";
-      out += `      *${iA}: ${formatNumber(v)}\n`;
+        if (!i.name) return;
+        const iA = a.item.get(i.name);
+        const val = ip?.centralTargetLevels?.[i.name] as any;
+
+        if (val && typeof val === "object" && "internal" in val) {
+            out += `    *${iA}:\n`;
+            out += `      internal: ${formatNumber(val.internal)}\n`;
+            out += `      external: ${formatNumber(val.external)}\n`;
+        } else {
+            out += `    *${iA}: ${formatNumber(val ?? "0")}\n`;
+        }
     });
-  });
-  out += "  centralThresholdRatios:\n";
-  data.items.forEach((i) => {
-    if (!i.name) return;
-    const iA = a.item.get(i.name);
-    const v = ip?.centralThresholdRatios?.[i.name] ?? "0.2";
-    out += `    *${iA}: ${formatNumber(v)}\n`;
-  });
-  return out;
+
+    out += "  thresholdRatios:\n";
+    data.camps.forEach((c) => {
+        if (!c.name) return;
+        const cA = a.camp.get(c.name);
+        out += `    *${cA}:\n`;
+        data.items.forEach((i) => {
+            if (!i.name) return;
+            const iA = a.item.get(i.name);
+            const v = ip?.thresholdRatios?.[c.name]?.[i.name] ?? "0.2";
+            out += `      *${iA}: ${formatNumber(v)}\n`;
+        });
+    });
+
+    return out;
 }
 
 function buildInitialState(data: SimulationInputDTO, a: AnchorMaps): string {
