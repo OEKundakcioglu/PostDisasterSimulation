@@ -42,6 +42,17 @@ public class Camp {
         return demands;
     }
 
+    public Demand getDemandByItem(String itemName) {
+        if (demands != null) {
+            for (Demand demand : demands) {
+                if (demand.getItem().getName().equals(itemName)) {
+                    return demand;
+                }
+            }
+        }
+        return null;
+    }
+
     public void setDemands(Demand[] demands) {
         this.demands = demands;
     }

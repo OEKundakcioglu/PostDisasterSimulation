@@ -122,7 +122,7 @@ const InventoryPoliciesSection: React.FC<Props> = ({
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           {inventoryPolicy.policyType === "ORDER_UP_TO"
             ? "Order inventory up to a target level based on buffer ratios and periodic review."
-            : "Maintain inventory at target levels with reordering when inventory falls below a threshold."}
+            : "Maintain inventory at target levels."}
         </Typography>
       </Box>
 

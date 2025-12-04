@@ -53,5 +53,8 @@ public class InterarrivalGenerator {
         return demand.getLeadTimeData().distParameters.generate(this.rngTransferTime);
     }
 
+    public Random getRngDemand() {
+        return rngDemand;
+    }
 }
 

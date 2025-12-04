@@ -405,22 +405,48 @@ public class Simulate {
         int internalPop = this.state.getInternalPopulation().get(camp);
         int externalPop = this.state.getExternalPopulation().get(camp);
 
-        int internalEvents = sampleBinomialApprox(internalPop, demand.getInternalRatio(), this.quantityGenerator.rngDemand);
+        // Approximation is not the correct way to generate number of demand events.
+        // int internalEvents = sampleBinomialApprox(internalPop, demand.getInternalRatio(), this.quantityGenerator.rngDemand);
+
+        int internalEvents = (int)Math.round(internalPop * demand.getInternalRatio());
         for (int k = 0; k < internalEvents; k++) {
-            DemandEvent de_internal = new DemandEvent(this.state, camp, demand, true, this.interarrivalGenerator, this.quantityGenerator, currentTime);
+            DemandEvent de_internal = null;
+
+            if (demand.getArrivalData().getDistributionType() == DistributionType.EXPONENTIAL) {
+                 de_internal = new DemandEvent(false, this.state, camp, demand, true,
+                         this.interarrivalGenerator, this.quantityGenerator, currentTime);
+            }
+            else{
+                de_internal = new DemandEvent(true, this.state, camp, demand, true, this.interarrivalGenerator,
+                        this.quantityGenerator, currentTime);
+            }
+
             if (de_internal.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(de_internal);
         }
-        int externalEvents = sampleBinomialApprox(externalPop, demand.getExternalRatio(), this.quantityGenerator.rngDemand);
+
+        // int externalEvents = sampleBinomialApprox(externalPop, demand.getExternalRatio(), this.quantityGenerator.rngDemand);
+        int externalEvents = (int)Math.round(externalPop * demand.getExternalRatio());
         for (int k = 0; k < externalEvents; k++) {
-            DemandEvent de_external = new DemandEvent(this.state, camp, demand, false, this.interarrivalGenerator, this.quantityGenerator, currentTime);
+            DemandEvent de_external = null;
+            if (demand.getArrivalData().getDistributionType() == DistributionType.EXPONENTIAL) {
+                de_external = new DemandEvent(false, this.state, camp, demand, false,
+                        this.interarrivalGenerator, this.quantityGenerator, currentTime);
+            }
+            else{
+                de_external = new DemandEvent(true, this.state, camp, demand, false, this.interarrivalGenerator,
+                        this.quantityGenerator, currentTime);
+            }
+
             if (de_external.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(de_external);
         }
+
         if (!demandQueue.isEmpty()){
             this.eventQueue.offer(demandQueue.poll());
         }
         this.demandEventQueue.put(camp, demandQueue);
     }
 
+    // TODO: We do not need to use this method.
     private static int sampleBinomialApprox(int n, double p, java.util.Random rng) {
         if (p <= 0) return 0;
         if (p >= 1) return n;

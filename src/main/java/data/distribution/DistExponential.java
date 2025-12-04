@@ -10,7 +10,7 @@ public class DistExponential implements IDist {
     }
 
     public double generate(Random rng){
-        return -Math.log(1.0 - rng.nextDouble()) / this.mean;
+        return -Math.log(1.0 - rng.nextDouble()) * this.mean;
     }
 
     public double getMean(){

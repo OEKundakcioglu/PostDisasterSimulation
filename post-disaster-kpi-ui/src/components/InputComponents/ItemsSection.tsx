@@ -16,6 +16,7 @@ import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSect
 import { Item, DistParameters } from "../../types/Item";
 import DeleteIcon from "@mui/icons-material/Delete";
 
+
 // Helper function to convert uppercase macros to readable format
 const formatLabel = (value: string): string => {
   return value

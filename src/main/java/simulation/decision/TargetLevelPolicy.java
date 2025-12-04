@@ -62,7 +62,6 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
 
     }
 
-
     private int calculateCampTargetLevel(Camp camp, Item item) {
         if (!targetLevelDefinitions.containsKey(camp) || !targetLevelDefinitions.get(camp).containsKey(item)) {
             return 0;
@@ -71,7 +70,9 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
 
         double internalTarget = this.state.getCurrentInternalPopulation(camp) * def.internalRatio;
         double externalTarget = this.state.getCurrentExternalPopulation(camp) * def.externalRatio;
-        int targetLevel = (int) Math.ceil(internalTarget + externalTarget);
+        double val = (internalTarget + externalTarget) *
+                (1.0 / camp.getDemandByItem(item.getName()).getArrivalData().getDistParameters().getMean());
+        int targetLevel = (int) Math.ceil(val * this.environment.getSimulationConfig().getInventoryControlPeriod());
 
         double ratio = 0.0;
         if (thresholdRatios.containsKey(camp) && thresholdRatios.get(camp).containsKey(item)) {
@@ -90,18 +91,17 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
         }
         TargetLevelDefinition def = centralTargetLevelDefinitions.get(item);
 
-        long totalInternalPop = 0;
-        long totalExternalPop = 0;
+        double internalTarget = 0;
+        double externalTarget = 0;
 
         for (Camp camp : environment.getCamps()) {
-            totalInternalPop += this.state.getCurrentInternalPopulation(camp);
-            totalExternalPop += this.state.getCurrentExternalPopulation(camp);
+            internalTarget += (this.state.getCurrentInternalPopulation(camp) * def.internalRatio *
+                    (1.0 / camp.getDemandByItem(item.getName()).getArrivalData().getDistParameters().getMean()));
+            externalTarget += (this.state.getCurrentExternalPopulation(camp)  * def.externalRatio *
+                    (1.0 / camp.getDemandByItem(item.getName()).getArrivalData().getDistParameters().getMean()));
         }
 
-        double internalTarget = totalInternalPop * def.internalRatio;
-        double externalTarget = totalExternalPop * def.externalRatio;
-
-        return (int) Math.ceil(internalTarget + externalTarget);
+        return (int) Math.ceil(internalTarget + externalTarget) * this.environment.getSimulationConfig().getInventoryControlPeriod();
     }
 
     // --- CENTRAL REPLENISHMENT (Supplier -> Central) ---
@@ -171,7 +171,6 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
         return replenishmentEvents;
     }
 
-    // --- CAMP REPLENISHMENT (Central -> Camp) ---
     @Override
     public ArrayList<IEvent> generateTransferEvents(InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator, double time) {
         ArrayList<TransferRequest> transferRequests = new ArrayList<>();
@@ -183,10 +182,8 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
                     currentInventory = 0;
                 }
 
-                // Bu metod çağrıldığında Threshold Level da arka planda güncellenmiş olur.
                 int targetLevel = calculateCampTargetLevel(camp, item);
 
-                // Sipariş verme kuralı: Stok < Hedef ise tamamla
                 if (currentInventory < targetLevel) {
                     int quantity = targetLevel - currentInventory;
                     transferRequests.add(new TransferRequest(camp, item, quantity));

@@ -3,7 +3,7 @@ package data.distribution;
 import java.util.Random;
 
 public class DistTriangular implements IDist {
-    public double min,max,mode, mean;
+    public double min,max,mode,mean;
 
     public DistTriangular(){
     }

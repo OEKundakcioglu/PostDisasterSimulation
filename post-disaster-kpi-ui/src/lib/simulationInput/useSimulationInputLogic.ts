@@ -733,76 +733,76 @@ export const useSimulationInputLogic = () => {
           else if (!/^\d+$/.test(String(cpc)) || Number(cpc) < 0)
             issues.push(`Central periodicCount invalid for ${it.name}`);
         });
-      } else if (inventoryPolicy.policyType === "TARGET_LEVEL") {
+      }
+      else if (inventoryPolicy.policyType === "TARGET_LEVEL") {
         if (
-          !inventoryPolicy.inventoryControlPeriod ||
-          isNaN(Number(inventoryPolicy.inventoryControlPeriod)) ||
-          Number(inventoryPolicy.inventoryControlPeriod) <= 0
+            !inventoryPolicy.inventoryControlPeriod ||
+            isNaN(Number(inventoryPolicy.inventoryControlPeriod)) ||
+            Number(inventoryPolicy.inventoryControlPeriod) <= 0
         )
-          issues.push("Target Level Policy: Inventory control period invalid");
+            issues.push("Target Level Policy: Inventory control period invalid");
 
         camps.forEach((c: Camp) =>
-          items.forEach((it: Item) => {
-            // Validate Target Level
-            const tl = inventoryPolicy.targetLevels?.[c.name]?.[it.name];
-            if (tl === undefined) {
-              issues.push(`Target level missing for ${c.name}/${it.name}`);
-            } else if (typeof tl === "object") {
-              if (
-                !/^\d*\.?\d+$/.test(String(tl.internal)) ||
-                Number(tl.internal) < 0 ||
-                Number(tl.internal) > 1
-              )
-                issues.push(
-                  `Internal target level invalid for ${c.name}/${it.name} (must be 0-1)`
-                );
-              if (
-                !/^\d*\.?\d+$/.test(String(tl.external)) ||
-                Number(tl.external) < 0 ||
-                Number(tl.external) > 1
-              )
-                issues.push(
-                  `External target level invalid for ${c.name}/${it.name} (must be 0-1)`
-                );
-            } else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0) {
-              issues.push(`Target level invalid for ${c.name}/${it.name}`);
-            }
+            items.forEach((it: Item) => {
+                // Validate Target Level
+                const tl = inventoryPolicy.targetLevels?.[c.name]?.[it.name];
+                if (tl === undefined) {
+                    issues.push(`Target level missing for ${c.name}/${it.name}`);
+                } else if (typeof tl === "object") {
+                    // GÜNCELLEME: > 1 kontrolü kaldırıldı
+                    if (
+                        !/^\d*\.?\d+$/.test(String(tl.internal)) ||
+                        Number(tl.internal) < 0
+                    )
+                        issues.push(
+                            `Internal target level invalid for ${c.name}/${it.name} (must be positive)`
+                        );
+                    // GÜNCELLEME: > 1 kontrolü kaldırıldı
+                    if (
+                        !/^\d*\.?\d+$/.test(String(tl.external)) ||
+                        Number(tl.external) < 0
+                    )
+                        issues.push(
+                            `External target level invalid for ${c.name}/${it.name} (must be positive)`
+                        );
+                } else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0) {
+                    issues.push(`Target level invalid for ${c.name}/${it.name}`);
+                }
 
-            // Validate Threshold Ratio
-            const tr = inventoryPolicy.thresholdRatios?.[c.name]?.[it.name];
-            if (tr === undefined) {
-              issues.push(`Threshold ratio missing for ${c.name}/${it.name}`);
-            } else if (isNaN(Number(tr)) || Number(tr) < 0 || Number(tr) > 1) {
-              issues.push(
-                `Threshold ratio for ${c.name}/${it.name} must be between 0 and 1`
-              );
-            }
-          })
+                // Validate Threshold Ratio
+                const tr = inventoryPolicy.thresholdRatios?.[c.name]?.[it.name];
+                if (tr === undefined) {
+                    issues.push(`Threshold ratio missing for ${c.name}/${it.name}`);
+                } else if (isNaN(Number(tr)) || Number(tr) < 0) { // GÜNCELLEME: > 1 kontrolü kaldırıldı
+                    issues.push(
+                        `Threshold ratio for ${c.name}/${it.name} must be positive`
+                    );
+                }
+            })
         );
 
-          items.forEach((it: Item) => {
-              const ctl = inventoryPolicy.centralTargetLevels?.[it.name] as any;
-              if (ctl === undefined) {
-                  issues.push(`Central target level missing for ${it.name}`);
-              } else if (typeof ctl === 'object') {
-                  if (
-                      !/^\d*\.?\d+$/.test(String(ctl.internal)) ||
-                      Number(ctl.internal) < 0 ||
-                      Number(ctl.internal) > 1
-                  ) {
-                      issues.push(`Central Internal target for ${it.name} must be 0-1`);
-                  }
-                  if (
-                      !/^\d*\.?\d+$/.test(String(ctl.external)) ||
-                      Number(ctl.external) < 0 ||
-                      Number(ctl.external) > 1
-                  ) {
-                      issues.push(`Central External target for ${it.name} must be 0-1`);
-                  }
-              } else {
-                  issues.push(`Central target level format invalid for ${it.name}`);
-              }
-          });
+        items.forEach((it: Item) => {
+            const ctl = inventoryPolicy.centralTargetLevels?.[it.name] as any;
+            if (ctl === undefined) {
+                issues.push(`Central target level missing for ${it.name}`);
+            } else if (typeof ctl === 'object') {
+                if (
+                    !/^\d*\.?\d+$/.test(String(ctl.internal)) ||
+                    Number(ctl.internal) < 0
+                ) {
+                    issues.push(`Central Internal target for ${it.name} must be positive`);
+                }
+                if (
+                    !/^\d*\.?\d+$/.test(String(ctl.external)) ||
+                    Number(ctl.external) < 0
+                ) {
+                    issues.push(`Central External target for ${it.name} must be positive`);
+                }
+            } else {
+                issues.push(`Central target level format invalid for ${it.name}`);
+            }
+        });
+
       }
 
       // Initial State

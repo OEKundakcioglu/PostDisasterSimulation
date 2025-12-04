@@ -9,6 +9,7 @@ export interface CampDemand {
   item: string;
   demandTimingType: string;
   demandQuantityType: string;
+  quantityData: { distributionType: string; distParameters: { mean?: string } };
   arrivalData: { distributionType: string; distParameters: { mean?: string } };
   leadTimeData: {
     distributionType: string;

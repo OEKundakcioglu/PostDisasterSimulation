@@ -171,7 +171,7 @@ public final class SimulationEnvironmentMapper {
             if (sc.containsKey("centralBuffer")) config.setCentralBuffer(dbl(sc.get("centralBuffer")));
         }
 
-        // 7. Inventory Policy (UPDATED)
+        // 7. Inventory Policy
         IPolicy policy = null;
         Map<String,Object> ip = map(root.get("inventoryPolicy"));
         if (ip != null) {

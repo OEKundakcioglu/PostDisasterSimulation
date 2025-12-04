@@ -45,12 +45,18 @@ const DEFAULT_ARRIVAL_DATA = {
   distParameters: { mean: "0.033" },
 };
 
+const DEFAULT_QUANTITY_DATA = {
+    distributionType: "EXPONENTIAL",
+    distParameters: { mean: "0.033" },
+};
+
 interface LegacyItem extends Omit<Partial<Item>, "leadTimeData"> {
   leadTimeData?: unknown;
 }
 
 interface LegacyDemand {
   arrivalData?: unknown;
+  quantityData?: unknown;
   leadTimeData?: unknown;
   [key: string]: unknown;
 }
@@ -88,8 +94,8 @@ const sanitizeConfig = (config: unknown): Partial<LegacyConfig> => {
         ? camp.demands.map((demand) => ({
             ...demand,
             arrivalData: demand.arrivalData || deepClone(DEFAULT_ARRIVAL_DATA),
-            leadTimeData:
-              demand.leadTimeData || deepClone(DEFAULT_LEAD_TIME_DATA),
+              quantityData: demand.quantityData || deepClone(DEFAULT_QUANTITY_DATA),
+              leadTimeData: demand.leadTimeData || deepClone(DEFAULT_LEAD_TIME_DATA),
           }))
         : [],
     }));

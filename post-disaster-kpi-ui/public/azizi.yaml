@@ -66,7 +66,7 @@ camps:
         max: 4
     demands:
       - item: HygieneKit
-        demandTimingType: SPORADIC
+        demandTimingType: RECURRING
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL
@@ -75,7 +75,7 @@ camps:
         internalRatio: 0.5
         externalRatio: 0.05
       - item: Medicine
-        demandTimingType: SPORADIC
+        demandTimingType: RECURRING
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL
@@ -96,7 +96,7 @@ camps:
         max: 4
     demands:
       - item: HygieneKit
-        demandTimingType: SPORADIC
+        demandTimingType: RECURRING
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL
@@ -105,7 +105,7 @@ camps:
         internalRatio: 0.5
         externalRatio: 0.05
       - item: Medicine
-        demandTimingType: SPORADIC
+        demandTimingType: RECURRING
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL
@@ -126,7 +126,7 @@ camps:
         max: 4
     demands:
       - item: HygieneKit
-        demandTimingType: SPORADIC
+        demandTimingType: RECURRING
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL
@@ -135,7 +135,7 @@ camps:
         internalRatio: 0.5
         externalRatio: 0.05
       - item: Medicine
-        demandTimingType: SPORADIC
+        demandTimingType: RECURRING
         demandQuantityType: SINGLE
         arrivalData:
           distributionType: EXPONENTIAL

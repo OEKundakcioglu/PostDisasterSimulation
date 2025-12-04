@@ -19,6 +19,28 @@ public class DemandEvent implements IEvent {
     public boolean isInternal;
     public int quantity;
 
+    public DemandEvent(boolean isColdStart, State state, Camp camp, Demand demand, boolean isInternal, InterarrivalGenerator interarrivalGenerator,
+                       QuantityGenerator quantityGenerator, double tNow){
+        this.camp = camp;
+        this.isInternal = isInternal;
+        this.demand = demand;
+        this.item = demand.getItem();
+
+        // If you are in cold start, generate the first demand based on the mean interarrival time
+        if (isColdStart){
+            this.time = tNow + interarrivalGenerator.getRngDemand().nextDouble() * demand.getArrivalData().getDistParameters().getMean();
+        }
+        else{
+            this.time = tNow + interarrivalGenerator.generateDemand(demand);
+        }
+
+        if (isInternal) {
+            this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getInternalPopulation().get(this.camp), true);
+        } else {
+            this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getExternalPopulation().get(this.camp), false);
+        }
+    }
+
 
     public DemandEvent(State state, Camp camp, Demand demand, boolean isInternal, InterarrivalGenerator interarrivalGenerator,
                        QuantityGenerator quantityGenerator, double tNow){
