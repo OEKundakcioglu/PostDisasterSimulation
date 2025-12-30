@@ -459,7 +459,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
 
       <Box sx={{ mt: 2 }}>
         <Button
-          variant="outlined"
+          variant="contained"
           onClick={handleAddDisruption}
           disabled={items.length === 0}
         >

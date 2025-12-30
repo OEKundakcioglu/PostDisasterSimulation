@@ -75,41 +75,29 @@ export const DEFAULT_CAMPS: Camp[] = ["Hatay-1", "Hatay-2"].map((name) => ({
   demands: [
     {
       item: "HygieneKit",
-      demandTimingType: "SPORADIC",
+      demandTimingType: "RECURRING",
       demandQuantityType: "SINGLE",
       arrivalData: {
         distributionType: "EXPONENTIAL",
         distParameters: { mean: "0.033" },
       },
-        quantityData: {
-            distributionType: "EXPONENTIAL",
-            distParameters: { mean: "0.033" },
-        },
       leadTimeData: {
         distributionType: "TRIANGULAR",
         distParameters: { min: "1", mode: "2", max: "4" },
       },
-      internalRatio: "0.5",
-      externalRatio: "0.05",
     },
     {
       item: "Medicine",
-      demandTimingType: "SPORADIC",
+      demandTimingType: "RECURRING",
       demandQuantityType: "SINGLE",
       arrivalData: {
         distributionType: "EXPONENTIAL",
         distParameters: { mean: "0.0167" },
       },
-        quantityData: {
-            distributionType: "EXPONENTIAL",
-            distParameters: { mean: "0.033" },
-        },
       leadTimeData: {
         distributionType: "TRIANGULAR",
         distParameters: { min: "1", mode: "2", max: "4" },
       },
-      internalRatio: "0.2",
-      externalRatio: "0.02",
     },
   ],
   initialInternalPopulation: "2142",

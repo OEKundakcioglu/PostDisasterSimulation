@@ -29,6 +29,7 @@ import enums.CampExternalDemandSatisfactionType;
 import enums.DemandQuantityType;
 import enums.DemandTimingType;
 import enums.DistributionType;
+import enums.DemandClass;
 import enums.FundingType;
 import enums.InventoryControlType;
 import enums.MigrationType;
@@ -80,15 +81,17 @@ public final class SimulationEnvironmentMapper {
             List<Demand> demandObjs = new ArrayList<>();
             for (Map<String, Object> dm : demandsJson) {
                 Demand d = new Demand();
+                if (!dm.containsKey("demandClass")) {
+                    continue;
+                }
                 String itemName = str(dm.get("item"));
                 d.setItem(itemByName.get(itemName));
+                if (dm.containsKey("demandClass")) d.setDemandClass(enumVal(DemandClass.class, dm.get("demandClass")));
                 if (dm.containsKey("demandTimingType")) d.setDemandTimingType(enumVal(DemandTimingType.class, dm.get("demandTimingType")));
                 if (dm.containsKey("demandQuantityType")) d.setDemandQuantityType(enumVal(DemandQuantityType.class, dm.get("demandQuantityType")));
                 if (dm.containsKey("arrivalData")) d.setArrivalData(probabilityData(map(dm.get("arrivalData"))));
                 if (dm.containsKey("quantityData")) d.setQuantityData(probabilityData(map(dm.get("quantityData"))));
                 if (dm.containsKey("leadTimeData")) d.setLeadTimeData(probabilityData(map(dm.get("leadTimeData"))));
-                if (dm.containsKey("internalRatio")) d.setInternalRatio(dbl(dm.get("internalRatio")));
-                if (dm.containsKey("externalRatio")) d.setExternalRatio(dbl(dm.get("externalRatio")));
                 demandObjs.add(d);
             }
             camp.setDemands(demandObjs.toArray(Demand[]::new));
@@ -182,11 +185,10 @@ public final class SimulationEnvironmentMapper {
 
             if ("TARGET_LEVEL".equals(policyType)) {
                 TargetLevelPolicy targetPolicy = new TargetLevelPolicy();
-                targetPolicy.setTargetLevels(convertNestedCampItemTargetDef(ip.get("targetLevels"), campByName, itemByName));
-                targetPolicy.setCentralTargetLevels(convertItemTargetDef(ip.get("centralTargetLevels"), itemByName));
-                targetPolicy.setThresholdRatios(convertNestedCampItemDouble(ip.get("thresholdRatios"), campByName, itemByName));
-
+                // YENİ HELPER ÇAĞRISI
+                configureTargetLevelPolicy(targetPolicy, ip, campByName, itemByName);
                 policy = targetPolicy;
+
             } else if ("ORDER_UP_TO".equals(policyType)) {
                 OrderUpToPolicy orderPolicy = new OrderUpToPolicy();
                 orderPolicy.setBufferRatios(convertNestedCampItemDouble(ip.get("bufferRatios"), campByName, itemByName));
@@ -214,7 +216,68 @@ public final class SimulationEnvironmentMapper {
         return Environment.of(initialState, items, camps, agenciesArr, migrationsArr, switchesArr, config, policy);
     }
 
-    /* ---------- Helpers ---------- */
+    private static void configureTargetLevelPolicy(TargetLevelPolicy policy, Map<String, Object> ipNode, Map<String, Camp> camps, Map<String, Item> items) {
+
+        // 1. Camp Parameters (Nested Map: Camp -> Item -> {s, S, threshold})
+        Map<String, Object> campLevels = map(ipNode.get("targetLevels"));
+        Map<String, Object> thresholdLevels = map(ipNode.get("thresholdLevels"));
+
+        if (campLevels != null) {
+            for (var cEntry : campLevels.entrySet()) {
+                Camp camp = camps.get(cEntry.getKey());
+                if (camp == null) continue;
+                Map<String, Object> itemMap = map(cEntry.getValue());
+                if (itemMap == null) continue;
+
+                for (var iEntry : itemMap.entrySet()) {
+                    Item item = items.get(iEntry.getKey());
+                    if (item == null) continue;
+
+                    Object val = iEntry.getValue();
+                    int s = 0;
+                    int S = 0;
+                    int threshold = 0;
+
+                    if (val instanceof Map) {
+                        Map<String, Object> vMap = (Map<String, Object>) val;
+                        s = intVal(vMap.getOrDefault("s", vMap.getOrDefault("s_reorderPoint", 0)));
+                        S = intVal(vMap.getOrDefault("S", vMap.getOrDefault("S_targetLevel", 0)));
+                        threshold = intVal(vMap.getOrDefault("threshold", vMap.getOrDefault("rationingThreshold", 0)));
+                    }
+
+                    if (threshold == 0 && thresholdLevels != null) {
+                        Map<String, Object> cThresh = map(thresholdLevels.get(camp.getName()));
+                        if (cThresh != null) {
+                            threshold = intVal(cThresh.get(item.getName()));
+                        }
+                    }
+
+                    policy.setCampPolicy(camp, item, s, S, threshold);
+                }
+            }
+        }
+
+        Map<String, Object> centralLevels = map(ipNode.get("centralTargetLevels"));
+        if (centralLevels != null) {
+            for (var entry : centralLevels.entrySet()) {
+                Item item = items.get(entry.getKey());
+                if (item == null) continue;
+
+                Object val = entry.getValue();
+                int s = 0;
+                int S = 0;
+
+                if (val instanceof Map) {
+                    Map<String, Object> vMap = (Map<String, Object>) val;
+                    s = intVal(vMap.getOrDefault("s", vMap.getOrDefault("s_reorderPoint", 0)));
+                    S = intVal(vMap.getOrDefault("S", vMap.getOrDefault("S_targetLevel", 0)));
+                }
+
+                policy.setCentralPolicy(item, s, S);
+            }
+        }
+    }
+
     private static ProbabilityData probabilityData(Map<String,Object> pd) {
         if (pd == null) return null;
         DistributionType dt = enumVal(DistributionType.class, pd.get("distributionType"));
@@ -255,54 +318,6 @@ public final class SimulationEnvironmentMapper {
     private static Map<String,Object> map(Object o){ return o instanceof Map ? (Map<String,Object>) o : null; }
     private static List<Map<String,Object>> list(Object o){ if(o instanceof List<?> l){ List<Map<String,Object>> out=new ArrayList<>(); for(Object v:l) if(v instanceof Map<?,?> m) out.add((Map<String,Object>)m); return out;} return Collections.emptyList(); }
     private static void optInt(Map<String,Object> m, String key, java.util.function.IntConsumer c){ if(m.containsKey(key)) c.accept(intVal(m.get(key))); }
-
-    /* --- YENİ HELPER: Camp -> Item -> TargetLevelDefinition ({internal: X, external: Y}) --- */
-    private static HashMap<Camp, HashMap<Item, TargetLevelPolicy.TargetLevelDefinition>> convertNestedCampItemTargetDef(Object o, Map<String,Camp> camps, Map<String,Item> items){
-        HashMap<Camp, HashMap<Item, TargetLevelPolicy.TargetLevelDefinition>> result = new HashMap<>();
-        if(!(o instanceof Map<?,?> outer)) return result;
-
-        for (var e : outer.entrySet()) {
-            Camp camp = camps.get(str(e.getKey())); if(camp==null) continue;
-            HashMap<Item, TargetLevelPolicy.TargetLevelDefinition> innerMap = new HashMap<>();
-            if (e.getValue() instanceof Map<?,?> inner) {
-                for (var ie : inner.entrySet()) {
-                    Item item = items.get(str(ie.getKey())); if(item==null) continue;
-
-                    Object val = ie.getValue();
-                    if (val instanceof Map<?,?> valMap) {
-                        double internal = dbl(valMap.get("internal"));
-                        double external = dbl(valMap.get("external"));
-                        innerMap.put(item, new TargetLevelPolicy.TargetLevelDefinition(internal, external));
-                    } else {
-                        double valDbl = dbl(val);
-                        innerMap.put(item, new TargetLevelPolicy.TargetLevelDefinition(valDbl, 0.0));
-                    }
-                }
-            }
-            result.put(camp, innerMap);
-        }
-        return result;
-    }
-
-    private static HashMap<Item, TargetLevelPolicy.TargetLevelDefinition> convertItemTargetDef(Object o, Map<String,Item> items){
-        HashMap<Item, TargetLevelPolicy.TargetLevelDefinition> result = new HashMap<>();
-        if(!(o instanceof Map<?,?> m)) return result;
-
-        for (var e : m.entrySet()) {
-            Item item = items.get(str(e.getKey())); if(item==null) continue;
-
-            Object val = e.getValue();
-            if (val instanceof Map<?,?> valMap) {
-                double internal = dbl(valMap.get("internal"));
-                double external = dbl(valMap.get("external"));
-                result.put(item, new TargetLevelPolicy.TargetLevelDefinition(internal, external));
-            } else {
-                double valDbl = dbl(val);
-                result.put(item, new TargetLevelPolicy.TargetLevelDefinition(valDbl, 0.0));
-            }
-        }
-        return result;
-    }
 
     private static HashMap<Camp, HashMap<Item, Integer>> convertNestedCampItemInt(Object o, Map<String,Camp> camps, Map<String,Item> items){
         HashMap<Camp, HashMap<Item, Integer>> result = new HashMap<>();

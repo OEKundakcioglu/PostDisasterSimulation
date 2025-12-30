@@ -2,11 +2,13 @@ package data.event_info;
 
 import data.Item;
 import data.distribution.ProbabilityData;
+import enums.DemandClass;
 import enums.DemandQuantityType;
 import enums.DemandTimingType;
 
 public class Demand {
     private Item item;
+    private DemandClass demandClass;
     private DemandTimingType demandTimingType;
     private DemandQuantityType demandQuantityType;
     private ProbabilityData arrivalData;
@@ -25,6 +27,14 @@ public class Demand {
 
     public void setItem(Item item) {
         this.item = item;
+    }
+
+    public DemandClass getDemandClass() {
+        return demandClass;
+    }
+
+    public void setDemandClass(DemandClass demandClass) {
+        this.demandClass = demandClass;
     }
 
     public DemandTimingType getDemandTimingType() {

@@ -15,6 +15,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 import { Item, DistParameters } from "../../types/Item";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CostAnalysisChart from './CostAnalysisChart';
 
 
 // Helper function to convert uppercase macros to readable format
@@ -233,7 +234,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
               break;
             case "BERNOULLI":
               mainField.distParameters = {
-                mean: "0.5",
+                mean: "0.12",
                 arrivalInterval: "10",
                 initialArrival: true,
               };
@@ -897,76 +898,122 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
               </NestedCollapsibleSection>
             </Grid>
 
-            {/* Deprivation Parameters */}
-            <Grid item xs={12}>
-              <NestedCollapsibleSection
-                title={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    Deprivation Parameters
-                    <Tooltip
-                      title={explanations.deprivation}
-                      arrow
-                      placement="top"
-                    >
-                      <IconButton size="small" sx={{ ml: 1 }}>
-                        <InfoIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                }
-                level="tertiary"
-              >
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label={getCustomLabel("deprivationRate")}
-                      type="number"
-                      inputProps={{
-                        min: 0,
-                        max: 1,
-                        step: 0.01,
-                        inputMode: "numeric",
-                      }}
-                      value={item.deprivationRate}
-                      onChange={(e) =>
-                        handleItemChange(
-                          index,
-                          "deprivationRate",
-                          e.target.value
-                        )
+              {/* Deprivation Parameters */}
+              <Grid item xs={12}>
+                  <NestedCollapsibleSection
+                      title={
+                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                              Deprivation Parameters
+                              <Tooltip
+                                  title={explanations.deprivation}
+                                  arrow
+                                  placement="top"
+                              >
+                                  <IconButton size="small" sx={{ ml: 1 }}>
+                                      <InfoIcon fontSize="small" />
+                                  </IconButton>
+                              </Tooltip>
+                          </Box>
                       }
-                      onKeyDown={handleNumericKeyDown}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label={getCustomLabel("deprivationCoefficient")}
-                      type="number"
-                      inputProps={{
-                        min: 0,
-                        step: 0.01,
-                        inputMode: "numeric",
-                      }}
-                      value={item.deprivationCoefficient}
-                      onChange={(e) =>
-                        handleItemChange(
-                          index,
-                          "deprivationCoefficient",
-                          e.target.value
-                        )
-                      }
-                      onKeyDown={handleNumericKeyDown}
-                    />
-                  </Grid>
-                </Grid>
-              </NestedCollapsibleSection>
-            </Grid>
+                      level="tertiary"
+                  >
+                      {/* --- FORMÜL GÖSTERİM ALANI (Exponential) --- */}
+                      <Box
+                          sx={{
+                              mb: 2,
+                              p: 2,
+                              borderRadius: 1,
+                              bgcolor: (theme) =>
+                                  theme.palette.mode === 'dark'
+                                      ? 'rgba(255, 255, 255, 0.05)'
+                                      : 'rgba(0, 0, 0, 0.04)',
+                              border: '1px dashed',
+                              borderColor: 'divider',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 0.5
+                          }}
+                      >
+                          <Typography
+                              variant="body1"
+                              color="text.primary"
+                              sx={{
+                                  fontFamily: '"Times New Roman", serif',
+                                  fontStyle: 'italic',
+                                  fontSize: '1.1rem'
+                              }}
+                          >
+                              {}
+                              Deprivation = Coeff × (e
+                              <Box component="span" sx={{ verticalAlign: 'super', fontSize: '0.7em' }}>
+                                  Rate × time
+                              </Box>
+                              - 1)
+                          </Typography>
 
-            {/* Lead Time Data */}
-            <Grid item xs={12}>
-              <NestedCollapsibleSection
+                      </Box>
+                      {/* ------------------------------------------- */}
+
+                      <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                              <TextField
+                                  fullWidth
+                                  label={getCustomLabel("deprivationRate")}
+                                  type="number"
+                                  inputProps={{
+                                      min: 0,
+                                      max: 1,
+                                      step: 0.001,
+                                      inputMode: "numeric",
+                                  }}
+                                  value={item.deprivationRate}
+                                  onChange={(e) =>
+                                      handleItemChange(
+                                          index,
+                                          "deprivationRate",
+                                          e.target.value
+                                      )
+                                  }
+                                  onKeyDown={handleNumericKeyDown}
+                                  helperText="Exponential exponent (Rate)"
+                              />
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                              <TextField
+                                  fullWidth
+                                  label={getCustomLabel("deprivationCoefficient")}
+                                  type="number"
+                                  inputProps={{
+                                      min: 0,
+                                      step: 0.1,
+                                      inputMode: "numeric",
+                                  }}
+                                  value={item.deprivationCoefficient}
+                                  onChange={(e) =>
+                                      handleItemChange(
+                                          index,
+                                          "deprivationCoefficient",
+                                          e.target.value
+                                      )
+                                  }
+                                  onKeyDown={handleNumericKeyDown}
+                                  helperText="Linear multiplier (Coefficient)"
+                              />
+                          </Grid>
+                      </Grid>
+                  </NestedCollapsibleSection>
+              </Grid>
+
+            {/* Cost Analysis Chart */}
+              <Grid item xs={12}>
+                  <CostAnalysisChart item={item} />
+              </Grid>
+
+              {/* Lead Time Data */}
+              <Grid item xs={12}>
+                <NestedCollapsibleSection
                 title={
                   <Box sx={{ display: "flex", alignItems: "center" }}>
                     Lead Time Data

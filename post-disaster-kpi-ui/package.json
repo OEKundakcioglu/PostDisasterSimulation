@@ -22,7 +22,7 @@
     "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
     "next": "^14.2.15",
-    "plotly.js": "^3.0.1",
+    "plotly.js": "^3.3.1",
     "primeflex": "^3.3.1",
     "primeicons": "^7.0.0",
     "primereact": "^10.8.4",

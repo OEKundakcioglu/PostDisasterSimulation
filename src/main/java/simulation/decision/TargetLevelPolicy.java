@@ -3,6 +3,7 @@ package simulation.decision;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import data.Camp;
@@ -21,31 +22,12 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
     private Environment environment;
     private State state;
 
-    private HashMap<Camp, HashMap<Item, TargetLevelDefinition>> targetLevelDefinitions;
-    private HashMap<Item, TargetLevelDefinition> centralTargetLevelDefinitions;
-    private HashMap<Camp, HashMap<Item, Double>> thresholdRatios;
+    private Map<Camp, Map<Item, Integer>> campReorderPoints;
+    private Map<Camp, Map<Item, Integer>> campTargetLevels;
+    private Map<Camp, Map<Item, Integer>> campRationingThresholds;
 
-    private HashMap<Camp, HashMap<Item, Integer>> thresholdLevels;
-
-    public static class TargetLevelDefinition implements Cloneable {
-        public double internalRatio;
-        public double externalRatio;
-
-        public TargetLevelDefinition(double internalRatio, double externalRatio) {
-            this.internalRatio = internalRatio;
-            this.externalRatio = externalRatio;
-        }
-
-        @Override
-        public Object clone() {
-            return new TargetLevelDefinition(this.internalRatio, this.externalRatio);
-        }
-
-        @Override
-        public String toString() {
-            return String.format("{int: %.2f, ext: %.2f}", internalRatio, externalRatio);
-        }
-    }
+    private Map<Item, Integer> centralReorderPoints;
+    private Map<Item, Integer> centralTargetLevels;
 
     public TargetLevelPolicy() {
     }
@@ -55,117 +37,62 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
         this.environment = environment;
         this.state = state;
 
-        if (this.targetLevelDefinitions == null) this.targetLevelDefinitions = new HashMap<>();
-        if (this.centralTargetLevelDefinitions == null) this.centralTargetLevelDefinitions = new HashMap<>();
-        if (this.thresholdRatios == null) this.thresholdRatios = new HashMap<>();
-        if (this.thresholdLevels == null) this.thresholdLevels = new HashMap<>();
+        if (this.campReorderPoints == null) this.campReorderPoints = new HashMap<>();
+        if (this.campTargetLevels == null) this.campTargetLevels = new HashMap<>();
+        if (this.campRationingThresholds == null) this.campRationingThresholds = new HashMap<>();
 
+        if (this.centralReorderPoints == null) this.centralReorderPoints = new HashMap<>();
+        if (this.centralTargetLevels == null) this.centralTargetLevels = new HashMap<>();
     }
 
-    private int calculateCampTargetLevel(Camp camp, Item item) {
-        if (!targetLevelDefinitions.containsKey(camp) || !targetLevelDefinitions.get(camp).containsKey(item)) {
-            return 0;
-        }
-        TargetLevelDefinition def = targetLevelDefinitions.get(camp).get(item);
-
-        double internalTarget = this.state.getCurrentInternalPopulation(camp) * def.internalRatio;
-        double externalTarget = this.state.getCurrentExternalPopulation(camp) * def.externalRatio;
-        double val = (internalTarget + externalTarget) *
-                (1.0 / camp.getDemandByItem(item.getName()).getArrivalData().getDistParameters().getMean());
-        int targetLevel = (int) Math.ceil(val * this.environment.getSimulationConfig().getInventoryControlPeriod());
-
-        double ratio = 0.0;
-        if (thresholdRatios.containsKey(camp) && thresholdRatios.get(camp).containsKey(item)) {
-            ratio = thresholdRatios.get(camp).get(item);
-        }
-
-        int calcThreshold = (int) Math.floor(targetLevel * ratio);
-        this.setThreshold(camp, item, calcThreshold);
-
-        return targetLevel;
-    }
-
-    private int calculateCentralTargetLevel(Item item) {
-        if (!centralTargetLevelDefinitions.containsKey(item)) {
-            return 0;
-        }
-        TargetLevelDefinition def = centralTargetLevelDefinitions.get(item);
-
-        double internalTarget = 0;
-        double externalTarget = 0;
-
-        for (Camp camp : environment.getCamps()) {
-            internalTarget += (this.state.getCurrentInternalPopulation(camp) * def.internalRatio *
-                    (1.0 / camp.getDemandByItem(item.getName()).getArrivalData().getDistParameters().getMean()));
-            externalTarget += (this.state.getCurrentExternalPopulation(camp)  * def.externalRatio *
-                    (1.0 / camp.getDemandByItem(item.getName()).getArrivalData().getDistParameters().getMean()));
-        }
-
-        return (int) Math.ceil(internalTarget + externalTarget) * this.environment.getSimulationConfig().getInventoryControlPeriod();
-    }
-
-    // --- CENTRAL REPLENISHMENT (Supplier -> Central) ---
+    // --- 1. CENTRAL WAREHOUSE REPLENISHMENT (Supplier -> Central) ---
     @Override
     public ArrayList<IEvent> generateReplenishmentEvents(InterarrivalGenerator interarrivalGenerator, double time) {
+        ArrayList<IEvent> replenishmentEvents = new ArrayList<>();
         double totalCashNeededForItem = 0;
         double totalCashNeededForOrdering = 0;
 
-        for (Item item : state.getCentralWarehousePosition().keySet()) {
-            if (!state.getIsItemAvailable().get(item)) continue;
+        Map<Item, Integer> orderQuantities = new HashMap<>();
 
-            int currentInventory = state.getCentralWarehousePosition().get(item);
+        for (Item item : environment.getItems()) {
+            if (!centralTargetLevels.containsKey(item)) continue;
 
-            for (Camp camp : environment.getCamps()) {
-                int campInv = state.getInventoryPosition().get(camp).get(item);
-                if (campInv < 0) {
-                    currentInventory += campInv;
+            int s = centralReorderPoints.getOrDefault(item, 0);
+            int S = centralTargetLevels.get(item);
+
+            int currentInventory = state.getCentralWarehousePosition().getOrDefault(item, 0);
+
+            if (currentInventory <= s) {
+                int quantityNeeded = S - currentInventory;
+                if (quantityNeeded > 0) {
+                    orderQuantities.put(item, quantityNeeded);
+                    totalCashNeededForItem += quantityNeeded * item.getPrice();
+                    totalCashNeededForOrdering += item.getOrderingCost();
                 }
-            }
-
-            int targetLevel = calculateCentralTargetLevel(item);
-
-            if (currentInventory < targetLevel) {
-                totalCashNeededForItem += (targetLevel - currentInventory) * item.getPrice();
-                totalCashNeededForOrdering += item.getOrderingCost();
             }
         }
 
         double cashAvailable = state.getAvailableFunds() - totalCashNeededForOrdering;
         double ratio = (totalCashNeededForItem > 0) ? Math.min(cashAvailable / totalCashNeededForItem, 1.0) : 0;
 
-        ArrayList<IEvent> replenishmentEvents = new ArrayList<>();
-
         if (cashAvailable <= 0 && totalCashNeededForOrdering > 0) {
             return replenishmentEvents;
         }
 
-        for (Item item : state.getCentralWarehousePosition().keySet()) {
-            if (!state.getIsItemAvailable().get(item)) continue;
+        for (Map.Entry<Item, Integer> entry : orderQuantities.entrySet()) {
+            Item item = entry.getKey();
+            int quantityNeeded = entry.getValue();
+            int finalQuantity = (int) Math.floor(quantityNeeded * ratio);
 
-            int currentInventory = state.getCentralWarehousePosition().get(item);
-            for (Camp camp : environment.getCamps()) {
-                int campInv = state.getInventoryPosition().get(camp).get(item);
-                if (campInv < 0) currentInventory += campInv;
-            }
+            if (finalQuantity > 0) {
+                ArrayList<InventoryItem> inventoryItems = new ArrayList<>();
+                double arrivalTime = time + interarrivalGenerator.generateReplenishment(item);
+                double expiration = item.getIsPerishable() ? arrivalTime + interarrivalGenerator.generateItemDuration(item) : 0;
 
-            int targetLevel = calculateCentralTargetLevel(item);
+                inventoryItems.add(new InventoryItem(finalQuantity, expiration, arrivalTime));
+                replenishmentEvents.add(new ReplenishmentEvent(item, inventoryItems, interarrivalGenerator, arrivalTime));
 
-            if (currentInventory < targetLevel) {
-                int quantityNeeded = targetLevel - currentInventory;
-                int quantity = (int) Math.floor(quantityNeeded * ratio);
-
-                if (quantity > 0) {
-                    ArrayList<InventoryItem> inventoryItems = new ArrayList<>();
-                    double arrivalTime = time + interarrivalGenerator.generateReplenishment(item);
-                    double expiration = 0;
-                    if (item.getIsPerishable()) {
-                        expiration = arrivalTime + interarrivalGenerator.generateItemDuration(item);
-                    }
-                    inventoryItems.add(new InventoryItem(quantity, expiration, arrivalTime));
-                    replenishmentEvents.add(new ReplenishmentEvent(item, inventoryItems, interarrivalGenerator, arrivalTime));
-
-                    state.setAvailableFunds(state.getAvailableFunds() - (quantity * item.getPrice() + item.getOrderingCost()));
-                }
+                state.setAvailableFunds(state.getAvailableFunds() - (finalQuantity * item.getPrice() + item.getOrderingCost()));
             }
         }
         return replenishmentEvents;
@@ -174,26 +101,33 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
     @Override
     public ArrayList<IEvent> generateTransferEvents(InterarrivalGenerator interarrivalGenerator, QuantityGenerator quantityGenerator, double time) {
         ArrayList<TransferRequest> transferRequests = new ArrayList<>();
+        ArrayList<IEvent> transferEvents = new ArrayList<>();
 
         for (Camp camp : environment.getCamps()) {
             for (Item item : environment.getItems()) {
-                int currentInventory = state.getInventoryPosition().get(camp).get(item);
-                if (currentInventory < 0) {
-                    currentInventory = 0;
-                }
+                if (!campTargetLevels.containsKey(camp) || !campTargetLevels.get(camp).containsKey(item)) continue;
 
-                int targetLevel = calculateCampTargetLevel(camp, item);
+                int s = campReorderPoints.get(camp).getOrDefault(item, 0);
+                int S = campTargetLevels.get(camp).get(item);
 
-                if (currentInventory < targetLevel) {
-                    int quantity = targetLevel - currentInventory;
-                    transferRequests.add(new TransferRequest(camp, item, quantity));
+                int currentInventory = state.getInventoryPosition().get(camp).getOrDefault(item, 0);
+
+                if (currentInventory <= s) {
+                    int quantity = S - currentInventory;
+                    if (quantity > 0) {
+                        TransferRequest req = new TransferRequest(camp, item, quantity);
+
+                        int threshold = campRationingThresholds.get(camp).getOrDefault(item, 0);
+                        if (currentInventory <= threshold) {
+                        }
+
+                        transferRequests.add(req);
+                    }
                 }
             }
         }
 
-        ArrayList<IEvent> transferEvents = new ArrayList<>();
-
-        // 2. Fair Share
+        // Fair Share
         for (Item item : environment.getItems()) {
             ArrayList<TransferRequest> itemRequests = (ArrayList<TransferRequest>) transferRequests.stream()
                     .filter(tr -> tr.getItem().equals(item))
@@ -201,17 +135,12 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
 
             if (itemRequests.isEmpty()) continue;
 
-            int totalDemand = 0;
+            int totalDemand = itemRequests.stream().mapToInt(TransferRequest::getQuantity).sum();
+
             double totalCentralInventory = 0;
-
-            for (TransferRequest tr : itemRequests) {
-                totalDemand += tr.getQuantity();
-            }
-
             if (state.getCentralWarehouseInventory().containsKey(item)) {
-                for (var ie : state.getCentralWarehouseInventory().get(item)) {
-                    totalCentralInventory += ie.getQuantity();
-                }
+                totalCentralInventory = state.getCentralWarehouseInventory().get(item).stream()
+                        .mapToDouble(InventoryItem::getQuantity).sum();
             }
 
             double fulfillmentRatio = (totalDemand > 0) ? Math.min(totalCentralInventory / totalDemand, 1.0) : 0;
@@ -219,29 +148,28 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
             if (fulfillmentRatio <= 0) continue;
 
             for (TransferRequest tr : itemRequests) {
-                tr.setQuantity((int) Math.floor(tr.getQuantity() * fulfillmentRatio));
-            }
+                int approvedQty = (int) Math.floor(tr.getQuantity() * fulfillmentRatio);
 
-            for (TransferRequest tr : itemRequests) {
-                int remainingQty = tr.getQuantity();
+                if (approvedQty > 0) {
+                    ArrayList<InventoryItem> shipmentItems = new ArrayList<>();
+                    int remainingQty = approvedQty;
 
-                if (state.getCentralWarehouseInventory().containsKey(item)) {
-                    Iterator<InventoryItem> iterator = state.getCentralWarehouseInventory().get(item).iterator();
+                    if (state.getCentralWarehouseInventory().containsKey(item)) {
+                        Iterator<InventoryItem> iterator = state.getCentralWarehouseInventory().get(item).iterator();
+                        while (iterator.hasNext() && remainingQty > 0) {
+                            InventoryItem stockItem = iterator.next();
+                            int takeQty = Math.min(stockItem.getQuantity(), remainingQty);
 
-                    while (iterator.hasNext() && remainingQty > 0) {
-                        InventoryItem stockItem = iterator.next();
-                        int takeQty = Math.min(stockItem.getQuantity(), remainingQty);
+                            shipmentItems.add(new InventoryItem(takeQty, stockItem.getExpiration(), stockItem.getArrivalTime()));
 
-                        ArrayList<InventoryItem> shipmentItems = new ArrayList<>();
-                        shipmentItems.add(new InventoryItem(takeQty, stockItem.getExpiration(), stockItem.getArrivalTime()));
+                            stockItem.setQuantity(stockItem.getQuantity() - takeQty);
+                            if (stockItem.getQuantity() <= 0) iterator.remove();
 
-                        stockItem.setQuantity(stockItem.getQuantity() - takeQty);
-                        if (stockItem.getQuantity() <= 0) {
-                            iterator.remove();
+                            remainingQty -= takeQty;
                         }
+                    }
 
-                        remainingQty -= takeQty;
-
+                    if (!shipmentItems.isEmpty()) {
                         transferEvents.add(new TransferEvent(tr.getToCamp(), item, shipmentItems, interarrivalGenerator, environment, time));
                     }
                 }
@@ -255,69 +183,57 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
         return new ArrayList<>();
     }
 
-    // --- Standard Getters, Setters & Clone ---
+    // --- CONFIGURATION SETTERS ---
+    public void setCampPolicy(Camp camp, Item item, int s, int S, int threshold) {
+        campReorderPoints.computeIfAbsent(camp, k -> new HashMap<>()).put(item, s);
+        campTargetLevels.computeIfAbsent(camp, k -> new HashMap<>()).put(item, S);
+        campRationingThresholds.computeIfAbsent(camp, k -> new HashMap<>()).put(item, threshold);
+    }
+
+    public void setCentralPolicy(Item item, int s, int S) {
+        centralReorderPoints.put(item, s);
+        centralTargetLevels.put(item, S);
+    }
+
+
     @Override
     public Object clone() throws CloneNotSupportedException {
         TargetLevelPolicy cloned = (TargetLevelPolicy) super.clone();
 
-        // Deep clone maps
-        cloned.targetLevelDefinitions = new HashMap<>();
-        for (var entry : this.targetLevelDefinitions.entrySet()) {
-            HashMap<Item, TargetLevelDefinition> itemMap = new HashMap<>();
-            for (var itemEntry : entry.getValue().entrySet()) {
-                itemMap.put(itemEntry.getKey(), (TargetLevelDefinition) itemEntry.getValue().clone());
-            }
-            cloned.targetLevelDefinitions.put(entry.getKey(), itemMap);
-        }
+        cloned.campReorderPoints = cloneMap(this.campReorderPoints);
+        cloned.campTargetLevels = cloneMap(this.campTargetLevels);
+        cloned.campRationingThresholds = cloneMap(this.campRationingThresholds);
 
-        cloned.centralTargetLevelDefinitions = new HashMap<>();
-        for (var entry : this.centralTargetLevelDefinitions.entrySet()) {
-            cloned.centralTargetLevelDefinitions.put(entry.getKey(), (TargetLevelDefinition) entry.getValue().clone());
-        }
-
-        cloned.thresholdRatios = new HashMap<>(this.thresholdRatios);
-
-        // Threshold Levels da klonlanmalı
-        cloned.thresholdLevels = new HashMap<>();
-        for (var entry : this.thresholdLevels.entrySet()) {
-            cloned.thresholdLevels.put(entry.getKey(), new HashMap<>(entry.getValue()));
-        }
+        cloned.centralReorderPoints = new HashMap<>(this.centralReorderPoints);
+        cloned.centralTargetLevels = new HashMap<>(this.centralTargetLevels);
 
         return cloned;
+    }
+
+    @Override
+    public int getThreshold(Camp camp, Item item) {
+        return 0;
+    }
+
+    private Map<Camp, Map<Item, Integer>> cloneMap(Map<Camp, Map<Item, Integer>> original) {
+        Map<Camp, Map<Item, Integer>> copy = new HashMap<>();
+        for (var entry : original.entrySet()) {
+            copy.put(entry.getKey(), new HashMap<>(entry.getValue()));
+        }
+        return copy;
     }
 
     @Override
     public Environment getEnvironment() { return environment; }
     @Override
     public void setEnvironment(Environment environment) { this.environment = environment; }
-
-    public HashMap<Camp, HashMap<Item, TargetLevelDefinition>> getTargetLevels() { return targetLevelDefinitions; }
-    public void setTargetLevels(HashMap<Camp, HashMap<Item, TargetLevelDefinition>> targetLevels) { this.targetLevelDefinitions = targetLevels; }
-
-    public HashMap<Item, TargetLevelDefinition> getCentralTargetLevels() { return centralTargetLevelDefinitions; }
-    public void setCentralTargetLevels(HashMap<Item, TargetLevelDefinition> centralTargetLevels) { this.centralTargetLevelDefinitions = centralTargetLevels; }
-
-    public HashMap<Camp, HashMap<Item, Double>> getThresholdRatios() { return thresholdRatios; }
-    public void setThresholdRatios(HashMap<Camp, HashMap<Item, Double>> thresholdRatios) { this.thresholdRatios = thresholdRatios; }
-
+    @Override
     public State getState() { return state; }
-    public void setState(State state) { this.state = state; }
 
-    public HashMap<Camp, HashMap<Item, Integer>> getThresholdLevels() {
-        return thresholdLevels;
-    }
-    public void setThresholdLevels(HashMap<Camp, HashMap<Item, Integer>> thresholdLevels) {
-        this.thresholdLevels = thresholdLevels;
-    }
-
-    public int getThreshold(Camp camp, Item item) {
-        if (thresholdLevels.containsKey(camp) && thresholdLevels.get(camp).containsKey(item)) {
-            return this.thresholdLevels.get(camp).get(item);
-        }
-        return 0;
-    }
-
+    @Override
+    public void setState(State state) {this.state = state;}
+    @Override
     public void setThreshold(Camp camp, Item item, int level) {
-        this.thresholdLevels.computeIfAbsent(camp, k -> new HashMap<>()).put(item, level);
+        campRationingThresholds.computeIfAbsent(camp, k -> new HashMap<>()).put(item, level);
     }
 }

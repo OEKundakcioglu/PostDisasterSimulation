@@ -5,18 +5,17 @@ export interface SimulationConfig {
   [key: string]: string | boolean;
 }
 
+export type DemandClass = "INTERNAL" | "EXTERNAL";
+
 export interface CampDemand {
   item: string;
+  demandClass: DemandClass;
   demandTimingType: string;
-  demandQuantityType: string;
-  quantityData: { distributionType: string; distParameters: { mean?: string } };
   arrivalData: { distributionType: string; distParameters: { mean?: string } };
   leadTimeData: {
     distributionType: string;
     distParameters: { min?: string; mode?: string; max?: string; mean?: string };
   };
-  internalRatio: string;
-  externalRatio: string;
 }
 
 export interface Camp {
@@ -67,23 +66,30 @@ export interface OrderUpToPolicy {
 }
 
 export interface TargetLevelPolicy {
-  policyType: "TARGET_LEVEL";
-  inventoryControlPeriod: string;
-  targetLevels: {
-    [campName: string]: {
-      [itemName: string]: string | {
-        internal: string; // float between 0 and 1
-        external: string; // float between 0 and 1
-      };
+    policyType: "TARGET_LEVEL";
+    inventoryControlPeriod: string;
+    targetLevels: {
+        [campName: string]: {
+            [itemName: string]: {
+                s_reorderPoint?: string;
+                S_targetRatio?: string;
+                S_targetLevel?: string;
+                rationingThreshold?: string;
+            };
+        };
     };
-  };
-  centralTargetLevels: {
-    [itemName: string]: string | {
-        internal: string; // float between 0 and 1
-        external: string; // float between 0 and 1
+    centralTargetLevels: {
+        [itemName: string]: {
+            s_reorderPoint?: string;
+            S_targetRatio?: string;
+            S_targetLevel?: string;
+        };
     };
-  };
-  thresholdRatios: { [campName: string]: { [itemName: string]: string } };
+    thresholdRatios: {
+        [campName: string]: {
+            [itemName: string]: string;
+        };
+    };
 }
 
 export type InventoryPolicy = OrderUpToPolicy | TargetLevelPolicy;

@@ -86,97 +86,87 @@ export const useSimulationInputLogic = () => {
     availabilityRef.current = initialState.isItemAvailable;
   }, [initialState.isItemAvailable]);
 
-  useEffect(() => {
-    const prevItems = prevItemsRef.current;
-    const prevNames = new Set(prevItems.map((i: Item) => i.name));
-    const currentNames = new Set(
-      items.map((i: Item) => i.name).filter(Boolean)
-    );
-    const newItems = items.filter(
-      (it: Item) => it.name && !prevNames.has(it.name)
-    );
-    const removed = Array.from(prevNames).filter(
-      (name) => name && !currentNames.has(name)
-    );
-    if (newItems.length || removed.length) {
-      setCamps((oldCamps: Camp[]) =>
-        oldCamps.map((camp: Camp) => {
-          const existingItemNames = new Set(
-            camp.demands.map((d: CampDemand) => d.item)
-          );
-          let demands = camp.demands;
-          if (newItems.length) {
-            const additions: CampDemand[] = newItems
-              .filter((ni: Item) => ni.name && !existingItemNames.has(ni.name))
-              .map((ni: Item) => ({
-                item: ni.name!,
-                demandTimingType: "SPORADIC",
-                demandQuantityType: "SINGLE",
-                arrivalData: {
-                  distributionType: "EXPONENTIAL",
-                  distParameters: { mean: "0.033" },
-                },
-                leadTimeData: {
-                  distributionType: "TRIANGULAR",
-                  distParameters: { min: "1", mode: "2", max: "4" },
-                },
-                internalRatio: "0.2",
-                externalRatio: "0.02",
-              }));
-            if (additions.length) demands = [...demands, ...additions];
-          }
-          if (removed.length)
-            demands = demands.filter(
-              (d: CampDemand) => !d.item || currentNames.has(d.item)
-            );
-          return demands === camp.demands ? camp : { ...camp, demands };
-        })
-      );
-    }
-    const nextAvailability: Record<string, boolean> = {};
-    items.forEach((it: Item) => {
-      if (it.name)
-        nextAvailability[it.name] = availabilityRef.current[it.name] ?? true;
-    });
-    const currentAvail = availabilityRef.current;
-    let changed =
-      Object.keys(nextAvailability).length !== Object.keys(currentAvail).length;
-    if (!changed) {
-      for (const k of Object.keys(nextAvailability)) {
-        if (currentAvail[k] !== nextAvailability[k]) {
-          changed = true;
-          break;
+    useEffect(() => {
+        const currentNames = new Set(items.map((i: Item) => i.name).filter(Boolean));
+
+        // Always prune demands whose item is not in items
+        setCamps((oldCamps: Camp[]) =>
+            oldCamps.map((camp: Camp) => {
+                const pruned = camp.demands.filter(
+                    (d: CampDemand) => !d.item || currentNames.has(d.item)
+                );
+                return pruned === camp.demands ? camp : { ...camp, demands: pruned };
+            })
+        );
+
+        // Availability normalization (same as you already have)
+        const nextAvailability: Record<string, boolean> = {};
+        items.forEach((it: Item) => {
+            if (it.name) nextAvailability[it.name] = availabilityRef.current[it.name] ?? true;
+        });
+
+        const currentAvail = availabilityRef.current;
+        let changed =
+            Object.keys(nextAvailability).length !== Object.keys(currentAvail).length;
+
+        if (!changed) {
+            for (const k of Object.keys(nextAvailability)) {
+                if (currentAvail[k] !== nextAvailability[k]) {
+                    changed = true;
+                    break;
+                }
+            }
         }
-      }
-    }
-    if (changed) {
-      setInitialState((prev: InitialState) => ({
-        ...prev,
-        isItemAvailable: nextAvailability,
-      }));
-    }
-    prevItemsRef.current = deepClone(items);
-  }, [items]); // items only; internal comparison prevents loops
+
+        if (changed) {
+            setInitialState((prev: InitialState) => ({
+                ...prev,
+                isItemAvailable: nextAvailability,
+            }));
+        }
+
+        prevItemsRef.current = deepClone(items);
+    }, [items]);
 
   // --------------------------------------------------
   // Effect: Load / restore configuration once on mount
   // --------------------------------------------------
-  useEffect(() => {
-    const shouldPreserve =
-      localStorage.getItem(LS_KEYS.preserveFlag) === "true";
-    const saved = loadSavedConfig();
-    if (saved) {
-      if (saved.simulationConfig) setSimulationConfig(saved.simulationConfig);
-      if (saved.items) setItems(saved.items);
-      if (saved.camps) setCamps(saved.camps);
-      if (saved.agencies) setAgencies(saved.agencies);
-      if (saved.migrations) setMigrations(saved.migrations);
-      if (saved.inventoryPolicy) setInventoryPolicy(saved.inventoryPolicy);
-      if (saved.initialState) setInitialState(saved.initialState);
-      // Success message removed - no need to notify user every time
-    }
-    if (shouldPreserve) localStorage.removeItem(LS_KEYS.preserveFlag);
-  }, []);
+    useEffect(() => {
+        const shouldPreserve =
+            localStorage.getItem(LS_KEYS.preserveFlag) === "true";
+
+        if (shouldPreserve) {
+            const saved = loadSavedConfig();
+            if (saved) {
+                if (saved.simulationConfig) setSimulationConfig(saved.simulationConfig);
+                if (saved.items) setItems(saved.items);
+                if (saved.camps) setCamps(saved.camps);
+                if (saved.agencies) setAgencies(saved.agencies);
+                if (saved.migrations) setMigrations(saved.migrations);
+                if (saved.inventoryPolicy) setInventoryPolicy(saved.inventoryPolicy);
+                if (saved.initialState) setInitialState(saved.initialState);
+            }
+        } else {
+            // Fresh start: ensure nothing stale leaks into payload
+            try {
+                localStorage.removeItem(LS_KEYS.simulationInput);
+                localStorage.removeItem(LS_KEYS.currentSimulation);
+            } catch {
+                // no-op
+            }
+
+            setSimulationConfig(DEFAULT_SIMULATION_CONFIG);
+            setItems(DEFAULT_ITEMS);
+            setCamps(DEFAULT_CAMPS);
+            setAgencies(DEFAULT_AGENCIES);
+            setMigrations(DEFAULT_MIGRATIONS);
+            setSupplyDisruptions(DEFAULT_SUPPLY_DISRUPTIONS);
+            setInventoryPolicy(DEFAULT_INVENTORY_POLICY);
+            setInitialState(DEFAULT_INITIAL_STATE);
+        }
+
+        if (shouldPreserve) localStorage.removeItem(LS_KEYS.preserveFlag);
+    }, []);
 
   // --------------------------------------------------
   // Migration camp reference maintenance (non-destructive)
@@ -592,20 +582,6 @@ export const useSimulationInputLogic = () => {
               )
             );
           }
-          // ratios
-          [d.internalRatio, d.externalRatio].forEach(
-            (r: string, ri: number) => {
-              const label = ri === 0 ? "internal" : "external";
-              if (r === undefined || r === null || r === "")
-                issues.push(
-                  `Camp ${c.name} / ${d.item}: ${label} ratio missing`
-                );
-              else if (isNaN(Number(r)) || Number(r) < 0 || Number(r) > 1)
-                issues.push(
-                  `Camp ${c.name} / ${d.item}: ${label} ratio must be 0-1`
-                );
-            }
-          );
         });
       });
 

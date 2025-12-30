@@ -24,7 +24,7 @@ public class InterarrivalGenerator {
         this.rngTransferTime = new Random(simulationConfig.getSeedTransferTime());
     }
     public double generateDemand(Demand demand) {
-        return demand.getArrivalData().distParameters.generate(this.rngDemand);
+        return demand.getArrivalData().distParameters.generate(this.rngDemand) / 1440.0; // Convert minutes to days
     }
     public double generateFunding(Funding funding) {
         return funding.getArrivalData().distParameters.generate(this.rngFunding);

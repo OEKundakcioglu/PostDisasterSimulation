@@ -402,65 +402,16 @@ public class Simulate {
         }
 
         PriorityQueue<IEvent> demandQueue = this.demandEventQueue.get(camp);
-        int internalPop = this.state.getInternalPopulation().get(camp);
-        int externalPop = this.state.getExternalPopulation().get(camp);
 
-        // Approximation is not the correct way to generate number of demand events.
-        // int internalEvents = sampleBinomialApprox(internalPop, demand.getInternalRatio(), this.quantityGenerator.rngDemand);
-
-        int internalEvents = (int)Math.round(internalPop * demand.getInternalRatio());
-        for (int k = 0; k < internalEvents; k++) {
-            DemandEvent de_internal = null;
-
-            if (demand.getArrivalData().getDistributionType() == DistributionType.EXPONENTIAL) {
-                 de_internal = new DemandEvent(false, this.state, camp, demand, true,
-                         this.interarrivalGenerator, this.quantityGenerator, currentTime);
-            }
-            else{
-                de_internal = new DemandEvent(true, this.state, camp, demand, true, this.interarrivalGenerator,
-                        this.quantityGenerator, currentTime);
-            }
-
-            if (de_internal.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(de_internal);
-        }
-
-        // int externalEvents = sampleBinomialApprox(externalPop, demand.getExternalRatio(), this.quantityGenerator.rngDemand);
-        int externalEvents = (int)Math.round(externalPop * demand.getExternalRatio());
-        for (int k = 0; k < externalEvents; k++) {
-            DemandEvent de_external = null;
-            if (demand.getArrivalData().getDistributionType() == DistributionType.EXPONENTIAL) {
-                de_external = new DemandEvent(false, this.state, camp, demand, false,
-                        this.interarrivalGenerator, this.quantityGenerator, currentTime);
-            }
-            else{
-                de_external = new DemandEvent(true, this.state, camp, demand, false, this.interarrivalGenerator,
-                        this.quantityGenerator, currentTime);
-            }
-
-            if (de_external.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(de_external);
-        }
+        // Internal demand event generation
+        DemandEvent demandEvent = new DemandEvent(this.state, camp, demand,
+                                    this.interarrivalGenerator, this.quantityGenerator, currentTime); ;
+        if (demandEvent.getTime() <= this.environment.getSimulationConfig().getPlanningHorizon()) demandQueue.offer(demandEvent);
 
         if (!demandQueue.isEmpty()){
             this.eventQueue.offer(demandQueue.poll());
         }
         this.demandEventQueue.put(camp, demandQueue);
-    }
-
-    // TODO: We do not need to use this method.
-    private static int sampleBinomialApprox(int n, double p, java.util.Random rng) {
-        if (p <= 0) return 0;
-        if (p >= 1) return n;
-        if (n < 5000) {
-            int c = 0; for (int i=0;i<n;i++) if (rng.nextDouble() < p) c++; return c; }
-        double mean = n * p;
-        double var = mean * (1 - p);
-        double std = Math.sqrt(var);
-        double u1 = rng.nextDouble();
-        double u2 = rng.nextDouble();
-        double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-        int val = (int)Math.round(mean + std * z);
-        if (val < 0) val = 0; else if (val > n) val = n;
-        return val;
     }
 
     private void migrationStateUpdate(MigrationEvent migrationEvent){
