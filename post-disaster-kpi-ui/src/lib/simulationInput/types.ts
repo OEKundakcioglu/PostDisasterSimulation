@@ -11,11 +11,9 @@ export interface CampDemand {
   item: string;
   demandClass: DemandClass;
   demandTimingType: string;
-  arrivalData: { distributionType: string; distParameters: { mean?: string } };
-  leadTimeData: {
-    distributionType: string;
-    distParameters: { min?: string; mode?: string; max?: string; mean?: string };
-  };
+  demandQuantityType: string;
+  arrivalData: DistBlock;
+  leadTimeData: DistBlock;
 }
 
 export interface Camp {
@@ -108,6 +106,7 @@ export interface DistParams {
   max?: string;
   mean?: string;
   stdDev?: string;
+  spread?: string;
   arrivalInterval?: string;
   initialArrival?: boolean;
 }

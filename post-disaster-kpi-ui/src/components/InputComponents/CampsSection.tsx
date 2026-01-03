@@ -11,9 +11,7 @@ import {
     Tooltip,
     Paper,
     Stack,
-    Divider,
-    Chip,
-    useTheme
+    Divider
 } from "@mui/material";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -145,7 +143,7 @@ const buildDemandGroups = (demands: CampDemand[]) => {
         }
     }
 
-    const groups = [...byItem.values(), ...emptyGroups];
+    const groups = [...Array.from(byItem.values()), ...emptyGroups];
     groups.sort((a, b) => a.key.localeCompare(b.key));
     return groups;
 };
@@ -233,8 +231,17 @@ const ArrivalEditor: React.FC<{
             } else if (paramKey === "stdDev") {
                 if (value < currentMean * 0.25) targetParams.stdDev = rawValue;
                 else targetParams.stdDev = (currentMean * 0.25).toString();
-            } else {
-                (targetParams as any)[paramKey] = rawValue;
+            } else if (paramKey === "min") {
+                targetParams.min = rawValue;
+            } else if (paramKey === "mode") {
+                targetParams.mode = rawValue;
+            } else if (paramKey === "max") {
+                targetParams.max = rawValue;
+            } else if (paramKey === "arrivalInterval") {
+                targetParams.arrivalInterval = rawValue;
+            } else if (paramKey === "initialArrival") {
+                // Handle boolean conversion for initialArrival
+                targetParams.initialArrival = rawValue === "true";
             }
 
             const m = parseFloat(targetParams.mean || "") || 0;
@@ -383,7 +390,7 @@ const InterArrivalSection: React.FC<{
 }> = ({ camps, setCamps, campIndex, itemName }) => {
     useEffect(() => {
         if (!itemName) return;
-        // ensurePairForItem(camps, setCamps, campIndex, itemName);
+        ensurePairForItem(camps, setCamps, campIndex, itemName);
     }, [camps, setCamps, campIndex, itemName]);
 
     const camp = camps[campIndex];
@@ -403,39 +410,6 @@ const InterArrivalSection: React.FC<{
     const internalPerDay = calcExpectedPerDayFromMeanMinutes(internal.arrivalData.distParameters.mean);
     const externalPerDay = calcExpectedPerDayFromMeanMinutes(external.arrivalData.distParameters.mean);
     const totalPerDay = internalPerDay + externalPerDay;
-    const theme = useTheme();
-
-
-    const MathTag = ({ label, value }) => (
-        <Box
-            sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 1,
-                bgcolor: 'grey.100',
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'grey.300',
-                maxWidth: 'fit-content'
-            }}
-        >
-            <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                {label}
-            </Typography>
-            <Typography
-                variant="caption"
-                sx={{
-                    fontFamily: 'Consolas, Monaco, "Andale Mono", monospace', // Kod fontu
-                    fontWeight: 600,
-                    color: 'text.primary'
-                }}
-            >
-                {value}
-            </Typography>
-        </Box>
-    );
 
     return (
         <Grid container spacing={3}>
@@ -578,7 +552,7 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
 
         if (field === "initialInternalPopulation" || field === "initialExternalPopulation") {
             if (typeof value === "string" && (value === "" || /^\d*$/.test(value))) {
-                (newCamps[index] as any)[field] = value;
+                newCamps[index][field] = value;
             } else {
                 return;
             }
@@ -832,7 +806,7 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                                                                     fullWidth
                                                                     label="Lead Time Distribution Type"
                                                                     value={master.leadTimeData.distributionType}
-                                                                    onChange={(e) => {
+                                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                                         const newType = e.target.value;
                                                                         const resetParams = (() => {
                                                                             switch (newType) {

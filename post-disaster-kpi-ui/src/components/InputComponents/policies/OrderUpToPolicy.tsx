@@ -2,11 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Grid, TextField } from "@mui/material";
 import { Item } from "../../../types/Item";
 import { NestedCollapsibleSection } from "../../CollapsibleSections/CollapsibleSections";
-import { OrderUpToPolicy as OrderUpToPolicyType } from "@/lib/simulationInput/types";
-
-interface Camp {
-  name: string;
-}
+import { OrderUpToPolicy as OrderUpToPolicyType, Camp } from "@/lib/simulationInput/types";
 
 interface Props {
   policy: OrderUpToPolicyType;

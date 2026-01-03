@@ -13,13 +13,10 @@ import {
   InventoryPolicyType,
   OrderUpToPolicy as OrderUpToPolicyType,
   TargetLevelPolicy as TargetLevelPolicyType,
+  Camp,
 } from "@/lib/simulationInput/types";
 import OrderUpToPolicy from "./policies/OrderUpToPolicy";
 import TargetLevelPolicy from "./policies/TargetLevelPolicy";
-
-interface Camp {
-  name: string;
-}
 
 interface Props {
   inventoryPolicy: InventoryPolicy;
@@ -82,8 +79,10 @@ const InventoryPoliciesSection: React.FC<Props> = ({
         newPolicy.thresholdRatios[camp.name] = {};
         items.forEach((item) => {
           newPolicy.targetLevels[camp.name][item.name] = {
-            internal: "0",
-            external: "0",
+            s_reorderPoint: "0",
+            S_targetRatio: "1.5",
+            S_targetLevel: "0",
+            rationingThreshold: "0",
           };
           newPolicy.thresholdRatios[camp.name][item.name] = "0.2";
         });
@@ -91,8 +90,9 @@ const InventoryPoliciesSection: React.FC<Props> = ({
 
         items.forEach((item) => {
             newPolicy.centralTargetLevels[item.name]  = {
-                internal: "0",
-                external: "0",
+                s_reorderPoint: "0",
+                S_targetRatio: "1.5",
+                S_targetLevel: "0",
             };
         });
 

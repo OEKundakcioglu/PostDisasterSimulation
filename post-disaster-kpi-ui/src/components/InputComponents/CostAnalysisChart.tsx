@@ -14,8 +14,10 @@ const Plot = dynamic(() => import('react-plotly.js'), {
     )
 });
 
+import { Item } from '@/types/Item';
+
 interface Props {
-    item: any;
+    item: Item;
 }
 
 const CostAnalysisChart: React.FC<Props> = ({ item }) => {
@@ -112,9 +114,9 @@ const CostAnalysisChart: React.FC<Props> = ({ item }) => {
                     margin: { l: 40, r: 20, t: 20, b: 40 },
                     showlegend: true,
                     legend: { orientation: 'h', y: -0.2 },
-                    xaxis: { title: 'Time (Days)', zeroline: true },
+                    xaxis: { title: { text: 'Time (Days)' }, zeroline: true },
                     yaxis: {
-                        title: 'Cost ($)',
+                        title: { text: 'Cost ($)' },
                         range: yAxisMax ? [0, yAxisMax] : undefined
                     },
                     shapes: data.equalPoint ? [{

@@ -21,42 +21,11 @@ import {
 } from "@mui/icons-material";
 import { Item } from "../../../types/Item";
 import { NestedCollapsibleSection } from "../../CollapsibleSections/CollapsibleSections";
-import { TargetLevelPolicy as TargetLevelPolicyType } from "@/lib/simulationInput/types";
-
-// --- TYPES ---
-type DemandClass = "INTERNAL" | "EXTERNAL";
-
-interface DistParams {
-    min?: string;
-    mode?: string;
-    max?: string;
-    mean?: string;
-    stdDev?: string;
-    spread?: string;
-    arrivalInterval?: string;
-    initialArrival?: boolean;
-}
-
-interface DistBlock {
-    distributionType: string;
-    distParameters: DistParams;
-}
-
-interface CampDemand {
-    item: string;
-    demandClass: DemandClass;
-    demandTimingType: string;
-    demandQuantityType: string;
-    arrivalData: DistBlock;
-    leadTimeData: DistBlock;
-}
-
-interface Camp {
-    name: string;
-    demands: CampDemand[];
-    initialInternalPopulation: string;
-    initialExternalPopulation: string;
-}
+import { 
+    TargetLevelPolicy as TargetLevelPolicyType,
+    Camp,
+    DistBlock
+} from "@/lib/simulationInput/types";
 
 interface Props {
     policy: TargetLevelPolicyType;

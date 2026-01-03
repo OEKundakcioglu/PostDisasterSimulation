@@ -321,7 +321,7 @@ export const useSimulationInputLogic = () => {
       } else if (next.policyType === "TARGET_LEVEL") {
         const newTargetLevels: Record<
           string,
-          Record<string, { internal: string; external: string }>
+          Record<string, { s_reorderPoint?: string; S_targetRatio?: string; S_targetLevel?: string; rationingThreshold?: string }>
         > = {};
         validCampNames.forEach((campName) => {
           newTargetLevels[campName] = {};
@@ -331,8 +331,10 @@ export const useSimulationInputLogic = () => {
               newTargetLevels[campName][itemName] = existingVal;
             } else {
               newTargetLevels[campName][itemName] = {
-                internal: "0",
-                external: "0",
+                s_reorderPoint: "0",
+                S_targetRatio: "1.5",
+                S_targetLevel: "0",
+                rationingThreshold: "0",
               };
             }
           });
@@ -341,7 +343,7 @@ export const useSimulationInputLogic = () => {
 
           const newCentralTargetLevels: Record<
               string,
-              { internal: string; external: string }
+              { s_reorderPoint?: string; S_targetRatio?: string; S_targetLevel?: string }
           > = {};
 
           validItemNames.forEach((itemName) => {
@@ -351,8 +353,9 @@ export const useSimulationInputLogic = () => {
                   newCentralTargetLevels[itemName] = existingVal;
               } else {
                   newCentralTargetLevels[itemName] = {
-                      internal: "0",
-                      external: "0"
+                      s_reorderPoint: "0",
+                      S_targetRatio: "1.5",
+                      S_targetLevel: "0",
                   };
               }
           });
@@ -725,21 +728,21 @@ export const useSimulationInputLogic = () => {
                 if (tl === undefined) {
                     issues.push(`Target level missing for ${c.name}/${it.name}`);
                 } else if (typeof tl === "object") {
-                    // GÜNCELLEME: > 1 kontrolü kaldırıldı
-                    if (
-                        !/^\d*\.?\d+$/.test(String(tl.internal)) ||
-                        Number(tl.internal) < 0
-                    )
+                    // Validate s_reorderPoint
+                    if (tl.s_reorderPoint !== undefined && (
+                        !/^\d*\.?\d+$/.test(String(tl.s_reorderPoint)) ||
+                        Number(tl.s_reorderPoint) < 0
+                    ))
                         issues.push(
-                            `Internal target level invalid for ${c.name}/${it.name} (must be positive)`
+                            `Reorder point invalid for ${c.name}/${it.name} (must be positive)`
                         );
-                    // GÜNCELLEME: > 1 kontrolü kaldırıldı
-                    if (
-                        !/^\d*\.?\d+$/.test(String(tl.external)) ||
-                        Number(tl.external) < 0
-                    )
+                    // Validate S_targetRatio
+                    if (tl.S_targetRatio !== undefined && (
+                        !/^\d*\.?\d+$/.test(String(tl.S_targetRatio)) ||
+                        Number(tl.S_targetRatio) < 0
+                    ))
                         issues.push(
-                            `External target level invalid for ${c.name}/${it.name} (must be positive)`
+                            `Target ratio invalid for ${c.name}/${it.name} (must be positive)`
                         );
                 } else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0) {
                     issues.push(`Target level invalid for ${c.name}/${it.name}`);
@@ -758,21 +761,21 @@ export const useSimulationInputLogic = () => {
         );
 
         items.forEach((it: Item) => {
-            const ctl = inventoryPolicy.centralTargetLevels?.[it.name] as any;
+            const ctl = inventoryPolicy.centralTargetLevels?.[it.name];
             if (ctl === undefined) {
                 issues.push(`Central target level missing for ${it.name}`);
             } else if (typeof ctl === 'object') {
-                if (
-                    !/^\d*\.?\d+$/.test(String(ctl.internal)) ||
-                    Number(ctl.internal) < 0
-                ) {
-                    issues.push(`Central Internal target for ${it.name} must be positive`);
+                if (ctl.s_reorderPoint !== undefined && (
+                    !/^\d*\.?\d+$/.test(String(ctl.s_reorderPoint)) ||
+                    Number(ctl.s_reorderPoint) < 0
+                )) {
+                    issues.push(`Central reorder point for ${it.name} must be positive`);
                 }
-                if (
-                    !/^\d*\.?\d+$/.test(String(ctl.external)) ||
-                    Number(ctl.external) < 0
-                ) {
-                    issues.push(`Central External target for ${it.name} must be positive`);
+                if (ctl.S_targetRatio !== undefined && (
+                    !/^\d*\.?\d+$/.test(String(ctl.S_targetRatio)) ||
+                    Number(ctl.S_targetRatio) < 0
+                )) {
+                    issues.push(`Central target ratio for ${it.name} must be positive`);
                 }
             } else {
                 issues.push(`Central target level format invalid for ${it.name}`);

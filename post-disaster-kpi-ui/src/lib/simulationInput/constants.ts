@@ -75,11 +75,26 @@ export const DEFAULT_CAMPS: Camp[] = ["Hatay-1", "Hatay-2"].map((name) => ({
   demands: [
     {
       item: "HygieneKit",
+      demandClass: "INTERNAL",
       demandTimingType: "RECURRING",
       demandQuantityType: "SINGLE",
       arrivalData: {
         distributionType: "EXPONENTIAL",
-        distParameters: { mean: "0.033" },
+        distParameters: { mean: "60" },
+      },
+      leadTimeData: {
+        distributionType: "TRIANGULAR",
+        distParameters: { min: "1", mode: "2", max: "4" },
+      },
+    },
+    {
+      item: "HygieneKit",
+      demandClass: "EXTERNAL",
+      demandTimingType: "RECURRING",
+      demandQuantityType: "SINGLE",
+      arrivalData: {
+        distributionType: "EXPONENTIAL",
+        distParameters: { mean: "60" },
       },
       leadTimeData: {
         distributionType: "TRIANGULAR",
@@ -88,11 +103,26 @@ export const DEFAULT_CAMPS: Camp[] = ["Hatay-1", "Hatay-2"].map((name) => ({
     },
     {
       item: "Medicine",
+      demandClass: "INTERNAL",
       demandTimingType: "RECURRING",
       demandQuantityType: "SINGLE",
       arrivalData: {
         distributionType: "EXPONENTIAL",
-        distParameters: { mean: "0.0167" },
+        distParameters: { mean: "120" },
+      },
+      leadTimeData: {
+        distributionType: "TRIANGULAR",
+        distParameters: { min: "1", mode: "2", max: "4" },
+      },
+    },
+    {
+      item: "Medicine",
+      demandClass: "EXTERNAL",
+      demandTimingType: "RECURRING",
+      demandQuantityType: "SINGLE",
+      arrivalData: {
+        distributionType: "EXPONENTIAL",
+        distParameters: { mean: "120" },
       },
       leadTimeData: {
         distributionType: "TRIANGULAR",
