@@ -150,7 +150,9 @@ const TimeAwareSimulationVisualizer: React.FC<
   const planningHorizon = useMemo(() => {
     if (!allLogs.length) return 0;
     const firstWithHorizon = allLogs.find(
-      (l) => typeof l.planningHorizon === "number" && !Number.isNaN(l.planningHorizon)
+      (l) =>
+        typeof l.planningHorizon === "number" &&
+        !Number.isNaN(l.planningHorizon)
     );
     return firstWithHorizon?.planningHorizon || 0;
   }, [allLogs]);

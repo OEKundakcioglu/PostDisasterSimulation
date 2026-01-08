@@ -334,10 +334,10 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
           ) : (
             <Slider
               value={currentTime}
-                max={displayMaxTime}
+              max={displayMaxTime}
               step={1}
               onChange={handleSliderChange}
-                disabled={isRealTimeMode || displayMaxTime === 0}
+              disabled={isRealTimeMode || displayMaxTime === 0}
               marks={
                 availableTimes.length < 50
                   ? availableTimes.map((time) => ({
