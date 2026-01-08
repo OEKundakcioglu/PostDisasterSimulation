@@ -23,6 +23,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 interface TimeSliderControlProps {
   currentTime: number;
   maxTime: number;
+  displayMaxTime: number;
   onTimeChange: (time: number) => void;
   startTime: number;
   endTime: number;
@@ -48,6 +49,7 @@ interface TimeSliderControlProps {
 const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
   currentTime,
   maxTime,
+  displayMaxTime,
   onTimeChange,
   startTime,
   endTime,
@@ -246,7 +248,7 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
                 {formatTime(currentTime)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                of {formatTime(maxTime)} total
+                of {formatTime(displayMaxTime)} total
               </Typography>
             </>
           )}
@@ -262,10 +264,10 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
                 </Typography>
                 <Slider
                   value={startTime}
-                  max={maxTime}
+                  max={displayMaxTime}
                   step={1}
                   onChange={handleStartTimeChange}
-                  disabled={isRealTimeMode || maxTime === 0}
+                  disabled={isRealTimeMode || displayMaxTime === 0}
                   marks={
                     availableTimes.length < 50
                       ? availableTimes.map((time) => ({
@@ -298,10 +300,10 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
                 </Typography>
                 <Slider
                   value={endTime}
-                  max={maxTime}
+                  max={displayMaxTime}
                   step={1}
                   onChange={handleEndTimeChange}
-                  disabled={isRealTimeMode || maxTime === 0}
+                  disabled={isRealTimeMode || displayMaxTime === 0}
                   marks={
                     availableTimes.length < 50
                       ? availableTimes.map((time) => ({
@@ -332,10 +334,10 @@ const TimeSliderControl: React.FC<TimeSliderControlProps> = ({
           ) : (
             <Slider
               value={currentTime}
-              max={maxTime}
+                max={displayMaxTime}
               step={1}
               onChange={handleSliderChange}
-              disabled={isRealTimeMode || maxTime === 0}
+                disabled={isRealTimeMode || displayMaxTime === 0}
               marks={
                 availableTimes.length < 50
                   ? availableTimes.map((time) => ({

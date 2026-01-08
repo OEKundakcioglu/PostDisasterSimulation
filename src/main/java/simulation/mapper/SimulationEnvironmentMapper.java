@@ -12,7 +12,6 @@ import data.Camp;
 import data.Environment;
 import data.Item;
 import data.config.SimulationConfig;
-import data.distribution.DistBernoulli;
 import data.distribution.DistEqualShare;
 import data.distribution.DistExponential;
 import data.distribution.DistFixed;
@@ -26,10 +25,10 @@ import data.event_info.Funding;
 import data.event_info.Migration;
 import data.event_info.SupplyStatusSwitch;
 import enums.CampExternalDemandSatisfactionType;
+import enums.DemandClass;
 import enums.DemandQuantityType;
 import enums.DemandTimingType;
 import enums.DistributionType;
-import enums.DemandClass;
 import enums.FundingType;
 import enums.InventoryControlType;
 import enums.MigrationType;
@@ -136,6 +135,23 @@ public final class SimulationEnvironmentMapper {
         }
         Migration[] migrationsArr = migrations.toArray(Migration[]::new);
 
+        // Override distributions to EXPONENTIAL if migrations exist (to maintain theoretical consistency)
+        if (migrationsArr.length > 0) {
+            System.out.println("INFO: Migrations detected. Converting all demand distributions to EXPONENTIAL while preserving expectations.");
+            for (Camp camp : camps) {
+                for (Demand demand : camp.getDemands()) {
+                    if (demand.getArrivalData() != null) {
+                        ProbabilityData arrivalData = demand.getArrivalData();
+                        double originalMean = arrivalData.distParameters.getMean();
+                        // Create new exponential distribution with same mean
+                        DistExponential expDist = new DistExponential();
+                        expDist.mean = originalMean;
+                        demand.setArrivalData(new ProbabilityData(DistributionType.EXPONENTIAL, expDist));
+                    }
+                }
+            }
+        }
+
         // 5. SupplyStatusSwitches
         List<Map<String, Object>> switchesJson = list(root.get("supplyStatusSwitches"));
         List<SupplyStatusSwitch> switches = new ArrayList<>();
@@ -177,10 +193,15 @@ public final class SimulationEnvironmentMapper {
         // 7. Inventory Policy
         IPolicy policy = null;
         Map<String,Object> ip = map(root.get("inventoryPolicy"));
+        int fallbackInventoryControlPeriod = 0;
         if (ip != null) {
             String policyType = str(ip.get("policyType"));
             if (policyType == null) {
                 policyType = "ORDER_UP_TO";
+            }
+
+            if (ip.containsKey("inventoryControlPeriod")) {
+                fallbackInventoryControlPeriod = intVal(ip.get("inventoryControlPeriod"));
             }
 
             if ("TARGET_LEVEL".equals(policyType)) {
@@ -200,6 +221,14 @@ public final class SimulationEnvironmentMapper {
         } else {
             policy = new OrderUpToPolicy();
         }
+
+            if (config.getInventoryControlType() == null) {
+                config.setInventoryControlType(InventoryControlType.PERIODIC);
+            }
+            if (config.getInventoryControlPeriod() <= 0) {
+                int icp = fallbackInventoryControlPeriod > 0 ? fallbackInventoryControlPeriod : 1;
+                config.setInventoryControlPeriod(icp);
+            }
 
         // 8. Initial State
         State initialState = new State();
@@ -288,7 +317,6 @@ public final class SimulationEnvironmentMapper {
             case NORMAL -> { double mean = dbl(params.get("mean")); double std = params.containsKey("std")? dbl(params.get("std")) : dbl(params.getOrDefault("stdDev",0)); impl = new DistNormal(mean, std); }
             case UNIFORM -> { DistUniform d = new DistUniform(); d.min = dbl(params.get("min")); d.max = dbl(params.get("max")); impl = d; }
             case TRIANGULAR -> { DistTriangular d = new DistTriangular(); d.min = dbl(params.get("min")); d.max = dbl(params.get("max")); d.mode = dbl(params.get("mode")); impl = d; }
-            case BERNOULLI -> { DistBernoulli d = new DistBernoulli(); d.mean = dbl(params.get("mean")); if(params.containsKey("arrivalInterval")) d.arrivalInterval = dbl(params.get("arrivalInterval")); if(params.containsKey("initialArrival")) d.initialArrival = bool(params.get("initialArrival")); impl = d; }
             case FIXED -> { DistFixed d = new DistFixed(); d.mean = dbl(params.get("mean")); impl = d; }
             case EQUAL_SHARE -> { DistEqualShare d = new DistEqualShare(); d.mean = dbl(params.get("mean")); impl = d; }
             default -> throw new IllegalArgumentException("Unsupported distribution: " + dt);

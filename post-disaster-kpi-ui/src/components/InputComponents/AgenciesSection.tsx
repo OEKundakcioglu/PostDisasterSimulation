@@ -5,8 +5,6 @@ import {
   TextField,
   Button,
   MenuItem,
-  Checkbox,
-  FormControlLabel,
   Box,
   IconButton,
 } from "@mui/material";
@@ -144,15 +142,6 @@ const AgenciesSection: React.FC<Props> = ({
             fundingIndex
           ].arrivalData.distParameters = {
             mean: "0.033",
-          } as ArrivalDistParameters;
-          break;
-        case "BERNOULLI":
-          newAgencies[agencyIndex].fundingArray[
-            fundingIndex
-          ].arrivalData.distParameters = {
-            mean: "0.5",
-            arrivalInterval: "10",
-            initialArrival: true,
           } as ArrivalDistParameters;
           break;
         case "NORMAL":
@@ -368,79 +357,6 @@ const AgenciesSection: React.FC<Props> = ({
                 }}
               />
             </Grid>
-          </>
-        );
-
-      case "BERNOULLI":
-        return (
-          <>
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                label="Mean Probability"
-                value={params.mean || ""}
-                onChange={(e) => {
-                  const newAgencies = [...agencies];
-                  newAgencies[agencyIndex].fundingArray[fundingIndex][
-                    dataType
-                  ].distParameters.mean = e.target.value;
-                  setAgencies(newAgencies);
-                }}
-              />
-            </Grid>
-
-            {dataType === "arrivalData" && (
-              <>
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    label="Arrival Interval (days)" // Updated label to specify unit
-                    value={
-                      dataType === "arrivalData" &&
-                      funding.arrivalData.distParameters.arrivalInterval
-                        ? funding.arrivalData.distParameters.arrivalInterval
-                        : ""
-                    }
-                    onChange={(e) => {
-                      const newAgencies = [...agencies];
-                      if (dataType === "arrivalData") {
-                        newAgencies[agencyIndex].fundingArray[
-                          fundingIndex
-                        ].arrivalData.distParameters.arrivalInterval =
-                          e.target.value;
-                        setAgencies(newAgencies);
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={
-                          dataType === "arrivalData" &&
-                          funding.arrivalData.distParameters.initialArrival
-                            ? !!funding.arrivalData.distParameters
-                                .initialArrival
-                            : false
-                        }
-                        onChange={(e) => {
-                          const newAgencies = [...agencies];
-                          if (dataType === "arrivalData") {
-                            newAgencies[agencyIndex].fundingArray[
-                              fundingIndex
-                            ].arrivalData.distParameters.initialArrival =
-                              e.target.checked;
-                            setAgencies(newAgencies);
-                          }
-                        }}
-                      />
-                    }
-                    label="Initial Arrival"
-                  />
-                </Grid>
-              </>
-            )}
           </>
         );
 
@@ -664,9 +580,6 @@ const AgenciesSection: React.FC<Props> = ({
                                 );
                               }}
                             >
-                              <MenuItem value="BERNOULLI">
-                                {formatLabel("BERNOULLI")}
-                              </MenuItem>
                               <MenuItem value="EXPONENTIAL">
                                 {formatLabel("EXPONENTIAL")}
                               </MenuItem>
@@ -746,9 +659,6 @@ const AgenciesSection: React.FC<Props> = ({
                               <MenuItem value="EXPONENTIAL">
                                 {formatLabel("EXPONENTIAL")}
                               </MenuItem>
-                              <MenuItem value="BERNOULLI">
-                                {formatLabel("BERNOULLI")}
-                              </MenuItem>
                             </TextField>
                           </Grid>
 
@@ -778,11 +688,9 @@ const AgenciesSection: React.FC<Props> = ({
                     item: "", // Initialize empty for in-kind
                     camp: "", // Initialize empty for earmarked
                     arrivalData: {
-                      distributionType: "BERNOULLI",
+                      distributionType: "FIXED",
                       distParameters: {
-                        mean: "1.0",
-                        arrivalInterval: "1090",
-                        initialArrival: true,
+                        mean: "0",
                       },
                     },
                     amountData: {

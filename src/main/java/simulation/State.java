@@ -10,7 +10,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import data.Camp;
 import data.Environment;
 import data.Item;
-import enums.CampExternalDemandSatisfactionType;
 import enums.FundingType;
 import enums.MigrationType;
 import simulation.data.DeprivingPerson;

@@ -141,11 +141,9 @@ export const DEFAULT_AGENCIES: Agency[] = [
       {
         fundingType: "MONETARY_REGULAR",
         arrivalData: {
-          distributionType: "BERNOULLI",
+          distributionType: "FIXED",
           distParameters: {
-            mean: "1.0",
-            arrivalInterval: "1090",
-            initialArrival: true,
+            mean: "0",
           },
         },
         amountData: {

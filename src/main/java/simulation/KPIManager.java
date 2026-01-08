@@ -10,7 +10,6 @@ import com.google.gson.GsonBuilder;
 import data.Camp;
 import data.Environment;
 import data.Item;
-import enums.InventoryControlType;
 import simulation.data.DeprivingPerson;
 import simulation.data.InventoryItem;
 
@@ -46,9 +45,9 @@ public class KPIManager {
     String fileName;
 
     private final List<TimeStepLog> timeStepLogs = new ArrayList<>();
+    private final Object logLock = new Object();
     private final State state;
 
-    private static final int MAX_TIME_STEP_LOGS = 5000;
     private int prunedCount = 0;
 
     public KPIManager(State state){
@@ -97,6 +96,36 @@ public class KPIManager {
                 totalCentralExpiredInventory.put(item, 0);
             }
         }
+
+        ensureSeedLog();
+    }
+
+    private void ensureSeedLog() {
+        if (!useReactUI) return;
+        synchronized (logLock) {
+            if (!timeStepLogs.isEmpty()) return;
+            try {
+                TimeStepLog seed = new TimeStepLog();
+                seed.time = 0.0;
+                seed.planningHorizon = state.getEnvironment() != null
+                        ? state.getEnvironment().getSimulationConfig().getPlanningHorizon()
+                        : 0.0;
+                for (Camp camp : state.getInitialInventory().keySet()) {
+                    String campName = camp.getName();
+                    seed.cumulativeHoldingCosts.put(campName, 0.0);
+                    seed.cumulativeReferralCosts.put(campName, 0.0);
+                    seed.cumulativeDeprivationCosts.put(campName, 0.0);
+                    seed.cumulativeReplenishmentCosts.put(campName, 0.0);
+                    seed.itemQuantities.put(campName, new HashMap<>());
+                    seed.internalPopulation.put(campName, state.getCurrentInternalPopulation(camp));
+                    seed.externalPopulation.put(campName, state.getCurrentExternalPopulation(camp));
+                    for (Item item : state.getInitialInventory().get(camp).keySet()) {
+                        seed.itemQuantities.get(campName).put(item.getName(), state.getInventoryPosition().get(camp).get(item));
+                    }
+                }
+                timeStepLogs.add(seed);
+            } catch (Exception ignored) {}
+        }
     }
 
     public void calculateFinalCosts(Environment environment, State stateRef) {
@@ -108,7 +137,13 @@ public class KPIManager {
                     assert deprivingPerson != null;
                     double totalTime = finalTime - deprivingPerson.getArrivalTime();
                     double previousCost = stateRef.getKpiManager().totalDeprivationCost.get(camp).get(item);
-                    double currentCost = item.getDeprivationCoefficient() * (Math.exp(totalTime * item.getDeprivationRate()) - 1) * deprivingPerson.getQuantity();
+                    // Linear + Exponential form (tangent at zero): linearTerm + exponentialTerm
+                    // Using deprivationCoefficient for both terms to maintain compatibility
+                    double rate = item.getDeprivationRate();
+                    double coeff = item.getDeprivationCoefficient();
+                    double linearTerm = coeff * rate * totalTime;  // Linear component
+                    double exponentialTerm = coeff * (Math.exp(totalTime * rate) - 1);  // Exponential component
+                    double currentCost = (linearTerm + exponentialTerm) * deprivingPerson.getQuantity();
                     stateRef.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).put(item, stateRef.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item) + deprivingPerson.getQuantity());
                     stateRef.getKpiManager().totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
                     stateRef.getDeprivingPopulation().get(camp).get(item).poll();
@@ -362,7 +397,10 @@ public class KPIManager {
     public void setFileName(String fileName) { this.fileName = fileName; }
     public String getFileName() { return fileName; }
     public boolean isUseReactUI() { return useReactUI; }
-    public void setUseReactUI(boolean useReactUI) { this.useReactUI = useReactUI; }
+    public void setUseReactUI(boolean useReactUI) { 
+        this.useReactUI = useReactUI; 
+        ensureSeedLog();
+    }
 
     public static class TimeStepLog {
         public double time;
@@ -378,25 +416,41 @@ public class KPIManager {
     }
 
     public void logState(State stateRef, double currentTime, double samplingInterval) {
-        if (!useReactUI) return;
+           if (!useReactUI) {
+               // System.out.println("DEBUG: logState skipped. useReactUI=" + useReactUI);  
+               return;
+           }
 
-        // If this is the very first log, create a seed entry without looking at getLast()
-        if (timeStepLogs.isEmpty()) {
-            TimeStepLog seed = new TimeStepLog();
-            seed.time = 0.0;
-            seed.planningHorizon = stateRef.getEnvironment().getSimulationConfig().getPlanningHorizon();
-            seed.fundingReceived = 0.0;
-            timeStepLogs.add(seed);
+           ensureSeedLog();
+        
+        double lastTime;
+        synchronized (logLock) {
+            // If this is the very first log, create a seed entry without looking at getLast()
+            if (timeStepLogs.isEmpty()) {
+                TimeStepLog seed = new TimeStepLog();
+                seed.time = 0.0;
+                seed.planningHorizon = stateRef.getEnvironment().getSimulationConfig().getPlanningHorizon();
+                seed.fundingReceived = 0.0;
+                timeStepLogs.add(seed);
+            }
+
+            lastTime = timeStepLogs.get(timeStepLogs.size() - 1).time;
         }
-
-        double lastTime = timeStepLogs.get(timeStepLogs.size() - 1).time;
 
         // Prefer an epsilon check for doubles instead of == 0.0 or % exact comparisons
         double invCtrl = stateRef.getEnvironment().getSimulationConfig().getInventoryControlPeriod();
         boolean onControlBoundary = Math.abs(currentTime / invCtrl - Math.rint(currentTime / invCtrl)) < 1e-9;
 
-        // Log at least every 1.0 time unit OR on inventory-control boundary
-        boolean conditionToLog = (currentTime - lastTime) >= 1.0 || onControlBoundary || lastTime == currentTime;
+        // Use provided samplingInterval; if <=0, log every call
+        double effectiveInterval = samplingInterval > 0 ? samplingInterval : 0.0;
+
+        boolean conditionToLog;
+        if (effectiveInterval <= 0.0) {
+            conditionToLog = true;
+        } else {
+            // Log at least every effectiveInterval OR on inventory-control boundary
+            conditionToLog = (currentTime - lastTime) >= effectiveInterval || onControlBoundary || lastTime == currentTime;
+        }
 
         if (conditionToLog) {
             TimeStepLog log = new TimeStepLog();
@@ -437,7 +491,12 @@ public class KPIManager {
                     double deprivationCostAcc = 0.0;
                     for (DeprivingPerson deprivingPerson : stateRef.getDeprivingPopulation().get(camp).get(item)) {
                         double totalTime = currentTime - deprivingPerson.getArrivalTime();
-                        deprivationCostAcc += item.getDeprivationCoefficient() * (Math.exp(totalTime * item.getDeprivationRate()) - 1) * deprivingPerson.getQuantity();
+                        // Linear + Exponential form (tangent at zero)
+                        double rate = item.getDeprivationRate();
+                        double coeff = item.getDeprivationCoefficient();
+                        double linearTerm = coeff * rate * totalTime;
+                        double exponentialTerm = coeff * (Math.exp(totalTime * rate) - 1);
+                        deprivationCostAcc += (linearTerm + exponentialTerm) * deprivingPerson.getQuantity();
                     }
                     log.cumulativeDeprivationCosts.put(campName, totalDeprivationCost.get(camp).get(item)
                             + log.cumulativeDeprivationCosts.get(campName) + deprivationCostAcc);
@@ -446,11 +505,17 @@ public class KPIManager {
                         log.cumulativeReplenishmentCosts.put(campName, log.cumulativeReplenishmentCosts.get(campName) + campReplenishmentCost.get(camp).get(item));
                 }
             }
-            timeStepLogs.add(log);
+            synchronized (logLock) {
+                timeStepLogs.add(log);
+            }
         }
     }
 
-    public List<TimeStepLog> getTimeStepLogs() { return timeStepLogs; }
+    public List<TimeStepLog> getTimeStepLogs() {
+        synchronized (logLock) {
+            return new ArrayList<>(timeStepLogs);
+        }
+    }
     public int getPrunedCount() { return prunedCount; }
     public void updateTimeStepLogs(double time) { 
         logState(this.state, time, 0); // Let logState determine the interval

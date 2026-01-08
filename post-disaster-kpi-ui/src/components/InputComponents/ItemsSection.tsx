@@ -15,8 +15,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 import { Item, DistParameters } from "../../types/Item";
 import DeleteIcon from "@mui/icons-material/Delete";
-import CostAnalysisChart from './CostAnalysisChart';
-
+import CostAnalysisChart from "./CostAnalysisChart";
 
 // Helper function to convert uppercase macros to readable format
 const formatLabel = (value: string): string => {
@@ -51,20 +50,6 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
     return "mode" in params && "min" in params && "max" in params;
   };
 
-  const isBernoulli = (
-    params: DistParameters
-  ): params is {
-    mean: string;
-    arrivalInterval: string;
-    initialArrival: boolean;
-  } => {
-    return (
-      "mean" in params &&
-      "arrivalInterval" in params &&
-      "initialArrival" in params
-    );
-  };
-
   const isUniform = (
     params: DistParameters
   ): params is { min: string; max: string } => {
@@ -72,7 +57,12 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
   };
 
   const isMeanOnly = (params: DistParameters): params is { mean: string } => {
-    return "mean" in params && !("arrivalInterval" in params);
+    return (
+      "mean" in params &&
+      !("stdDev" in params) &&
+      !("min" in params) &&
+      !("mode" in params)
+    );
   };
 
   const isNormal = (
@@ -231,13 +221,6 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
             case "FIXED":
             case "EQUAL_SHARE":
               mainField.distParameters = { mean: "2" };
-              break;
-            case "BERNOULLI":
-              mainField.distParameters = {
-                mean: "0.12",
-                arrivalInterval: "10",
-                initialArrival: true,
-              };
               break;
             default:
               mainField.distParameters = { mean: "2" };
@@ -495,85 +478,6 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                 onKeyDown={handleNumericKeyDown}
               />
             </Grid>
-          );
-        }
-        return null;
-
-      case "BERNOULLI":
-        if (isBernoulli(distParameters)) {
-          return (
-            <>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  fullWidth
-                  label="Mean Probability"
-                  type="number"
-                  inputProps={{
-                    min: 0,
-                    max: 1,
-                    step: 0.01,
-                    inputMode: "numeric",
-                  }}
-                  value={distParameters.mean}
-                  onChange={(e) =>
-                    handleItemChange(
-                      index,
-                      field,
-                      e.target.value,
-                      "distParameters",
-                      "mean"
-                    )
-                  }
-                  onKeyDown={handleNumericKeyDown}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  fullWidth
-                  label={getCustomLabel(
-                    field,
-                    "distParameters",
-                    "arrivalInterval"
-                  )}
-                  type="number"
-                  inputProps={{
-                    min: 0,
-                    step: 1,
-                    inputMode: "numeric",
-                  }}
-                  value={distParameters.arrivalInterval}
-                  onChange={(e) =>
-                    handleItemChange(
-                      index,
-                      field,
-                      e.target.value,
-                      "distParameters",
-                      "arrivalInterval"
-                    )
-                  }
-                  onKeyDown={handleNumericKeyDown}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={distParameters.initialArrival}
-                      onChange={(e) =>
-                        handleItemChange(
-                          index,
-                          field,
-                          e.target.checked,
-                          "distParameters",
-                          "initialArrival"
-                        )
-                      }
-                    />
-                  }
-                  label="Initial Arrival"
-                />
-              </Grid>
-            </>
           );
         }
         return null;
@@ -898,122 +802,124 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
               </NestedCollapsibleSection>
             </Grid>
 
-              {/* Deprivation Parameters */}
-              <Grid item xs={12}>
-                  <NestedCollapsibleSection
-                      title={
-                          <Box sx={{ display: "flex", alignItems: "center" }}>
-                              Deprivation Parameters
-                              <Tooltip
-                                  title={explanations.deprivation}
-                                  arrow
-                                  placement="top"
-                              >
-                                  <IconButton size="small" sx={{ ml: 1 }}>
-                                      <InfoIcon fontSize="small" />
-                                  </IconButton>
-                              </Tooltip>
-                          </Box>
-                      }
-                      level="tertiary"
+            {/* Deprivation Parameters */}
+            <Grid item xs={12}>
+              <NestedCollapsibleSection
+                title={
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    Deprivation Parameters
+                    <Tooltip
+                      title={explanations.deprivation}
+                      arrow
+                      placement="top"
+                    >
+                      <IconButton size="small" sx={{ ml: 1 }}>
+                        <InfoIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                }
+                level="tertiary"
+              >
+                {/* --- FORMÜL GÖSTERİM ALANI (Exponential) --- */}
+                <Box
+                  sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 1,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(0, 0, 0, 0.04)",
+                    border: "1px dashed",
+                    borderColor: "divider",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.5,
+                  }}
+                >
+                  <Typography
+                    variant="body1"
+                    color="text.primary"
+                    sx={{
+                      fontFamily: '"Times New Roman", serif',
+                      fontStyle: "italic",
+                      fontSize: "1.1rem",
+                    }}
                   >
-                      {/* --- FORMÜL GÖSTERİM ALANI (Exponential) --- */}
-                      <Box
-                          sx={{
-                              mb: 2,
-                              p: 2,
-                              borderRadius: 1,
-                              bgcolor: (theme) =>
-                                  theme.palette.mode === 'dark'
-                                      ? 'rgba(255, 255, 255, 0.05)'
-                                      : 'rgba(0, 0, 0, 0.04)',
-                              border: '1px dashed',
-                              borderColor: 'divider',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 0.5
-                          }}
-                      >
-                          <Typography
-                              variant="body1"
-                              color="text.primary"
-                              sx={{
-                                  fontFamily: '"Times New Roman", serif',
-                                  fontStyle: 'italic',
-                                  fontSize: '1.1rem'
-                              }}
-                          >
-                              {}
-                              Deprivation = Coeff × (e
-                              <Box component="span" sx={{ verticalAlign: 'super', fontSize: '0.7em' }}>
-                                  Rate × time
-                              </Box>
-                              - 1)
-                          </Typography>
+                    {}
+                    Deprivation = Coeff × (e
+                    <Box
+                      component="span"
+                      sx={{ verticalAlign: "super", fontSize: "0.7em" }}
+                    >
+                      Rate × time
+                    </Box>
+                    - 1)
+                  </Typography>
+                </Box>
+                {/* ------------------------------------------- */}
 
-                      </Box>
-                      {/* ------------------------------------------- */}
-
-                      <Grid container spacing={2}>
-                          <Grid item xs={12} sm={6}>
-                              <TextField
-                                  fullWidth
-                                  label={getCustomLabel("deprivationRate")}
-                                  type="number"
-                                  inputProps={{
-                                      min: 0,
-                                      max: 1,
-                                      step: 0.001,
-                                      inputMode: "numeric",
-                                  }}
-                                  value={item.deprivationRate}
-                                  onChange={(e) =>
-                                      handleItemChange(
-                                          index,
-                                          "deprivationRate",
-                                          e.target.value
-                                      )
-                                  }
-                                  onKeyDown={handleNumericKeyDown}
-                                  helperText="Exponential exponent (Rate)"
-                              />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                              <TextField
-                                  fullWidth
-                                  label={getCustomLabel("deprivationCoefficient")}
-                                  type="number"
-                                  inputProps={{
-                                      min: 0,
-                                      step: 0.1,
-                                      inputMode: "numeric",
-                                  }}
-                                  value={item.deprivationCoefficient}
-                                  onChange={(e) =>
-                                      handleItemChange(
-                                          index,
-                                          "deprivationCoefficient",
-                                          e.target.value
-                                      )
-                                  }
-                                  onKeyDown={handleNumericKeyDown}
-                                  helperText="Linear multiplier (Coefficient)"
-                              />
-                          </Grid>
-                      </Grid>
-                  </NestedCollapsibleSection>
-              </Grid>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={getCustomLabel("deprivationRate")}
+                      type="number"
+                      inputProps={{
+                        min: 0,
+                        max: 1,
+                        step: 0.001,
+                        inputMode: "numeric",
+                      }}
+                      value={item.deprivationRate}
+                      onChange={(e) =>
+                        handleItemChange(
+                          index,
+                          "deprivationRate",
+                          e.target.value
+                        )
+                      }
+                      onKeyDown={handleNumericKeyDown}
+                      helperText="Exponential exponent (Rate)"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={getCustomLabel("deprivationCoefficient")}
+                      type="number"
+                      inputProps={{
+                        min: 0,
+                        step: 0.1,
+                        inputMode: "numeric",
+                      }}
+                      value={item.deprivationCoefficient}
+                      onChange={(e) =>
+                        handleItemChange(
+                          index,
+                          "deprivationCoefficient",
+                          e.target.value
+                        )
+                      }
+                      onKeyDown={handleNumericKeyDown}
+                      helperText="Linear multiplier (Coefficient)"
+                    />
+                  </Grid>
+                </Grid>
+              </NestedCollapsibleSection>
+            </Grid>
 
             {/* Cost Analysis Chart */}
-              <Grid item xs={12}>
-                  <CostAnalysisChart item={item} />
-              </Grid>
+            <Grid item xs={12}>
+              <CostAnalysisChart item={item} />
+            </Grid>
 
-              {/* Lead Time Data */}
-              <Grid item xs={12}>
-                <NestedCollapsibleSection
+            {/* Lead Time Data */}
+            <Grid item xs={12}>
+              <NestedCollapsibleSection
                 title={
                   <Box sx={{ display: "flex", alignItems: "center" }}>
                     Lead Time Data
@@ -1058,9 +964,6 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                       </MenuItem>
                       <MenuItem value="UNIFORM">
                         {formatLabel("UNIFORM")}
-                      </MenuItem>
-                      <MenuItem value="BERNOULLI">
-                        {formatLabel("BERNOULLI")}
                       </MenuItem>
                       <MenuItem value="FIXED">{formatLabel("FIXED")}</MenuItem>
                       <MenuItem value="EQUAL_SHARE">

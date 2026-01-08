@@ -52,7 +52,8 @@ public class SimulationsController {
             
             Environment env = SimulationEnvironmentMapper.fromPayload(payload);
             if (env.getSimulationConfig() != null) {
-                env.getSimulationConfig().setUseReactUI(true); 
+                env.getSimulationConfig().setUseReactUI(true);
+                log.info("Forced useReactUI to true in SimulationConfig");
             }
             SimulationSession session = simulationService.createSession(env, payload); 
             return ResponseEntity.ok(Map.of(

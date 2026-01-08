@@ -1,7 +1,9 @@
 package simulation.session;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -11,14 +13,13 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.HashMap;
-import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import data.Camp;
 import data.Environment;
 import data.Item;
@@ -87,6 +88,13 @@ public class SimulationService {
             IPolicy policy = env.getInventoryPolicy();
             policy.initialize(env, initial);
             initial.setInventoryPolicy((IPolicy) policy.clone());
+
+            try {
+                initial.getKpiManager().setUseReactUI(true);
+                initial.getKpiManager().logState(initial, 0.0, 0.001);
+            } catch (Exception e) {
+                log.warn("Failed to seed initial KPI log for session {}", id, e);
+            }
         } catch (ValidationException e) {
             log.error("Validation failed for session {}: {}", id, e.getMessage());
             session.setStatus(SimulationStatus.FAILED);
@@ -105,8 +113,12 @@ public class SimulationService {
             Simulate simulate = new Simulate(session.getEnvironment(), () -> session.getCancelRequested().get());
             session.setSimulateInstance(simulate);
             try {
+                log.info("[Exec] prepare() starting for session {}", session.getId());
                 simulate.prepare();
+                log.info("[Exec] prepare() done for session {}. eventQueueSize={}", session.getId(), simulate.getEventQueueSize());
+                log.info("[Exec] run() starting for session {}", session.getId());
                 simulate.run();
+                log.info("[Exec] run() finished for session {}", session.getId());
                 if (!session.getCancelRequested().get()) simulate.finalizeSimulation();
                 if (session.getStatus() == SimulationStatus.RUNNING && !session.getCancelRequested().get()) session.setStatus(SimulationStatus.COMPLETED);
                 if (session.getCancelRequested().get()) session.setStatus(SimulationStatus.CANCELLED);
@@ -290,11 +302,16 @@ public class SimulationService {
             log.info("📋 SIMULATION CONFIGURATION DEBUG DATA:");
             
             if (env.getSimulationConfig() != null) {
-                log.info("🔧 Simulation Config: Duration={}, Seeds: demand={}, quantity={}, duration={}", 
-                    env.getSimulationConfig().getSeedItemDuration(),
+                log.info("🔧 Simulation Config: planningHorizon={}, invCtrlType={}, invCtrlPeriod={}, Seeds: demand={}, quantity={}, duration={} useReactUI={} reportKPIs={} reportEvents={}", 
+                    env.getSimulationConfig().getPlanningHorizon(),
+                    env.getSimulationConfig().getInventoryControlType(),
+                    env.getSimulationConfig().getInventoryControlPeriod(),
                     env.getSimulationConfig().getSeedDemandTime(),
                     env.getSimulationConfig().getSeedDemandQuantity(),
-                    env.getSimulationConfig().getSeedItemDuration());
+                    env.getSimulationConfig().getSeedItemDuration(),
+                    env.getSimulationConfig().isUseReactUI(),
+                    env.getSimulationConfig().isReportKPIs(),
+                    env.getSimulationConfig().isReportEvents());
             }
             
             log.info("🏕️ CAMPS ({} total):", env.getCamps().length);

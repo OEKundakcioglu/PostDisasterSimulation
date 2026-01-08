@@ -11,7 +11,6 @@ export interface Item {
     distributionType:
       | "TRIANGULAR"
       | "EXPONENTIAL"
-      | "BERNOULLI"
       | "FIXED"
       | "NORMAL"
       | "EQUAL_SHARE"
@@ -28,6 +27,5 @@ export interface Item {
 export type DistParameters =
   | { min: string; mode: string; max: string } // TRIANGULAR
   | { mean: string } // EXPONENTIAL, FIXED, EQUAL_SHARE
-  | { mean: string; arrivalInterval: string; initialArrival: boolean } // BERNOULLI
   | { min: string; max: string } // UNIFORM
   | { mean: string; stdDev: string }; // NORMAL

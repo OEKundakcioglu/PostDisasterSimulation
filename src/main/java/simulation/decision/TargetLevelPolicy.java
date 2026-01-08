@@ -30,6 +30,11 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
     private Map<Item, Integer> centralTargetLevels;
 
     public TargetLevelPolicy() {
+        this.campReorderPoints = new HashMap<>();
+        this.campTargetLevels = new HashMap<>();
+        this.campRationingThresholds = new HashMap<>();
+        this.centralReorderPoints = new HashMap<>();
+        this.centralTargetLevels = new HashMap<>();
     }
 
     @Override
@@ -185,12 +190,17 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
 
     // --- CONFIGURATION SETTERS ---
     public void setCampPolicy(Camp camp, Item item, int s, int S, int threshold) {
+        if (campReorderPoints == null) campReorderPoints = new HashMap<>();
+        if (campTargetLevels == null) campTargetLevels = new HashMap<>();
+        if (campRationingThresholds == null) campRationingThresholds = new HashMap<>();
         campReorderPoints.computeIfAbsent(camp, k -> new HashMap<>()).put(item, s);
         campTargetLevels.computeIfAbsent(camp, k -> new HashMap<>()).put(item, S);
         campRationingThresholds.computeIfAbsent(camp, k -> new HashMap<>()).put(item, threshold);
     }
 
     public void setCentralPolicy(Item item, int s, int S) {
+        if (centralReorderPoints == null) centralReorderPoints = new HashMap<>();
+        if (centralTargetLevels == null) centralTargetLevels = new HashMap<>();
         centralReorderPoints.put(item, s);
         centralTargetLevels.put(item, S);
     }

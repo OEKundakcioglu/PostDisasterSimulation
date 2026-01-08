@@ -1,9 +1,14 @@
 package simulation.generator;
-import data.*;
-import data.config.SimulationConfig;
-import data.event_info.*;
-
 import java.util.Random;
+
+import data.Camp;
+import data.Environment;
+import data.Item;
+import data.config.SimulationConfig;
+import data.event_info.Demand;
+import data.event_info.Funding;
+import data.event_info.Migration;
+import data.event_info.SupplyStatusSwitch;
 
 public class InterarrivalGenerator {
     private final Random rngDemand;
@@ -23,8 +28,20 @@ public class InterarrivalGenerator {
         this.rngReplenishment = new Random(simulationConfig.getSeedReplenishmentTime());
         this.rngTransferTime = new Random(simulationConfig.getSeedTransferTime());
     }
-    public double generateDemand(Demand demand) {
-        return demand.getArrivalData().distParameters.generate(this.rngDemand) / 1440.0; // Convert minutes to days
+    public double generateDemand(Demand demand, int population) {
+        // Base interarrival time from distribution (in minutes)
+        double baseInterarrival = demand.getArrivalData().distParameters.generate(this.rngDemand);
+        
+        // Adjust interarrival time based on population: as population increases, demand arrives more frequently
+        // Formula: adjusted_time = base_time / population_factor
+        // This means higher population = shorter time between demands = higher demand rate
+        if (population > 0) {
+            // Normalize by a reference population (e.g., 100) to keep the base rate meaningful
+            double populationFactor = population / 100.0;
+            baseInterarrival = baseInterarrival / populationFactor;
+        }
+        
+        return baseInterarrival / 1440.0; // Convert minutes to days
     }
     public double generateFunding(Funding funding) {
         return funding.getArrivalData().distParameters.generate(this.rngFunding);

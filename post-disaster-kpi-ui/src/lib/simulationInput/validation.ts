@@ -22,13 +22,9 @@ export const validateDistribution = (
   const p = block.distParameters || {};
 
   // For these types a mean is generally required.
-  const needMean = [
-    "EXPONENTIAL",
-    "FIXED",
-    "EQUAL_SHARE",
-    "NORMAL",
-    "BERNOULLI",
-  ].includes(dt);
+  const needMean = ["EXPONENTIAL", "FIXED", "EQUAL_SHARE", "NORMAL"].includes(
+    dt
+  );
   if (needMean && (p.mean === undefined || p.mean === ""))
     errs.push(`${ctx}: mean missing`);
 
@@ -75,19 +71,6 @@ export const validateDistribution = (
         errs.push(`${ctx}: stdDev must be > 0`);
       if (p.mean !== undefined && (isNaN(Number(p.mean)) || Number(p.mean) < 0))
         errs.push(`${ctx}: mean must be >= 0`);
-      break;
-    }
-    case "BERNOULLI": {
-      if (p.mean !== undefined) {
-        const mean = Number(p.mean);
-        if (isNaN(mean) || mean < 0 || mean > 1)
-          errs.push(`${ctx}: mean must be 0-1`);
-      }
-      if (
-        p.arrivalInterval !== undefined &&
-        (isNaN(Number(p.arrivalInterval)) || Number(p.arrivalInterval) <= 0)
-      )
-        errs.push(`${ctx}: arrivalInterval must be > 0`);
       break;
     }
     case "EXPONENTIAL":

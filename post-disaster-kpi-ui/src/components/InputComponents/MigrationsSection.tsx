@@ -10,6 +10,8 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Alert,
+  AlertTitle,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
@@ -235,10 +237,6 @@ const MigrationsSection: React.FC<Props> = ({
           return {
             mean: dataType === "arrivalData" ? "30" : "500",
           };
-        case "BERNOULLI":
-          return {
-            mean: "0.5",
-          };
         case "NORMAL":
           return {
             mean: dataType === "arrivalData" ? "30" : "500",
@@ -439,26 +437,6 @@ const MigrationsSection: React.FC<Props> = ({
           </>
         );
 
-      case "BERNOULLI":
-        return (
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              fullWidth
-              label="Mean (probability)"
-              value={params.mean || ""}
-              onChange={(e) => {
-                handleMigrationChange(
-                  migrationIndex,
-                  dataType,
-                  e.target.value,
-                  "distParameters",
-                  "mean"
-                );
-              }}
-            />
-          </Grid>
-        );
-
       default:
         return null;
     }
@@ -466,6 +444,18 @@ const MigrationsSection: React.FC<Props> = ({
 
   return (
     <>
+      {/* Warning about distribution override when migrations exist */}
+      {migrations.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <AlertTitle>Distribution Override Notice</AlertTitle>
+          When migrations are present in the simulation, all demand
+          distributions are automatically converted to{" "}
+          <strong>Exponential distributions</strong> to maintain theoretical
+          consistency. The expected values (means) of your configured
+          distributions will be preserved during this conversion.
+        </Alert>
+      )}
+
       {migrations.map((migration, migrationIndex) => (
         <NestedCollapsibleSection
           key={`migration-${migrationIndex}`}
@@ -660,9 +650,6 @@ const MigrationsSection: React.FC<Props> = ({
                         </MenuItem>
                         <MenuItem value="TRIANGULAR">
                           {formatLabel("TRIANGULAR")}
-                        </MenuItem>
-                        <MenuItem value="BERNOULLI">
-                          {formatLabel("BERNOULLI")}
                         </MenuItem>
                       </Select>
                     </FormControl>

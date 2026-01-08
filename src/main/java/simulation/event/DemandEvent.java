@@ -1,15 +1,14 @@
 package simulation.event;
 
+import java.util.ArrayList;
+
 import data.Camp;
 import data.Item;
 import data.event_info.Demand;
 import enums.DemandTimingType;
-import simulation.KPIManager;
 import simulation.State;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
-
-import java.util.ArrayList;
 
 public class DemandEvent implements IEvent {
     public Camp camp;
@@ -25,7 +24,12 @@ public class DemandEvent implements IEvent {
         this.isInternal = demand.getDemandClass() == enums.DemandClass.INTERNAL;
         this.demand = demand;
         this.item = demand.getItem();
-        this.time = tNow + interarrivalGenerator.generateDemand(demand);
+        
+        int population = isInternal ? 
+            state.getInternalPopulation().get(this.camp) : 
+            state.getExternalPopulation().get(this.camp);
+        
+        this.time = tNow + interarrivalGenerator.generateDemand(demand, population);
 
         if (isInternal) {
             this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getInternalPopulation().get(this.camp), true);

@@ -147,6 +147,18 @@ const TimeAwareSimulationVisualizer: React.FC<
     return availableTimes.length > 0 ? Math.max(...availableTimes) : 0;
   }, [availableTimes]);
 
+  const planningHorizon = useMemo(() => {
+    if (!allLogs.length) return 0;
+    const firstWithHorizon = allLogs.find(
+      (l) => typeof l.planningHorizon === "number" && !Number.isNaN(l.planningHorizon)
+    );
+    return firstWithHorizon?.planningHorizon || 0;
+  }, [allLogs]);
+
+  const maxDisplayTime = useMemo(() => {
+    return planningHorizon > 0 ? Math.max(planningHorizon, maxTime) : maxTime;
+  }, [planningHorizon, maxTime]);
+
   // Update start and end time when max time changes
   useEffect(() => {
     if (maxTime > 0) {
@@ -423,6 +435,7 @@ const TimeAwareSimulationVisualizer: React.FC<
       <TimeSliderControl
         currentTime={currentTime}
         maxTime={maxTime}
+        displayMaxTime={maxDisplayTime}
         onTimeChange={setCurrentTime}
         startTime={startTime}
         endTime={endTime}

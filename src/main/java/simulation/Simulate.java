@@ -63,19 +63,33 @@ public class Simulate {
         generateInitialEvents();
         long t1 = System.nanoTime();
         double ms = (t1 - t0)/1_000_000.0;
+        double planningHorizon = this.environment.getSimulationConfig().getPlanningHorizon();
+        int invCtrlPeriod = this.environment.getSimulationConfig().getInventoryControlPeriod();
         System.out.println("[Perf] Initial preparation & event generation took " + ms + " ms. Initial event queue size=" + this.eventQueue.size());
+        System.out.println(String.format("[Perf] PlanningHorizon=%.2f InventoryControlType=%s InventoryControlPeriod=%d", planningHorizon, this.environment.getSimulationConfig().getInventoryControlType(), invCtrlPeriod));
         // seed initial log at time 0 so UI starts immediately
-        try { this.state.getKpiManager().logState(this.state, 0.0, 0.001); } catch (Exception ignored) {}
+        try { 
+            this.state.getKpiManager().logState(this.state, 0.0, 0.001); 
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to log initial state. Stack trace:");
+            e.printStackTrace();
+        }
         prepared = true;
     }
 
     public void run() {
         if (!prepared) throw new IllegalStateException("Simulation not prepared");
+        if (this.eventQueue.isEmpty()) {
+            System.out.println("[Perf] Event queue is empty at start of run; nothing to simulate.");
+            return;
+        }
+        IEvent firstEvent = this.eventQueue.peek();
+        System.out.println(String.format("[Perf] Starting run with %d events; first event=%s at t=%.3f", this.eventQueue.size(), firstEvent.getClass().getSimpleName(), firstEvent.getTime()));
         long startNano = System.nanoTime();
         long lastReport = startNano;
         long processed = 0;
         double lastLoggedSimTime = -1.0;
-        final int LOG_EVERY_N_EVENTS = 100; // throttle expensive KPI logging
+        final int LOG_EVERY_N_EVENTS = 1000; // throttle expensive KPI logging
         int maxQueue = this.eventQueue.size();
         while (!this.eventQueue.isEmpty()) {
             if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
@@ -87,10 +101,13 @@ public class Simulate {
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
 
             processed++;
-            boolean conditionToReport = event.getClass().getSimpleName().equals("InventoryControlEvent");
+            boolean conditionToReport = event.getClass().getSimpleName().equals("InventoryControlEvent")
+                    || processed % LOG_EVERY_N_EVENTS == 0
+                    || (int)event.getTime() > (int)lastLoggedSimTime;
 
             if (conditionToReport) {
-                state.getKpiManager().logState(state, event.getTime(), 1);
+                // Force immediate KPI logging for early events
+                state.getKpiManager().logState(state, event.getTime(), 0.0);
                 lastLoggedSimTime = event.getTime();
             }
 
@@ -172,7 +189,7 @@ public class Simulate {
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
             processed++;
             if (processed % LOG_EVERY_N_EVENTS == 0 || (int)event.getTime() > (int)lastLoggedSimTime) {
-                state.getKpiManager().logState(state, event.getTime(), 10);
+                state.getKpiManager().logState(state, event.getTime(), 0.0);
                 lastLoggedSimTime = event.getTime();
             }
             if (event.getClass().getSimpleName().equals("MigrationEvent")) migrationStateUpdate((MigrationEvent) event);
@@ -220,6 +237,10 @@ public class Simulate {
     public void cleanup() {
         if (eventQueue != null) eventQueue.clear();
         if (demandEventQueue != null) demandEventQueue.clear();
+    }
+
+    public int getEventQueueSize() {
+        return this.eventQueue == null ? -1 : this.eventQueue.size();
     }
 
     public void deleteExpiredItems(State state, double currentTime) {
@@ -298,12 +319,17 @@ public class Simulate {
                 arrivalTimes.add(currentTime);
 
                 double arrivalInterval = this.interarrivalGenerator.generateFunding(funding);
-                currentTime += arrivalInterval;
+                if (arrivalInterval <= 0) {
+                    System.out.println("Warning: Funding arrival interval <= 0; scheduling a single funding event at t=0 for " + agency.getName());
+                    currentTime = this.environment.getSimulationConfig().getPlanningHorizon();
+                } else {
+                    currentTime += arrivalInterval;
 
-                while (!(currentTime >= this.environment.getSimulationConfig().getPlanningHorizon())) {
-                    arrivalTimes.add(currentTime);
-                    count++;
-                    currentTime += this.interarrivalGenerator.generateFunding(funding);
+                    while (!(currentTime >= this.environment.getSimulationConfig().getPlanningHorizon())) {
+                        arrivalTimes.add(currentTime);
+                        count++;
+                        currentTime += this.interarrivalGenerator.generateFunding(funding);
+                    }
                 }
 
                 if (funding.getAmountData().distributionType == DistributionType.EQUAL_SHARE)
