@@ -135,21 +135,39 @@ public final class SimulationEnvironmentMapper {
         }
         Migration[] migrationsArr = migrations.toArray(Migration[]::new);
 
-        // Override distributions to EXPONENTIAL if migrations exist (to maintain theoretical consistency)
+        // ===================================================================
+        // CRITICAL: Enforce EXPONENTIAL distribution for all demand arrivals
+        // when migrations are present to maintain theoretical consistency.
+        // This is REQUIRED and has NO CONDITIONAL LOGIC or alternatives.
+        // ===================================================================
         if (migrationsArr.length > 0) {
-            System.out.println("INFO: Migrations detected. Converting all demand distributions to EXPONENTIAL while preserving expectations.");
+            System.out.println("===================================================================");
+            System.out.println("INFO: MIGRATIONS DETECTED - Enforcing EXPONENTIAL distributions");
+            System.out.println("      Converting ALL demand arrival distributions to EXPONENTIAL");
+            System.out.println("      while preserving expected values for theoretical consistency.");
+            System.out.println("===================================================================");
+            
+            int conversionCount = 0;
             for (Camp camp : camps) {
                 for (Demand demand : camp.getDemands()) {
                     if (demand.getArrivalData() != null) {
                         ProbabilityData arrivalData = demand.getArrivalData();
+                        DistributionType originalType = arrivalData.distributionType;
                         double originalMean = arrivalData.distParameters.getMean();
-                        // Create new exponential distribution with same mean
+                        
+                        // Always convert to exponential - no exceptions
                         DistExponential expDist = new DistExponential();
                         expDist.mean = originalMean;
                         demand.setArrivalData(new ProbabilityData(DistributionType.EXPONENTIAL, expDist));
+                        
+                        conversionCount++;
+                        System.out.println("  → Converted " + camp.getName() + "/" + demand.getItem().getName() + 
+                                         " from " + originalType + " to EXPONENTIAL (mean=" + originalMean + ")");
                     }
                 }
             }
+            System.out.println("Total conversions: " + conversionCount + " demand distributions");
+            System.out.println("===================================================================");
         }
 
         // 5. SupplyStatusSwitches
@@ -247,7 +265,7 @@ public final class SimulationEnvironmentMapper {
 
     private static void configureTargetLevelPolicy(TargetLevelPolicy policy, Map<String, Object> ipNode, Map<String, Camp> camps, Map<String, Item> items) {
 
-        // 1. Camp Parameters (Nested Map: Camp -> Item -> {s, S, threshold})
+        // Pure target level policy - only S and threshold parameters (no reorder point)
         Map<String, Object> campLevels = map(ipNode.get("targetLevels"));
         Map<String, Object> thresholdLevels = map(ipNode.get("thresholdLevels"));
 
@@ -263,13 +281,12 @@ public final class SimulationEnvironmentMapper {
                     if (item == null) continue;
 
                     Object val = iEntry.getValue();
-                    int s = 0;
                     int S = 0;
                     int threshold = 0;
 
                     if (val instanceof Map) {
                         Map<String, Object> vMap = (Map<String, Object>) val;
-                        s = intVal(vMap.getOrDefault("s", vMap.getOrDefault("s_reorderPoint", 0)));
+                        // Only read S_targetLevel and rationingThreshold (no s_reorderPoint)
                         S = intVal(vMap.getOrDefault("S", vMap.getOrDefault("S_targetLevel", 0)));
                         threshold = intVal(vMap.getOrDefault("threshold", vMap.getOrDefault("rationingThreshold", 0)));
                     }
@@ -281,7 +298,7 @@ public final class SimulationEnvironmentMapper {
                         }
                     }
 
-                    policy.setCampPolicy(camp, item, s, S, threshold);
+                    policy.setCampPolicy(camp, item, S, threshold);
                 }
             }
         }
@@ -293,16 +310,15 @@ public final class SimulationEnvironmentMapper {
                 if (item == null) continue;
 
                 Object val = entry.getValue();
-                int s = 0;
                 int S = 0;
 
                 if (val instanceof Map) {
                     Map<String, Object> vMap = (Map<String, Object>) val;
-                    s = intVal(vMap.getOrDefault("s", vMap.getOrDefault("s_reorderPoint", 0)));
+                    // Only read S_targetLevel (no s_reorderPoint)
                     S = intVal(vMap.getOrDefault("S", vMap.getOrDefault("S_targetLevel", 0)));
                 }
 
-                policy.setCentralPolicy(item, s, S);
+                policy.setCentralPolicy(item, S);
             }
         }
     }

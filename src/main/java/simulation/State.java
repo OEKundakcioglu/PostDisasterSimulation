@@ -186,6 +186,14 @@ public class State implements Cloneable {
             if (deprivingPerson.getQuantity() <= inventoryToSend.get(0).getQuantity()) {
                 var deprivation = calculateDeprivation(item, deprivingPerson.getQuantity(), time - deprivingPerson.getArrivalTime());
                 kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
+                
+                // Calculate holding cost for consumed inventory
+                InventoryItem inventoryItem = inventoryToSend.get(0);
+                double holdingTime = time - inventoryItem.getArrivalTime();
+                double holdingCostIncrement = holdingTime * item.getHoldingCost() * deprivingPerson.getQuantity();
+                var previousHoldingCost = kpiManager.totalHoldingCost.get(camp).get(item);
+                kpiManager.totalHoldingCost.get(camp).put(item, previousHoldingCost + holdingCostIncrement);
+                
                 inventoryToSend.get(0).setQuantity(inventoryToSend.get(0).getQuantity() - deprivingPerson.getQuantity());
                 deprivingPopulation.get(camp).get(item).poll();
             }
@@ -193,6 +201,14 @@ public class State implements Cloneable {
                 // Since we are not able to satisfy all depriving population, we use available inventory
                 var deprivation = calculateDeprivation(item, inventoryToSend.get(0).getQuantity(), time - deprivingPerson.getArrivalTime());
                 kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
+                
+                // Calculate holding cost for consumed inventory
+                InventoryItem inventoryItem = inventoryToSend.get(0);
+                double holdingTime = time - inventoryItem.getArrivalTime();
+                double holdingCostIncrement = holdingTime * item.getHoldingCost() * inventoryItem.getQuantity();
+                var previousHoldingCost = kpiManager.totalHoldingCost.get(camp).get(item);
+                kpiManager.totalHoldingCost.get(camp).put(item, previousHoldingCost + holdingCostIncrement);
+                
                 deprivingPerson.setQuantity(deprivingPerson.getQuantity() - inventoryToSend.get(0).getQuantity());
                 inventoryToSend.remove(0);
             }
@@ -233,13 +249,17 @@ public class State implements Cloneable {
                     InventoryItem inventoryItem = items.peek();
                     if (inventoryItem.getQuantity() <= quantity) {
                         double totalTime = tNow - inventoryItem.getArrivalTime();
-                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * inventoryItem.getQuantity()));
+                        double costIncrement = totalTime * item.getHoldingCost() * inventoryItem.getQuantity();
+
+                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + costIncrement);
                         inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - inventoryItem.getQuantity());
                         quantity -= inventoryItem.getQuantity();
                         items.poll();
                     } else {
                         double totalTime = tNow - inventoryItem.getArrivalTime();
-                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + (totalTime * item.getHoldingCost() * quantity));
+                        double costIncrement = totalTime * item.getHoldingCost() * quantity;
+
+                        kpiManager.totalHoldingCost.get(camp).put(item, kpiManager.totalHoldingCost.get(camp).get(item) + costIncrement);
                         inventoryItem.setQuantity(inventoryItem.getQuantity() - (int) quantity);
                         inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - (int) quantity);
                         quantity = 0; // Exit the loop

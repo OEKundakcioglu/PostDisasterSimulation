@@ -62,10 +62,17 @@ interface Item {
   name: string;
 }
 
+interface Migration {
+  fromCamp: string;
+  toCamp: string;
+  migrationType: string;
+}
+
 interface Props {
   camps: Camp[];
   setCamps: React.Dispatch<React.SetStateAction<Camp[]>>;
   items: Item[];
+  migrations: Migration[];
 }
 
 const explanations = {
@@ -212,7 +219,8 @@ const ArrivalEditor: React.FC<{
   setCamps: React.Dispatch<React.SetStateAction<Camp[]>>;
   campIndex: number;
   demandIndex: number;
-}> = ({ camps, setCamps, campIndex, demandIndex }) => {
+  hasMigrations: boolean;
+}> = ({ camps, setCamps, campIndex, demandIndex, hasMigrations }) => {
   const demand = camps[campIndex].demands[demandIndex];
   const distParams = demand.arrivalData.distParameters;
   const distType = demand.arrivalData.distributionType;
@@ -325,14 +333,49 @@ const ArrivalEditor: React.FC<{
   const maxVal = (meanVal + spreadVal).toFixed(2);
 
   return (
-    <Grid container spacing={3} alignItems="center">
+    <Grid container spacing={3} alignItems="flex-start">
+      {hasMigrations && (
+        <Grid item xs={12}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              bgcolor: "rgba(33, 150, 243, 0.08)",
+              borderLeft: 3,
+              borderColor: "primary.main",
+              borderRadius: 1,
+            }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <InfoIcon sx={{ color: "primary.main", fontSize: 20 }} />
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ lineHeight: 1.6 }}
+              >
+                <strong style={{ color: "#1976d2" }}>
+                  Migration Detected:
+                </strong>{" "}
+                Distribution is automatically set to EXPONENTIAL for theoretical
+                consistency. This cannot be changed while migrations exist.
+              </Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+      )}
       <Grid item xs={12} md={4}>
         <TextField
           select
           fullWidth
           label="Interarrival Distribution"
-          value={distType}
+          value={hasMigrations ? "EXPONENTIAL" : distType}
           onChange={(e) => handleTypeChange(e.target.value)}
+          disabled={hasMigrations}
+          helperText={
+            hasMigrations
+              ? "Locked to EXPONENTIAL due to migrations"
+              : undefined
+          }
         >
           <MenuItem value="EXPONENTIAL">Exponential</MenuItem>
           <MenuItem value="NORMAL">Truncated Normal</MenuItem>
@@ -343,62 +386,58 @@ const ArrivalEditor: React.FC<{
       </Grid>
 
       <Grid item xs={12} md={4}>
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              type="number"
-              label="Mean Interarrival Time (Minutes)"
-              value={distParams.mean || ""}
-              onChange={(e) => handleParamChange("mean", e.target.value)}
-              InputProps={{ inputProps: { min: 0 } }}
-            />
-          </Grid>
-
-          {(distType === "TRIANGULAR" || distType === "UNIFORM") && (
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Spread (+/- Minutes)"
-                value={distParams.spread || ""}
-                onChange={(e) => handleParamChange("spread", e.target.value)}
-                InputProps={{ inputProps: { min: 0, max: distParams.mean } }}
-                helperText={
-                  distParams.mean
-                    ? `Min: ${minVal} (≥0) | Max: ${maxVal}`
-                    : "Cannot exceed Mean value"
-                }
-                error={
-                  (parseFloat(distParams.spread || "0") || 0) >
-                  (parseFloat(distParams.mean || "0") || 0)
-                }
-              />
-            </Grid>
-          )}
-
-          {distType === "NORMAL" && (
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Standard Deviation (Minutes)"
-                value={distParams.stdDev || ""}
-                onChange={(e) => handleParamChange("stdDev", e.target.value)}
-                InputProps={{
-                  inputProps: {
-                    min: 0,
-                    max: 0.25 * (parseFloat(distParams.mean || "0") || 0),
-                  },
-                }}
-                helperText={`Standard deviation ≤ ${
-                  0.25 * (parseFloat(distParams.mean || "0") || 0)
-                }`}
-              />
-            </Grid>
-          )}
-        </Grid>
+        <TextField
+          fullWidth
+          type="number"
+          label="Mean Interarrival Time (Minutes)"
+          value={distParams.mean || ""}
+          onChange={(e) => handleParamChange("mean", e.target.value)}
+          InputProps={{ inputProps: { min: 0 } }}
+        />
       </Grid>
+
+      {(distType === "TRIANGULAR" || distType === "UNIFORM") && (
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            type="number"
+            label="Spread (+/- Minutes)"
+            value={distParams.spread || ""}
+            onChange={(e) => handleParamChange("spread", e.target.value)}
+            InputProps={{ inputProps: { min: 0, max: distParams.mean } }}
+            helperText={
+              distParams.mean
+                ? `Min: ${minVal} (≥0) | Max: ${maxVal}`
+                : "Cannot exceed Mean value"
+            }
+            error={
+              (parseFloat(distParams.spread || "0") || 0) >
+              (parseFloat(distParams.mean || "0") || 0)
+            }
+          />
+        </Grid>
+      )}
+
+      {distType === "NORMAL" && (
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            type="number"
+            label="Standard Deviation (Minutes)"
+            value={distParams.stdDev || ""}
+            onChange={(e) => handleParamChange("stdDev", e.target.value)}
+            InputProps={{
+              inputProps: {
+                min: 0,
+                max: 0.25 * (parseFloat(distParams.mean || "0") || 0),
+              },
+            }}
+            helperText={`Standard deviation ≤ ${
+              0.25 * (parseFloat(distParams.mean || "0") || 0)
+            }`}
+          />
+        </Grid>
+      )}
     </Grid>
   );
 };
@@ -408,7 +447,8 @@ const InterArrivalSection: React.FC<{
   setCamps: React.Dispatch<React.SetStateAction<Camp[]>>;
   campIndex: number;
   itemName: string;
-}> = ({ camps, setCamps, campIndex, itemName }) => {
+  hasMigrations: boolean;
+}> = ({ camps, setCamps, campIndex, itemName, hasMigrations }) => {
   useEffect(() => {
     if (!itemName) return;
     ensurePairForItem(camps, setCamps, campIndex, itemName);
@@ -471,6 +511,7 @@ const InterArrivalSection: React.FC<{
                 setCamps={setCamps}
                 campIndex={campIndex}
                 demandIndex={internalIdx}
+                hasMigrations={hasMigrations}
               />
             </Box>
           </Paper>
@@ -505,6 +546,7 @@ const InterArrivalSection: React.FC<{
                 setCamps={setCamps}
                 campIndex={campIndex}
                 demandIndex={externalIdx}
+                hasMigrations={hasMigrations}
               />
             </Box>
           </Paper>
@@ -657,7 +699,13 @@ const InterArrivalSection: React.FC<{
   );
 };
 
-const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
+const CampsSection: React.FC<Props> = ({
+  camps,
+  setCamps,
+  items,
+  migrations,
+}) => {
+  const hasMigrations = migrations.length > 0;
   const handleCampChange = (
     index: number,
     field: keyof Camp,
@@ -986,6 +1034,7 @@ const CampsSection: React.FC<Props> = ({ camps, setCamps, items }) => {
                               setCamps={setCamps}
                               campIndex={campIndex}
                               itemName={itemName}
+                              hasMigrations={hasMigrations}
                             />
                           </NestedCollapsibleSection>
                         </Grid>

@@ -1,15 +1,14 @@
 package simulation.event;
 
+import java.util.ArrayList;
+
 import data.Camp;
 import data.Environment;
 import data.Item;
-import simulation.KPIManager;
 import simulation.State;
 import simulation.data.InventoryItem;
 import simulation.generator.InterarrivalGenerator;
 import simulation.generator.QuantityGenerator;
-
-import java.util.ArrayList;
 
 public class TransferEvent implements IEvent {
     public Camp camp;

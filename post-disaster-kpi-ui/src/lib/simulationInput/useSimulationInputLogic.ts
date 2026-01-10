@@ -86,87 +86,127 @@ export const useSimulationInputLogic = () => {
     availabilityRef.current = initialState.isItemAvailable;
   }, [initialState.isItemAvailable]);
 
-    useEffect(() => {
-        const currentNames = new Set(items.map((i: Item) => i.name).filter(Boolean));
+  useEffect(() => {
+    const currentNames = new Set(
+      items.map((i: Item) => i.name).filter(Boolean)
+    );
 
-        // Always prune demands whose item is not in items
-        setCamps((oldCamps: Camp[]) =>
-            oldCamps.map((camp: Camp) => {
-                const pruned = camp.demands.filter(
-                    (d: CampDemand) => !d.item || currentNames.has(d.item)
-                );
-                return pruned === camp.demands ? camp : { ...camp, demands: pruned };
-            })
+    // Always prune demands whose item is not in items
+    setCamps((oldCamps: Camp[]) =>
+      oldCamps.map((camp: Camp) => {
+        const pruned = camp.demands.filter(
+          (d: CampDemand) => !d.item || currentNames.has(d.item)
         );
+        return pruned === camp.demands ? camp : { ...camp, demands: pruned };
+      })
+    );
 
-        // Availability normalization (same as you already have)
-        const nextAvailability: Record<string, boolean> = {};
-        items.forEach((it: Item) => {
-            if (it.name) nextAvailability[it.name] = availabilityRef.current[it.name] ?? true;
+    // Availability normalization (same as you already have)
+    const nextAvailability: Record<string, boolean> = {};
+    items.forEach((it: Item) => {
+      if (it.name)
+        nextAvailability[it.name] = availabilityRef.current[it.name] ?? true;
+    });
+
+    const currentAvail = availabilityRef.current;
+    let changed =
+      Object.keys(nextAvailability).length !== Object.keys(currentAvail).length;
+
+    if (!changed) {
+      for (const k of Object.keys(nextAvailability)) {
+        if (currentAvail[k] !== nextAvailability[k]) {
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    if (changed) {
+      setInitialState((prev: InitialState) => ({
+        ...prev,
+        isItemAvailable: nextAvailability,
+      }));
+    }
+
+    prevItemsRef.current = deepClone(items);
+  }, [items]);
+
+  // --------------------------------------------------
+  // Effect: Enforce EXPONENTIAL distribution when migrations exist
+  // --------------------------------------------------
+  useEffect(() => {
+    // If there are migrations, force all demand arrival distributions to EXPONENTIAL
+    if (migrations.length > 0) {
+      setCamps((prevCamps: Camp[]) => {
+        let hasChanges = false;
+        const nextCamps = prevCamps.map((camp: Camp) => {
+          const nextDemands = camp.demands.map((demand: CampDemand) => {
+            if (demand.arrivalData.distributionType !== "EXPONENTIAL") {
+              hasChanges = true;
+              const currentMean =
+                demand.arrivalData.distParameters.mean || "60";
+              return {
+                ...demand,
+                arrivalData: {
+                  distributionType: "EXPONENTIAL",
+                  distParameters: { mean: currentMean },
+                },
+              };
+            }
+            return demand;
+          });
+
+          if (nextDemands !== camp.demands) {
+            return { ...camp, demands: nextDemands };
+          }
+          return camp;
         });
 
-        const currentAvail = availabilityRef.current;
-        let changed =
-            Object.keys(nextAvailability).length !== Object.keys(currentAvail).length;
-
-        if (!changed) {
-            for (const k of Object.keys(nextAvailability)) {
-                if (currentAvail[k] !== nextAvailability[k]) {
-                    changed = true;
-                    break;
-                }
-            }
-        }
-
-        if (changed) {
-            setInitialState((prev: InitialState) => ({
-                ...prev,
-                isItemAvailable: nextAvailability,
-            }));
-        }
-
-        prevItemsRef.current = deepClone(items);
-    }, [items]);
+        // Only update if there were actual changes
+        return hasChanges ? nextCamps : prevCamps;
+      });
+    }
+  }, [migrations.length]); // Re-run when migration count changes
 
   // --------------------------------------------------
   // Effect: Load / restore configuration once on mount
   // --------------------------------------------------
-    useEffect(() => {
-        const shouldPreserve =
-            localStorage.getItem(LS_KEYS.preserveFlag) === "true";
+  useEffect(() => {
+    const shouldPreserve =
+      localStorage.getItem(LS_KEYS.preserveFlag) === "true";
 
-        if (shouldPreserve) {
-            const saved = loadSavedConfig();
-            if (saved) {
-                if (saved.simulationConfig) setSimulationConfig(saved.simulationConfig);
-                if (saved.items) setItems(saved.items);
-                if (saved.camps) setCamps(saved.camps);
-                if (saved.agencies) setAgencies(saved.agencies);
-                if (saved.migrations) setMigrations(saved.migrations);
-                if (saved.inventoryPolicy) setInventoryPolicy(saved.inventoryPolicy);
-                if (saved.initialState) setInitialState(saved.initialState);
-            }
-        } else {
-            // Fresh start: ensure nothing stale leaks into payload
-            try {
-                localStorage.removeItem(LS_KEYS.simulationInput);
-                localStorage.removeItem(LS_KEYS.currentSimulation);
-            } catch {
-                // no-op
-            }
+    if (shouldPreserve) {
+      const saved = loadSavedConfig();
+      if (saved) {
+        if (saved.simulationConfig) setSimulationConfig(saved.simulationConfig);
+        if (saved.items) setItems(saved.items);
+        if (saved.camps) setCamps(saved.camps);
+        if (saved.agencies) setAgencies(saved.agencies);
+        if (saved.migrations) setMigrations(saved.migrations);
+        if (saved.inventoryPolicy) setInventoryPolicy(saved.inventoryPolicy);
+        if (saved.initialState) setInitialState(saved.initialState);
+      }
+    } else {
+      // Fresh start: ensure nothing stale leaks into payload
+      try {
+        localStorage.removeItem(LS_KEYS.simulationInput);
+        localStorage.removeItem(LS_KEYS.currentSimulation);
+      } catch {
+        // no-op
+      }
 
-            setSimulationConfig(DEFAULT_SIMULATION_CONFIG);
-            setItems(DEFAULT_ITEMS);
-            setCamps(DEFAULT_CAMPS);
-            setAgencies(DEFAULT_AGENCIES);
-            setMigrations(DEFAULT_MIGRATIONS);
-            setSupplyDisruptions(DEFAULT_SUPPLY_DISRUPTIONS);
-            setInventoryPolicy(DEFAULT_INVENTORY_POLICY);
-            setInitialState(DEFAULT_INITIAL_STATE);
-        }
+      setSimulationConfig(DEFAULT_SIMULATION_CONFIG);
+      setItems(DEFAULT_ITEMS);
+      setCamps(DEFAULT_CAMPS);
+      setAgencies(DEFAULT_AGENCIES);
+      setMigrations(DEFAULT_MIGRATIONS);
+      setSupplyDisruptions(DEFAULT_SUPPLY_DISRUPTIONS);
+      setInventoryPolicy(DEFAULT_INVENTORY_POLICY);
+      setInitialState(DEFAULT_INITIAL_STATE);
+    }
 
-        if (shouldPreserve) localStorage.removeItem(LS_KEYS.preserveFlag);
-    }, []);
+    if (shouldPreserve) localStorage.removeItem(LS_KEYS.preserveFlag);
+  }, []);
 
   // --------------------------------------------------
   // Migration camp reference maintenance (non-destructive)
@@ -321,45 +361,164 @@ export const useSimulationInputLogic = () => {
       } else if (next.policyType === "TARGET_LEVEL") {
         const newTargetLevels: Record<
           string,
-          Record<string, { s_reorderPoint?: string; S_targetRatio?: string; S_targetLevel?: string; rationingThreshold?: string }>
+          Record<
+            string,
+            {
+              S_targetRatio?: string;
+              S_targetLevel?: string;
+              rationingThreshold?: string;
+            }
+          >
         > = {};
+        
         validCampNames.forEach((campName) => {
           newTargetLevels[campName] = {};
+          const camp = camps.find((c: Camp) => c.name === campName);
+          
           validItemNames.forEach((itemName) => {
+            const item = items.find((i: Item) => i.name === itemName);
             const existingVal = next.targetLevels[campName]?.[itemName];
-            if (typeof existingVal === "object" && existingVal !== null) {
+            
+            if (typeof existingVal === "object" && existingVal !== null &&
+                existingVal.S_targetLevel && Number(existingVal.S_targetLevel) > 0) {
+              // Keep existing valid values
               newTargetLevels[campName][itemName] = existingVal;
             } else {
+              // Calculate proper default based on demands
+              const reviewPeriod = parseFloat(next.inventoryControlPeriod || "1");
+              let calculatedS = 1; // minimum default
+              
+              if (camp && item) {
+                const internalDemand = camp.demands?.find(
+                  (d: CampDemand) => d.item === itemName && d.demandClass === "INTERNAL"
+                );
+                const externalDemand = camp.demands?.find(
+                  (d: CampDemand) => d.item === itemName && d.demandClass === "EXTERNAL"
+                );
+                
+                const calcRate = (meanMinutes?: string) => {
+                  const mean = parseFloat(meanMinutes || "0");
+                  return mean > 0 ? 1440 / mean : 0;
+                };
+                
+                const calcLeadTime = (dist: any): number => {
+                  if (!dist) return 0;
+                  const { distributionType, distParameters } = dist;
+                  if (distributionType === "TRIANGULAR") {
+                    return (
+                      (parseFloat(distParameters.min || "0") +
+                        parseFloat(distParameters.mode || "0") +
+                        parseFloat(distParameters.max || "0")) / 3
+                    );
+                  }
+                  return parseFloat(distParameters.mean || "0");
+                };
+                
+                const rateInt = internalDemand
+                  ? calcRate(internalDemand.arrivalData?.distParameters?.mean)
+                  : 0;
+                const rateExt = externalDemand
+                  ? calcRate(externalDemand.arrivalData?.distParameters?.mean)
+                  : 0;
+                const totalDailyRate = rateInt + rateExt;
+                
+                const leadTimeInt = internalDemand
+                  ? calcLeadTime(internalDemand.leadTimeData)
+                  : 0;
+                const leadTimeExt = externalDemand
+                  ? calcLeadTime(externalDemand.leadTimeData)
+                  : 0;
+                
+                let finalLeadTime = 0;
+                if (totalDailyRate > 0) {
+                  finalLeadTime = (rateInt * leadTimeInt + rateExt * leadTimeExt) / totalDailyRate;
+                } else if (internalDemand && externalDemand) {
+                  finalLeadTime = (leadTimeInt + leadTimeExt) / 2;
+                } else if (internalDemand) {
+                  finalLeadTime = leadTimeInt;
+                } else if (externalDemand) {
+                  finalLeadTime = leadTimeExt;
+                }
+                
+                const baseExposure = reviewPeriod + finalLeadTime;
+                const ratio = parseFloat(existingVal?.S_targetRatio || "1.5");
+                calculatedS = Math.ceil(totalDailyRate * baseExposure * ratio);
+              }
+              
+              const thresholdRatio = parseFloat(next.thresholdRatios?.[campName]?.[itemName] || "0.2");
+              
               newTargetLevels[campName][itemName] = {
-                s_reorderPoint: "0",
-                S_targetRatio: "1.5",
-                S_targetLevel: "0",
-                rationingThreshold: "0",
+                S_targetRatio: existingVal?.S_targetRatio || "1.5",
+                S_targetLevel: calculatedS.toString(),
+                rationingThreshold: Math.ceil(calculatedS * thresholdRatio).toString(),
               };
             }
           });
         });
         next.targetLevels = newTargetLevels;
 
-          const newCentralTargetLevels: Record<
-              string,
-              { s_reorderPoint?: string; S_targetRatio?: string; S_targetLevel?: string }
-          > = {};
+        const newCentralTargetLevels: Record<
+          string,
+          { S_targetRatio?: string; S_targetLevel?: string }
+        > = {};
 
+        validItemNames.forEach((itemName) => {
+          const item = items.find((i: Item) => i.name === itemName);
+          const existingVal = next.centralTargetLevels[itemName];
+
+          if (typeof existingVal === "object" && existingVal !== null &&
+              existingVal.S_targetLevel && Number(existingVal.S_targetLevel) > 0) {
+            // Keep existing valid values
+            newCentralTargetLevels[itemName] = existingVal;
+          } else {
+            // Calculate proper default for central warehouse
+            const reviewPeriod = parseFloat(next.inventoryControlPeriod || "1");
+            let aggTotalDaily = 0;
+            
+            camps.forEach((camp: Camp) => {
+              const internalDemand = camp.demands?.find(
+                (d: CampDemand) => d.item === itemName && d.demandClass === "INTERNAL"
+              );
+              const externalDemand = camp.demands?.find(
+                (d: CampDemand) => d.item === itemName && d.demandClass === "EXTERNAL"
+              );
+              
+              const calcRate = (meanMinutes?: string) => {
+                const mean = parseFloat(meanMinutes || "0");
+                return mean > 0 ? 1440 / mean : 0;
+              };
+              
+              const rateInt = internalDemand
+                ? calcRate(internalDemand.arrivalData?.distParameters?.mean)
+                : 0;
+              const rateExt = externalDemand
+                ? calcRate(externalDemand.arrivalData?.distParameters?.mean)
+                : 0;
+              aggTotalDaily += rateInt + rateExt;
+            });
+            
+            const supplierLeadTime = (item as any)?.supplierLeadTime || 2.0;
+            const ratio = parseFloat(existingVal?.S_targetRatio || "1.5");
+            const calculatedS = Math.ceil(aggTotalDaily * (reviewPeriod + supplierLeadTime) * ratio);
+            
+            newCentralTargetLevels[itemName] = {
+              S_targetRatio: existingVal?.S_targetRatio || "1.5",
+              S_targetLevel: calculatedS.toString(),
+            };
+          }
+        });
+        next.centralTargetLevels = newCentralTargetLevels;
+
+        // Also normalize thresholdRatios
+        const newThresholdRatios: Record<string, Record<string, string>> = {};
+        validCampNames.forEach((campName) => {
+          newThresholdRatios[campName] = {};
           validItemNames.forEach((itemName) => {
-              const existingVal = next.centralTargetLevels[itemName];
-
-              if (typeof existingVal === "object" && existingVal !== null) {
-                  newCentralTargetLevels[itemName] = existingVal;
-              } else {
-                  newCentralTargetLevels[itemName] = {
-                      s_reorderPoint: "0",
-                      S_targetRatio: "1.5",
-                      S_targetLevel: "0",
-                  };
-              }
+            newThresholdRatios[campName][itemName] =
+              next.thresholdRatios?.[campName]?.[itemName] ?? "0.2";
           });
-          next.centralTargetLevels = newCentralTargetLevels;
+        });
+        next.thresholdRatios = newThresholdRatios;
       }
 
       return next;
@@ -712,76 +871,83 @@ export const useSimulationInputLogic = () => {
           else if (!/^\d+$/.test(String(cpc)) || Number(cpc) < 0)
             issues.push(`Central periodicCount invalid for ${it.name}`);
         });
-      }
-      else if (inventoryPolicy.policyType === "TARGET_LEVEL") {
+      } else if (inventoryPolicy.policyType === "TARGET_LEVEL") {
         if (
-            !inventoryPolicy.inventoryControlPeriod ||
-            isNaN(Number(inventoryPolicy.inventoryControlPeriod)) ||
-            Number(inventoryPolicy.inventoryControlPeriod) <= 0
+          !inventoryPolicy.inventoryControlPeriod ||
+          isNaN(Number(inventoryPolicy.inventoryControlPeriod)) ||
+          Number(inventoryPolicy.inventoryControlPeriod) <= 0
         )
-            issues.push("Target Level Policy: Inventory control period invalid");
+          issues.push("Target Level Policy: Inventory control period invalid");
 
         camps.forEach((c: Camp) =>
-            items.forEach((it: Item) => {
-                // Validate Target Level
-                const tl = inventoryPolicy.targetLevels?.[c.name]?.[it.name];
-                if (tl === undefined) {
-                    issues.push(`Target level missing for ${c.name}/${it.name}`);
-                } else if (typeof tl === "object") {
-                    // Validate s_reorderPoint
-                    if (tl.s_reorderPoint !== undefined && (
-                        !/^\d*\.?\d+$/.test(String(tl.s_reorderPoint)) ||
-                        Number(tl.s_reorderPoint) < 0
-                    ))
-                        issues.push(
-                            `Reorder point invalid for ${c.name}/${it.name} (must be positive)`
-                        );
-                    // Validate S_targetRatio
-                    if (tl.S_targetRatio !== undefined && (
-                        !/^\d*\.?\d+$/.test(String(tl.S_targetRatio)) ||
-                        Number(tl.S_targetRatio) < 0
-                    ))
-                        issues.push(
-                            `Target ratio invalid for ${c.name}/${it.name} (must be positive)`
-                        );
-                } else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0) {
-                    issues.push(`Target level invalid for ${c.name}/${it.name}`);
-                }
+          items.forEach((it: Item) => {
+            // Validate Target Level
+            const tl = inventoryPolicy.targetLevels?.[c.name]?.[it.name];
+            if (tl === undefined) {
+              issues.push(`Target level missing for ${c.name}/${it.name}`);
+            } else if (typeof tl === "object") {
+              // Validate S_targetLevel
+              if (
+                tl.S_targetLevel !== undefined &&
+                (!/^\d*\.?\d+$/.test(String(tl.S_targetLevel)) ||
+                  Number(tl.S_targetLevel) <= 0)
+              )
+                issues.push(
+                  `Target level (S) invalid for ${c.name}/${it.name} (must be positive)`
+                );
+              // Validate S_targetRatio
+              if (
+                tl.S_targetRatio !== undefined &&
+                (!/^\d*\.?\d+$/.test(String(tl.S_targetRatio)) ||
+                  Number(tl.S_targetRatio) < 0)
+              )
+                issues.push(
+                  `Target ratio invalid for ${c.name}/${it.name} (must be positive)`
+                );
+            } else if (!/^\d+$/.test(String(tl)) || Number(tl) < 0) {
+              issues.push(`Target level invalid for ${c.name}/${it.name}`);
+            }
 
-                // Validate Threshold Ratio
-                const tr = inventoryPolicy.thresholdRatios?.[c.name]?.[it.name];
-                if (tr === undefined) {
-                    issues.push(`Threshold ratio missing for ${c.name}/${it.name}`);
-                } else if (isNaN(Number(tr)) || Number(tr) < 0) { // GÜNCELLEME: > 1 kontrolü kaldırıldı
-                    issues.push(
-                        `Threshold ratio for ${c.name}/${it.name} must be positive`
-                    );
-                }
-            })
+            // Validate Threshold Ratio
+            const tr = inventoryPolicy.thresholdRatios?.[c.name]?.[it.name];
+            if (tr === undefined) {
+              issues.push(`Threshold ratio missing for ${c.name}/${it.name}`);
+            } else if (isNaN(Number(tr)) || Number(tr) < 0) {
+              // GÜNCELLEME: > 1 kontrolü kaldırıldı
+              issues.push(
+                `Threshold ratio for ${c.name}/${it.name} must be positive`
+              );
+            }
+          })
         );
 
         items.forEach((it: Item) => {
-            const ctl = inventoryPolicy.centralTargetLevels?.[it.name];
-            if (ctl === undefined) {
-                issues.push(`Central target level missing for ${it.name}`);
-            } else if (typeof ctl === 'object') {
-                if (ctl.s_reorderPoint !== undefined && (
-                    !/^\d*\.?\d+$/.test(String(ctl.s_reorderPoint)) ||
-                    Number(ctl.s_reorderPoint) < 0
-                )) {
-                    issues.push(`Central reorder point for ${it.name} must be positive`);
-                }
-                if (ctl.S_targetRatio !== undefined && (
-                    !/^\d*\.?\d+$/.test(String(ctl.S_targetRatio)) ||
-                    Number(ctl.S_targetRatio) < 0
-                )) {
-                    issues.push(`Central target ratio for ${it.name} must be positive`);
-                }
-            } else {
-                issues.push(`Central target level format invalid for ${it.name}`);
+          const ctl = inventoryPolicy.centralTargetLevels?.[it.name];
+          if (ctl === undefined) {
+            issues.push(`Central target level missing for ${it.name}`);
+          } else if (typeof ctl === "object") {
+            if (
+              ctl.S_targetLevel !== undefined &&
+              (!/^\d*\.?\d+$/.test(String(ctl.S_targetLevel)) ||
+                Number(ctl.S_targetLevel) <= 0)
+            ) {
+              issues.push(
+                `Central target level (S) for ${it.name} must be positive`
+              );
             }
+            if (
+              ctl.S_targetRatio !== undefined &&
+              (!/^\d*\.?\d+$/.test(String(ctl.S_targetRatio)) ||
+                Number(ctl.S_targetRatio) < 0)
+            ) {
+              issues.push(
+                `Central target ratio for ${it.name} must be positive`
+              );
+            }
+          } else {
+            issues.push(`Central target level format invalid for ${it.name}`);
+          }
         });
-
       }
 
       // Initial State

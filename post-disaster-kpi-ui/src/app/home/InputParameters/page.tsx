@@ -82,7 +82,7 @@ const InputParameters = () => {
           <ItemsSection items={items} setItems={setItems} />
         </CollapsibleSection>
         <CollapsibleSection title="Camps">
-          <CampsSection camps={camps} setCamps={setCamps} items={items} />
+          <CampsSection camps={camps} setCamps={setCamps} items={items} migrations={migrations} />
         </CollapsibleSection>
         <CollapsibleSection title="Agencies">
           <AgenciesSection

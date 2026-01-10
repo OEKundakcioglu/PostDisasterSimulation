@@ -79,7 +79,6 @@ const InventoryPoliciesSection: React.FC<Props> = ({
         newPolicy.thresholdRatios[camp.name] = {};
         items.forEach((item) => {
           newPolicy.targetLevels[camp.name][item.name] = {
-            s_reorderPoint: "0",
             S_targetRatio: "1.5",
             S_targetLevel: "0",
             rationingThreshold: "0",
@@ -90,7 +89,6 @@ const InventoryPoliciesSection: React.FC<Props> = ({
 
         items.forEach((item) => {
             newPolicy.centralTargetLevels[item.name]  = {
-                s_reorderPoint: "0",
                 S_targetRatio: "1.5",
                 S_targetLevel: "0",
             };

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import {
   Grid,
   TextField,
@@ -202,6 +202,113 @@ const TargetLevelPolicy: React.FC<Props> = ({
     return calculations.get(`${campName}-${itemName}`)!;
   };
 
+  // --- AUTO-SYNC EFFECT: Ensures state matches calculations ---
+  useEffect(() => {
+    let hasChanges = false;
+    const nextPolicy = { ...policy };
+
+    // 1. CAMP TARGET LEVELS SYNC
+    const nextTargetLevels = { ...(nextPolicy.targetLevels || {}) };
+    let campDataChanged = false;
+
+    camps.forEach((camp) => {
+      const campName = camp.name;
+      const currentCampLevels = nextTargetLevels[campName] || {};
+      let campChanged = false;
+      const newCampLevels = { ...currentCampLevels };
+
+      items.forEach((item) => {
+        const itemName = item.name;
+        // Retrieve the calculated values used by the UI
+        const params = calculations.get(`${campName}-${itemName}`);
+        if (!params) return;
+
+        const { totalDailyRate, finalLeadTime } = params;
+        const baseExposure = reviewPeriod + finalLeadTime;
+
+        const itemPolicy = newCampLevels[itemName] || {};
+
+        // Determine Ratio: Use stored ratio or default to 1.5 (UI defaults)
+        const sRatioStr = itemPolicy.S_targetRatio;
+        const sRatio = sRatioStr ? parseFloat(sRatioStr) : 1.5;
+
+        // Calculate the correct S based on current parameters (UI value)
+        const calculatedS = Math.ceil(totalDailyRate * baseExposure * sRatio);
+
+        // Check what is currently stored
+        const storedSStr = itemPolicy.S_targetLevel;
+        const storedS = storedSStr ? parseInt(storedSStr, 10) : undefined;
+
+        // If mismatch or missing, update state to pass validation
+        if (storedS !== calculatedS) {
+          // Recalculate threshold to maintain consistency
+          const tRatioStored = policy.thresholdRatios?.[campName]?.[itemName];
+          const tRatio = tRatioStored ? parseFloat(tRatioStored) : 0.2;
+          const newThreshold = Math.ceil(calculatedS * tRatio);
+
+          newCampLevels[itemName] = {
+            ...itemPolicy,
+            S_targetLevel: calculatedS.toString(),
+            S_targetRatio: sRatio.toString(),
+            rationingThreshold: newThreshold.toString(),
+          };
+          campChanged = true;
+          campDataChanged = true;
+          hasChanges = true;
+        }
+      });
+
+      if (campChanged) {
+        nextTargetLevels[campName] = newCampLevels;
+      }
+    });
+
+    if (campDataChanged) {
+      nextPolicy.targetLevels = nextTargetLevels;
+    }
+
+    // 2. CENTRAL TARGET LEVELS SYNC
+    const nextCentralLevels = { ...(nextPolicy.centralTargetLevels || {}) };
+    let centralDataChanged = false;
+
+    items.forEach((item) => {
+      const itemName = item.name;
+      const { aggTotalDaily } = getCentralCalculationParams(camps, item);
+      const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
+
+      const centralItemPolicy = nextCentralLevels[itemName] || {};
+      const c_S_ratioStr = centralItemPolicy.S_targetRatio;
+      const c_S_ratio = c_S_ratioStr ? parseFloat(c_S_ratioStr) : 1.5;
+
+      const centralTargetS = Math.ceil(
+        aggTotalDaily * (reviewPeriod + supplierLeadTime) * c_S_ratio
+      );
+
+      const storedCentralSStr = centralItemPolicy.S_targetLevel;
+      const storedCentralS = storedCentralSStr
+        ? parseInt(storedCentralSStr, 10)
+        : undefined;
+
+      if (storedCentralS !== centralTargetS) {
+        nextCentralLevels[itemName] = {
+          ...centralItemPolicy,
+          S_targetRatio: c_S_ratio.toString(),
+          S_targetLevel: centralTargetS.toString(),
+        };
+        centralDataChanged = true;
+        hasChanges = true;
+      }
+    });
+
+    if (centralDataChanged) {
+      nextPolicy.centralTargetLevels = nextCentralLevels;
+    }
+
+    if (hasChanges) {
+      setPolicy(nextPolicy);
+    }
+  }, [camps, items, reviewPeriod, calculations, policy, setPolicy]);
+
   // --- CRITICAL FIX: ROBUST STATE UPDATER ---
   // Bu fonksiyon slider hareket ettiğinde objenin var olup olmadığına bakmaksızın
   // o yolu (path) oluşturur. Bu sayede "undefined" hatası almazsın ve slider takılmaz.
@@ -284,16 +391,6 @@ const TargetLevelPolicy: React.FC<Props> = ({
 
   // --- HANDLERS ---
 
-  const handleSValueChange = (
-    campName: string,
-    itemName: string,
-    value: string
-  ) => {
-    if (value === "" || /^\d*$/.test(value)) {
-      updateCampPolicyState(campName, itemName, { s_reorderPoint: value });
-    }
-  };
-
   const handleSRatioChange = (
     camp: Camp,
     item: Item,
@@ -301,7 +398,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
   ) => {
     const ratio = Array.isArray(newValue) ? newValue[0] : newValue;
 
-    // Hesaplamaları yap
+    // Calculate new S Level based on ratio
     const { totalDailyRate, finalLeadTime } = getCachedParams(
       camp.name,
       item.name
@@ -309,28 +406,53 @@ const TargetLevelPolicy: React.FC<Props> = ({
     const baseExposure = reviewPeriod + finalLeadTime;
     const calculatedS = Math.ceil(totalDailyRate * baseExposure * ratio);
 
-    // State'i güncelle (S Ratio ve Hesaplanan S Level)
-    updateCampPolicyState(camp.name, item.name, {
-      S_targetRatio: ratio.toString(),
-      S_targetLevel: calculatedS.toString(),
-    });
-
-    // Threshold güncellemesini de tetikle
-    // Mevcut threshold ratio'yu güvenli şekilde al
+    // Get current threshold ratio to recalculate the threshold quantity
     const currentThreshRatioVal =
       policy.thresholdRatios?.[camp.name]?.[item.name];
-    // Eğer null/undefined ise varsayılan 0.2 al
     const currentThreshRatio = currentThreshRatioVal
       ? parseFloat(currentThreshRatioVal)
       : 0.2;
-
     const newThreshold = Math.ceil(calculatedS * currentThreshRatio);
-    updateCampThresholdState(
-      camp.name,
-      item.name,
-      currentThreshRatio.toString(),
-      newThreshold.toString()
-    );
+
+    // Create a SINGLE updated policy object to avoid race conditions
+    const nextPolicy = { ...policy };
+
+    // --- 1. Update Target Levels (S_targetRatio & S_targetLevel) ---
+    if (!nextPolicy.targetLevels) nextPolicy.targetLevels = {};
+    else nextPolicy.targetLevels = { ...nextPolicy.targetLevels };
+
+    if (!nextPolicy.targetLevels[camp.name])
+      nextPolicy.targetLevels[camp.name] = {};
+    else
+      nextPolicy.targetLevels[camp.name] = {
+        ...nextPolicy.targetLevels[camp.name],
+      };
+
+    const currentItemData = nextPolicy.targetLevels[camp.name][item.name] || {};
+    nextPolicy.targetLevels[camp.name][item.name] = {
+      ...currentItemData,
+      S_targetRatio: ratio.toString(),
+      S_targetLevel: calculatedS.toString(),
+      // Also update backend compatible rationingThreshold here
+      rationingThreshold: newThreshold.toString(),
+    };
+
+    // --- 2. Update Threshold Ratios ---
+    if (!nextPolicy.thresholdRatios) nextPolicy.thresholdRatios = {};
+    else nextPolicy.thresholdRatios = { ...nextPolicy.thresholdRatios };
+
+    if (!nextPolicy.thresholdRatios[camp.name])
+      nextPolicy.thresholdRatios[camp.name] = {};
+    else
+      nextPolicy.thresholdRatios[camp.name] = {
+        ...nextPolicy.thresholdRatios[camp.name],
+      };
+
+    nextPolicy.thresholdRatios[camp.name][item.name] =
+      currentThreshRatio.toString();
+
+    // Perform a single atomic state update
+    setPolicy(nextPolicy);
   };
 
   const handleThresholdChange = (
@@ -374,10 +496,6 @@ const TargetLevelPolicy: React.FC<Props> = ({
     nextPolicy.centralTargetLevels[itemName] = { ...current, ...updates };
 
     setPolicy(nextPolicy);
-  };
-
-  const handleCentralSChange = (item: string, val: string) => {
-    updateCentralState(item, { s_reorderPoint: val });
   };
 
   const handleCentralSRatioChange = (item: Item, val: number | number[]) => {
@@ -461,7 +579,6 @@ const TargetLevelPolicy: React.FC<Props> = ({
               // SAFE READ: State okurken de fallback kullanıyoruz ki UI patlamasın
               const campPolicy =
                 policy.targetLevels?.[camp.name]?.[item.name] || {};
-              const s_val = campPolicy.s_reorderPoint || "";
 
               // Slider value okuma
               let S_ratio = 1.0;
@@ -690,30 +807,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
                         alignItems="center"
                         sx={{ mb: 2 }}
                       >
-                        <Grid item xs={12} sm={4}>
-                          <TextField
-                            fullWidth
-                            label="Reorder Point (s)"
-                            type="number"
-                            size="small"
-                            value={s_val}
-                            onChange={(e) =>
-                              handleSValueChange(
-                                camp.name,
-                                item.name,
-                                e.target.value
-                              )
-                            }
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  s=
-                                </InputAdornment>
-                              ),
-                            }}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={8}>
+                        <Grid item xs={12}>
                           <Typography variant="caption" fontWeight="bold">
                             Target Level Ratio (S Factor)
                           </Typography>
@@ -905,7 +999,6 @@ const TargetLevelPolicy: React.FC<Props> = ({
             const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
 
             const centralPolicy = policy.centralTargetLevels?.[item.name] || {};
-            const c_s = centralPolicy.s_reorderPoint || "";
 
             let c_S_ratio = 1.0;
             if (centralPolicy.S_targetRatio) {
@@ -947,16 +1040,6 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       Total: {aggTotalDaily.toFixed(2)} / day
                     </Typography>
                   </Box>
-
-                  <TextField
-                    label="s (Reorder)"
-                    size="small"
-                    value={c_s}
-                    onChange={(e) =>
-                      handleCentralSChange(item.name, e.target.value)
-                    }
-                    sx={{ width: 100 }}
-                  />
 
                   <Box sx={{ flex: 1, minWidth: 200 }}>
                     <Stack direction="row" spacing={2} alignItems="center">

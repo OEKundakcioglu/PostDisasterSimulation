@@ -98,6 +98,7 @@ public class Simulate {
             }
             IEvent event = this.eventQueue.poll();
             deleteExpiredItems(this.state, event.getTime());
+
             ArrayList<IEvent> eventSet = event.processEvent(this.state, this.interarrivalGenerator, this.quantityGenerator);
 
             processed++;

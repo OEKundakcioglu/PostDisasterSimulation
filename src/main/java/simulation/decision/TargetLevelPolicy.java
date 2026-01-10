@@ -22,18 +22,15 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
     private Environment environment;
     private State state;
 
-    private Map<Camp, Map<Item, Integer>> campReorderPoints;
+    // Removed reorder points - using pure target level policy
     private Map<Camp, Map<Item, Integer>> campTargetLevels;
     private Map<Camp, Map<Item, Integer>> campRationingThresholds;
 
-    private Map<Item, Integer> centralReorderPoints;
     private Map<Item, Integer> centralTargetLevels;
 
     public TargetLevelPolicy() {
-        this.campReorderPoints = new HashMap<>();
         this.campTargetLevels = new HashMap<>();
         this.campRationingThresholds = new HashMap<>();
-        this.centralReorderPoints = new HashMap<>();
         this.centralTargetLevels = new HashMap<>();
     }
 
@@ -42,11 +39,8 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
         this.environment = environment;
         this.state = state;
 
-        if (this.campReorderPoints == null) this.campReorderPoints = new HashMap<>();
         if (this.campTargetLevels == null) this.campTargetLevels = new HashMap<>();
         if (this.campRationingThresholds == null) this.campRationingThresholds = new HashMap<>();
-
-        if (this.centralReorderPoints == null) this.centralReorderPoints = new HashMap<>();
         if (this.centralTargetLevels == null) this.centralTargetLevels = new HashMap<>();
     }
 
@@ -62,12 +56,11 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
         for (Item item : environment.getItems()) {
             if (!centralTargetLevels.containsKey(item)) continue;
 
-            int s = centralReorderPoints.getOrDefault(item, 0);
             int S = centralTargetLevels.get(item);
-
             int currentInventory = state.getCentralWarehousePosition().getOrDefault(item, 0);
 
-            if (currentInventory <= s) {
+            // Pure target level policy: order when inventory < S, bring up to S
+            if (currentInventory < S) {
                 int quantityNeeded = S - currentInventory;
                 if (quantityNeeded > 0) {
                     orderQuantities.put(item, quantityNeeded);
@@ -112,18 +105,18 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
             for (Item item : environment.getItems()) {
                 if (!campTargetLevels.containsKey(camp) || !campTargetLevels.get(camp).containsKey(item)) continue;
 
-                int s = campReorderPoints.get(camp).getOrDefault(item, 0);
                 int S = campTargetLevels.get(camp).get(item);
-
                 int currentInventory = state.getInventoryPosition().get(camp).getOrDefault(item, 0);
 
-                if (currentInventory <= s) {
+                // Pure target level policy: transfer when inventory < S, bring up to S
+                if (currentInventory < S) {
                     int quantity = S - currentInventory;
                     if (quantity > 0) {
                         TransferRequest req = new TransferRequest(camp, item, quantity);
 
                         int threshold = campRationingThresholds.get(camp).getOrDefault(item, 0);
                         if (currentInventory <= threshold) {
+                            // Threshold logic for rationing - kept as is
                         }
 
                         transferRequests.add(req);
@@ -189,19 +182,16 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
     }
 
     // --- CONFIGURATION SETTERS ---
-    public void setCampPolicy(Camp camp, Item item, int s, int S, int threshold) {
-        if (campReorderPoints == null) campReorderPoints = new HashMap<>();
+    // Removed 's' (reorder point) parameter - using pure target level policy
+    public void setCampPolicy(Camp camp, Item item, int S, int threshold) {
         if (campTargetLevels == null) campTargetLevels = new HashMap<>();
         if (campRationingThresholds == null) campRationingThresholds = new HashMap<>();
-        campReorderPoints.computeIfAbsent(camp, k -> new HashMap<>()).put(item, s);
         campTargetLevels.computeIfAbsent(camp, k -> new HashMap<>()).put(item, S);
         campRationingThresholds.computeIfAbsent(camp, k -> new HashMap<>()).put(item, threshold);
     }
 
-    public void setCentralPolicy(Item item, int s, int S) {
-        if (centralReorderPoints == null) centralReorderPoints = new HashMap<>();
+    public void setCentralPolicy(Item item, int S) {
         if (centralTargetLevels == null) centralTargetLevels = new HashMap<>();
-        centralReorderPoints.put(item, s);
         centralTargetLevels.put(item, S);
     }
 
@@ -210,11 +200,8 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
     public Object clone() throws CloneNotSupportedException {
         TargetLevelPolicy cloned = (TargetLevelPolicy) super.clone();
 
-        cloned.campReorderPoints = cloneMap(this.campReorderPoints);
         cloned.campTargetLevels = cloneMap(this.campTargetLevels);
         cloned.campRationingThresholds = cloneMap(this.campRationingThresholds);
-
-        cloned.centralReorderPoints = new HashMap<>(this.centralReorderPoints);
         cloned.centralTargetLevels = new HashMap<>(this.centralTargetLevels);
 
         return cloned;

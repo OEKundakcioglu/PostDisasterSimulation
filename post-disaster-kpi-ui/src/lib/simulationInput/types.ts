@@ -69,7 +69,6 @@ export interface TargetLevelPolicy {
     targetLevels: {
         [campName: string]: {
             [itemName: string]: {
-                s_reorderPoint?: string;
                 S_targetRatio?: string;
                 S_targetLevel?: string;
                 rationingThreshold?: string;
@@ -78,7 +77,6 @@ export interface TargetLevelPolicy {
     };
     centralTargetLevels: {
         [itemName: string]: {
-            s_reorderPoint?: string;
             S_targetRatio?: string;
             S_targetLevel?: string;
         };

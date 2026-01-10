@@ -482,7 +482,8 @@ public class KPIManager {
                     
                     // Add both accumulated costs (from consumed/expired items) and current inventory costs
                     double totalAccumulatedCost = totalHoldingCost.get(camp).get(item);
-                    log.cumulativeHoldingCosts.put(campName, log.cumulativeHoldingCosts.get(campName) + totalAccumulatedCost + currentInventoryHoldingCost);
+                    double combinedCost = totalAccumulatedCost + currentInventoryHoldingCost;
+                    log.cumulativeHoldingCosts.put(campName, log.cumulativeHoldingCosts.get(campName) + combinedCost);
                     double referralCostAcc = totalReferralCost.get(camp).get(item);
                     log.cumulativeReferralCosts.put(campName, log.cumulativeReferralCosts.get(campName) + referralCostAcc);
 

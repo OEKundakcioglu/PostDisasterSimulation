@@ -529,14 +529,17 @@ function buildTargetLevelPolicy(
       const iA = a.item.get(i.name);
       const targetLevel = ip?.targetLevels?.[c.name]?.[i.name];
 
-      if (
-        targetLevel &&
-        typeof targetLevel === "object" &&
-        "internal" in targetLevel
-      ) {
+      if (targetLevel && typeof targetLevel === "object") {
+        const tlObj = targetLevel as {
+          S_targetLevel?: string;
+          rationingThreshold?: string;
+        };
+        const S = tlObj.S_targetLevel || "0";
+        const threshold = tlObj.rationingThreshold || "0";
+
         out += `      *${iA}:\n`;
-        out += `        internal: ${formatNumber(targetLevel.internal)}\n`;
-        out += `        external: ${formatNumber(targetLevel.external)}\n`;
+        out += `        S_targetLevel: ${formatNumber(S)}\n`;
+        out += `        rationingThreshold: ${formatNumber(threshold)}\n`;
       } else {
         out += `      *${iA}: ${formatNumber(targetLevel ?? "0")}\n`;
       }
@@ -547,12 +550,15 @@ function buildTargetLevelPolicy(
   data.items.forEach((i) => {
     if (!i.name) return;
     const iA = a.item.get(i.name);
-    const val = ip?.centralTargetLevels?.[i.name] as any;
+    const val = ip?.centralTargetLevels?.[i.name];
 
-    if (val && typeof val === "object" && "internal" in val) {
+    if (val && typeof val === "object") {
+      // Extract the actual policy parameters (no reorder point - pure target level policy)
+      const valObj = val as { S_targetLevel?: string };
+      const S = valObj.S_targetLevel || "0";
+
       out += `    *${iA}:\n`;
-      out += `      internal: ${formatNumber(val.internal)}\n`;
-      out += `      external: ${formatNumber(val.external)}\n`;
+      out += `      S_targetLevel: ${formatNumber(S)}\n`;
     } else {
       out += `    *${iA}: ${formatNumber(val ?? "0")}\n`;
     }

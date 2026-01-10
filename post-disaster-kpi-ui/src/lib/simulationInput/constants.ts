@@ -170,14 +170,57 @@ export const DEFAULT_MIGRATIONS: Migration[] = [
 
 export const DEFAULT_SUPPLY_DISRUPTIONS: SupplyDisruption[] = [];
 
-export const DEFAULT_INVENTORY_POLICY: InventoryPolicy = {
-  policyType: "ORDER_UP_TO",
-  inventoryControlPeriod: "5",
-  bufferRatios: {},
-  centralBufferRatios: {},
-  periodicCounts: {},
-  centralPeriodicCounts: {},
+// Initialize Target Level Policy with proper default values for all camps and items
+const initializeTargetLevelPolicy = (): InventoryPolicy => {
+  const targetLevels: Record<
+    string,
+    Record<
+      string,
+      {
+        S_targetRatio: string;
+        S_targetLevel: string;
+        rationingThreshold: string;
+      }
+    >
+  > = {};
+  const centralTargetLevels: Record<
+    string,
+    { S_targetRatio: string; S_targetLevel: string }
+  > = {};
+  const thresholdRatios: Record<string, Record<string, string>> = {};
+
+  // Initialize for all default camps and items
+  DEFAULT_CAMPS.forEach((camp) => {
+    targetLevels[camp.name] = {};
+    thresholdRatios[camp.name] = {};
+    DEFAULT_ITEMS.forEach((item) => {
+      targetLevels[camp.name][item.name] = {
+        S_targetRatio: "1.5",
+        S_targetLevel: "0",
+        rationingThreshold: "0",
+      };
+      thresholdRatios[camp.name][item.name] = "0.2";
+    });
+  });
+
+  DEFAULT_ITEMS.forEach((item) => {
+    centralTargetLevels[item.name] = {
+      S_targetRatio: "1.5",
+      S_targetLevel: "0",
+    };
+  });
+
+  return {
+    policyType: "TARGET_LEVEL",
+    inventoryControlPeriod: "5",
+    targetLevels,
+    centralTargetLevels,
+    thresholdRatios,
+  };
 };
+
+export const DEFAULT_INVENTORY_POLICY: InventoryPolicy =
+  initializeTargetLevelPolicy();
 
 export const DEFAULT_INITIAL_STATE: InitialState = {
   availableFunds: "0",

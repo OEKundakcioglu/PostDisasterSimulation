@@ -26,7 +26,7 @@ public class InventoryControlEvent implements IEvent{
         if (replenishmentEvents != null) returnEvents.addAll(replenishmentEvents);
 
         // From replenishment events, update the inventory positions
-        if (replenishmentEvents != null){
+        if (replenishmentEvents != null) {
             for (IEvent event : replenishmentEvents) {
                 var replenishmentEvent = (ReplenishmentEvent) event;
                 for (InventoryItem inventoryItem : replenishmentEvent.inventoryToSend) {
