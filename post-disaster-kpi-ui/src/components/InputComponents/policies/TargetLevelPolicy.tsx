@@ -276,14 +276,16 @@ const TargetLevelPolicy: React.FC<Props> = ({
     items.forEach((item) => {
       const itemName = item.name;
       const { aggTotalDaily } = getCentralCalculationParams(camps, item);
-      const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
+      const centralLeadTimeDays = item.leadTimeData
+        ? calcMeanLeadTimeDays(item.leadTimeData as DistBlock)
+        : 0;
 
       const centralItemPolicy = nextCentralLevels[itemName] || {};
       const c_S_ratioStr = centralItemPolicy.S_targetRatio;
       const c_S_ratio = c_S_ratioStr ? parseFloat(c_S_ratioStr) : 1.5;
 
       const centralTargetS = Math.ceil(
-        aggTotalDaily * (reviewPeriod + supplierLeadTime) * c_S_ratio
+        aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio
       );
 
       const storedCentralSStr = centralItemPolicy.S_targetLevel;
@@ -503,9 +505,11 @@ const TargetLevelPolicy: React.FC<Props> = ({
   const handleCentralSRatioChange = (item: Item, val: number | number[]) => {
     const ratio = Array.isArray(val) ? val[0] : val;
     const { aggTotalDaily } = getCentralCalculationParams(camps, item);
-    const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
+    const centralLeadTimeDays = item.leadTimeData
+      ? calcMeanLeadTimeDays(item.leadTimeData as DistBlock)
+      : 0;
     const calculatedS = Math.ceil(
-      aggTotalDaily * (reviewPeriod + supplierLeadTime) * ratio
+      aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * ratio
     );
 
     updateCentralState(item.name, {
@@ -1039,7 +1043,9 @@ const TargetLevelPolicy: React.FC<Props> = ({
             const { aggTotalDaily, totalInt, totalExt } =
               getCentralCalculationParams(camps, item);
 
-            const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
+            const centralLeadTimeDays = item.leadTimeData
+              ? calcMeanLeadTimeDays(item.leadTimeData as DistBlock)
+              : 0;
 
             const centralPolicy = policy.centralTargetLevels?.[item.name] || {};
 
@@ -1049,7 +1055,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
             }
 
             const centralTargetS = Math.ceil(
-              aggTotalDaily * (reviewPeriod + supplierLeadTime) * c_S_ratio
+              aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio
             );
 
             return (
@@ -1082,6 +1088,27 @@ const TargetLevelPolicy: React.FC<Props> = ({
                     >
                       Total: {aggTotalDaily.toFixed(2)} items / day
                     </Typography>
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        bgcolor: "#fff3e0",
+                        p: 1,
+                        borderRadius: 2,
+                        border: "1px solid #ffe0b2",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        color="text.secondary"
+                        fontWeight="bold"
+                      >
+                        Expected Lead Time (L)
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold" color="warning.dark">
+                        {centralLeadTimeDays.toFixed(2)} days
+                      </Typography>
+                    </Box>
                   </Box>
 
                   <Box sx={{ flex: 1, minWidth: 200 }}>
@@ -1110,6 +1137,21 @@ const TargetLevelPolicy: React.FC<Props> = ({
                     <Typography variant="caption" color="text.secondary" display="block" textAlign="center" sx={{ mt: 0.5 }}>
                       Multiplier for aggregated demand across all camps
                     </Typography>
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        p: 1,
+                        bgcolor: "#f0f4f8",
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Target (S) = Daily Demand Rate × (R+L) × Multiplier
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontFamily: "monospace", fontSize: "0.7rem" }} display="block">
+                        = {aggTotalDaily.toFixed(2)} × ({reviewPeriod.toFixed(2)} + {centralLeadTimeDays.toFixed(2)}) × {c_S_ratio.toFixed(2)}
+                      </Typography>
+                    </Box>
                   </Box>
 
                   <Box

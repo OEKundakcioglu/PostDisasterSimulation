@@ -496,10 +496,22 @@ export const useSimulationInputLogic = () => {
                 : 0;
               aggTotalDaily += rateInt + rateExt;
             });
-            
-            const supplierLeadTime = (item as any)?.supplierLeadTime || 2.0;
+
+            const calcLeadTimeFromItem = (dist: { distributionType?: string; distParameters?: Record<string, string> }): number => {
+              if (!dist?.distParameters) return 0;
+              const { distributionType, distParameters } = dist;
+              if (distributionType === "TRIANGULAR") {
+                return (
+                  (parseFloat(distParameters.min || "0") +
+                    parseFloat(distParameters.mode || "0") +
+                    parseFloat(distParameters.max || "0")) / 3
+                );
+              }
+              return parseFloat(distParameters.mean || "0") || 0;
+            };
+            const centralLeadTimeDays = item?.leadTimeData ? calcLeadTimeFromItem(item.leadTimeData as { distributionType?: string; distParameters?: Record<string, string> }) : 0;
             const ratio = parseFloat(existingVal?.S_targetRatio || "1.5");
-            const calculatedS = Math.ceil(aggTotalDaily * (reviewPeriod + supplierLeadTime) * ratio);
+            const calculatedS = Math.ceil(aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * ratio);
             
             newCentralTargetLevels[itemName] = {
               S_targetRatio: existingVal?.S_targetRatio || "1.5",
