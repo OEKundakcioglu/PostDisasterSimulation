@@ -435,7 +435,6 @@ const ArrivalEditor: React.FC<{
             }}
             helperText={`Standard deviation must be ≤ ${
               0.25 * (parseFloat(distParams.mean || "0") || 0)
-            }`}
             } minutes (25% of mean)`}
           />
         </Grid>
