@@ -39,6 +39,15 @@ public class KPIManager {
     HashMap<Camp, HashMap<Item, Integer>> totalExpiredInventory;
     HashMap<Item, Integer> totalCentralExpiredInventory;
 
+    /** Total demand quantity arrived (internal) per camp — for verification report. */
+    HashMap<Camp, Integer> totalInternalDemandArrived;
+    /** Total demand quantity arrived (external) per camp — for verification report. */
+    HashMap<Camp, Integer> totalExternalDemandArrived;
+    /** Total funding amount received by the system — for verification report. */
+    double totalFundingReceived;
+    /** Total replenishment quantity received at each camp per item — for verification report. */
+    HashMap<Camp, HashMap<Item, Integer>> replenishmentQuantityByCampItem;
+
     boolean reportEvents;
     boolean reportKPIs;
     boolean useReactUI;
@@ -67,6 +76,10 @@ public class KPIManager {
         totalExpiredInventory = new HashMap<>();
         totalCentralExpiredInventory = new HashMap<>();
         totalFundingSpent = 0.0;
+        totalInternalDemandArrived = new HashMap<>();
+        totalExternalDemandArrived = new HashMap<>();
+        totalFundingReceived = 0.0;
+        replenishmentQuantityByCampItem = new HashMap<>();
 
         for (Camp camp : state.getInitialInventory().keySet()){
             totalHoldingCost.put(camp, new HashMap<>());
@@ -135,14 +148,14 @@ public class KPIManager {
                 while (!stateRef.getDeprivingPopulation().get(camp).get(item).isEmpty()) {
                     DeprivingPerson deprivingPerson = stateRef.getDeprivingPopulation().get(camp).get(item).peek();
                     assert deprivingPerson != null;
-                    double totalTime = finalTime - deprivingPerson.getArrivalTime();
+                    // Deprivation time unit is days (simulation time for deprivation is in days)
+                    double totalTimeDays = finalTime - deprivingPerson.getArrivalTime();
                     double previousCost = stateRef.getKpiManager().totalDeprivationCost.get(camp).get(item);
                     // Linear + Exponential form (tangent at zero): linearTerm + exponentialTerm
-                    // Using deprivationCoefficient for both terms to maintain compatibility
-                    double rate = item.getDeprivationRate();
+                    double rate = item.getDeprivationRate();   // per day
                     double coeff = item.getDeprivationCoefficient();
-                    double linearTerm = coeff * rate * totalTime;  // Linear component
-                    double exponentialTerm = coeff * (Math.exp(totalTime * rate) - 1);  // Exponential component
+                    double linearTerm = coeff * rate * totalTimeDays;
+                    double exponentialTerm = coeff * (Math.exp(totalTimeDays * rate) - 1);
                     double currentCost = (linearTerm + exponentialTerm) * deprivingPerson.getQuantity();
                     stateRef.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).put(item, stateRef.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item) + deprivingPerson.getQuantity());
                     stateRef.getKpiManager().totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
@@ -310,7 +323,7 @@ public class KPIManager {
             for (Item itemObj : environment.getItems()) {
                 double avgDepTime = this.averageDeprivationTime.get(campObj).get(itemObj);
                 if (avgDepTime != 0) {
-                    System.out.println("Average deprivation time for camp " + campObj.getName() + " and item " + itemObj.getName() + " is " + avgDepTime);
+                    System.out.println("Average deprivation time (days) for camp " + campObj.getName() + " and item " + itemObj.getName() + " is " + avgDepTime);
                 }
             }
         }
@@ -387,6 +400,31 @@ public class KPIManager {
             }
         }
         System.out.println();
+    }
+
+    /** Records demand arrived at a camp (for verification report). */
+    public void recordDemandArrived(Camp camp, boolean isInternal, int quantity) {
+        if (camp == null || quantity <= 0) return;
+        if (isInternal) {
+            totalInternalDemandArrived.merge(camp, quantity, Integer::sum);
+        } else {
+            totalExternalDemandArrived.merge(camp, quantity, Integer::sum);
+        }
+    }
+
+    /** Records funding received by the system (for verification report). */
+    public void recordFundingReceived(double amount) {
+        totalFundingReceived += amount;
+    }
+
+    /** Records replenishment quantity received at a camp for an item (for verification report). */
+    public void recordReplenishmentAtCamp(Camp camp, Item item, int quantity) {
+        if (camp == null || item == null || quantity <= 0) return;
+        replenishmentQuantityByCampItem.computeIfAbsent(camp, c -> new HashMap<>()).merge(item, quantity, Integer::sum);
+    }
+
+    public Environment getEnvironment() {
+        return state != null ? state.getEnvironment() : null;
     }
 
     public boolean isReportEvents() { return reportEvents; }
@@ -488,15 +526,14 @@ public class KPIManager {
                     log.cumulativeReferralCosts.put(campName, log.cumulativeReferralCosts.get(campName) + referralCostAcc);
 
 
-                    // Calculate deprivation cost as a final period
+                    // Deprivation cost: time unit is days
                     double deprivationCostAcc = 0.0;
                     for (DeprivingPerson deprivingPerson : stateRef.getDeprivingPopulation().get(camp).get(item)) {
-                        double totalTime = currentTime - deprivingPerson.getArrivalTime();
-                        // Linear + Exponential form (tangent at zero)
-                        double rate = item.getDeprivationRate();
+                        double totalTimeDays = currentTime - deprivingPerson.getArrivalTime();
+                        double rate = item.getDeprivationRate();   // per day
                         double coeff = item.getDeprivationCoefficient();
-                        double linearTerm = coeff * rate * totalTime;
-                        double exponentialTerm = coeff * (Math.exp(totalTime * rate) - 1);
+                        double linearTerm = coeff * rate * totalTimeDays;
+                        double exponentialTerm = coeff * (Math.exp(totalTimeDays * rate) - 1);
                         deprivationCostAcc += (linearTerm + exponentialTerm) * deprivingPerson.getQuantity();
                     }
                     log.cumulativeDeprivationCosts.put(campName, totalDeprivationCost.get(camp).get(item)

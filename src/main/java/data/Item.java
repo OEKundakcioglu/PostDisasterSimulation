@@ -63,6 +63,7 @@ public class Item {
         this.holdingCost = holdingCost;
     }
 
+    /** Deprivation rate (per day). Time in deprivation cost formulas is in days. */
     public double getDeprivationRate() {
         return deprivationRate;
     }
@@ -71,6 +72,7 @@ public class Item {
         this.deprivationRate = deprivationRate;
     }
 
+    /** Deprivation cost coefficient. Used with time in days in deprivation cost formulas. */
     public double getDeprivationCoefficient() {
         return deprivationCoefficient;
     }

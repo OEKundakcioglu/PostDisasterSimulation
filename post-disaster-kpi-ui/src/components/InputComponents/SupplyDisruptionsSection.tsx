@@ -144,7 +144,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
-                label="Min"
+                label="Minimum (days)"
                 type="number"
                 inputProps={{ min: 0, step: 1 }}
                 value={params.min || ""}
@@ -158,12 +158,13 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                     "min"
                   )
                 }
+                helperText={dataType === "disruptionArrivalData" ? "Earliest disruption time" : "Minimum recovery duration"}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
-                label="Mode"
+                label="Mode (days)"
                 type="number"
                 inputProps={{ min: 0, step: 1 }}
                 value={params.mode || ""}
@@ -177,12 +178,13 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                     "mode"
                   )
                 }
+                helperText={dataType === "disruptionArrivalData" ? "Most likely disruption time" : "Most likely recovery duration"}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
-                label="Max"
+                label="Maximum (days)"
                 type="number"
                 inputProps={{ min: 0, step: 1 }}
                 value={params.max || ""}
@@ -196,6 +198,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                     "max"
                   )
                 }
+                helperText={dataType === "disruptionArrivalData" ? "Latest disruption time" : "Maximum recovery duration"}
               />
             </Grid>
           </>
@@ -231,7 +234,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Min"
+                label="Minimum (days)"
                 type="number"
                 inputProps={{ min: 0, step: 1 }}
                 value={params.min || ""}
@@ -245,12 +248,13 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                     "min"
                   )
                 }
+                helperText={dataType === "disruptionArrivalData" ? "Earliest disruption time" : "Minimum recovery duration"}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Max"
+                label="Maximum (days)"
                 type="number"
                 inputProps={{ min: 0, step: 1 }}
                 value={params.max || ""}
@@ -264,6 +268,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                     "max"
                   )
                 }
+                helperText={dataType === "disruptionArrivalData" ? "Latest disruption time" : "Maximum recovery duration"}
               />
             </Grid>
           </>
@@ -275,9 +280,9 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Mean"
+                label="Mean (days)"
                 type="number"
-                inputProps={{ step: 0.01 }}
+                inputProps={{ step: 0.01, min: 0 }}
                 value={params.mean || ""}
                 onChange={(e) =>
                   handleDisruptionChange(
@@ -289,12 +294,13 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                     "mean"
                   )
                 }
+                helperText={dataType === "disruptionArrivalData" ? "Average time until disruption occurs" : "Average recovery duration"}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Standard Deviation"
+                label="Standard Deviation (days)"
                 type="number"
                 inputProps={{ min: 0, step: 0.01 }}
                 value={params.stdDev || ""}
@@ -308,6 +314,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                     "stdDev"
                   )
                 }
+                helperText={dataType === "disruptionArrivalData" ? "Variability in disruption timing" : "Variability in recovery duration"}
               />
             </Grid>
           </>
@@ -336,7 +343,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
                   e.stopPropagation();
                   if (
                     window.confirm(
-                      `Are you sure you want to delete this supply disruption?`
+                      `Are you sure you want to delete this supply disruption configuration?`
                     )
                   ) {
                     handleDeleteDisruption(disruptionIndex);
@@ -373,7 +380,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
 
           {/* Disruption Arrival Data */}
           <NestedCollapsibleSection
-            title="Disruption Timing"
+            title="Disruption Arrival Timing"
             level="tertiary"
           >
             <Grid container spacing={2}>
@@ -415,7 +422,7 @@ const SupplyDisruptionsSection: React.FC<Props> = ({
 
           {/* Recovery Arrival Data */}
           <NestedCollapsibleSection
-            title="Recovery Duration"
+            title="Recovery Arrival Timing"
             level="tertiary"
           >
             <Grid container spacing={2}>

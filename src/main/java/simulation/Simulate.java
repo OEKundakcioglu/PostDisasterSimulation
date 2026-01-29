@@ -39,8 +39,8 @@ public class Simulate {
     private HashMap<Camp, PriorityQueue<IEvent>> demandEventQueue;
     private boolean prepared = false;
     private boolean finalized = false;
-    // Track last simulation time at which a continuous InventoryControlEvent was enqueued
-    private double lastContinuousICEventTime = Double.NaN;
+    // Track simulation times at which continuous InventoryControlEvents have been enqueued to prevent duplicates
+    private java.util.Set<Double> enqueuedICEventTimes = new java.util.HashSet<>();
 
     public Simulate(Environment environment) { this(environment, null); }
     public Simulate(Environment environment, CancelChecker cancelChecker) {
@@ -89,7 +89,7 @@ public class Simulate {
         long lastReport = startNano;
         long processed = 0;
         double lastLoggedSimTime = -1.0;
-        final int LOG_EVERY_N_EVENTS = 1000; // throttle expensive KPI logging
+        final int LOG_EVERY_N_EVENTS = 10000; // throttle expensive KPI logging
         int maxQueue = this.eventQueue.size();
         while (!this.eventQueue.isEmpty()) {
             if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
@@ -136,10 +136,16 @@ public class Simulate {
             if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS &&
                     !event.getClass().getSimpleName().equals("InventoryControlEvent")) {
                 // Enqueue at most one inventory control event per unique simulation time to avoid explosion
-                if (Double.isNaN(lastContinuousICEventTime) || event.getTime() > lastContinuousICEventTime) {
-                    this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
-                    lastContinuousICEventTime = event.getTime();
+                double eventTime = event.getTime();
+                if (!enqueuedICEventTimes.contains(eventTime)) {
+                    this.eventQueue.offer(new InventoryControlEvent(eventTime));
+                    enqueuedICEventTimes.add(eventTime);
                 }
+            }
+            
+            // Clean up processed IC event times to prevent memory growth
+            if (event.getClass().getSimpleName().equals("InventoryControlEvent")) {
+                enqueuedICEventTimes.remove(event.getTime());
             }
             if (eventSet != null) {
                 for (IEvent e : eventSet) {
@@ -205,10 +211,16 @@ public class Simulate {
             }
             if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS &&
                     !event.getClass().getSimpleName().equals("InventoryControlEvent")) {
-                if (Double.isNaN(lastContinuousICEventTime) || event.getTime() > lastContinuousICEventTime) {
-                    this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
-                    lastContinuousICEventTime = event.getTime();
+                double eventTime = event.getTime();
+                if (!enqueuedICEventTimes.contains(eventTime)) {
+                    this.eventQueue.offer(new InventoryControlEvent(eventTime));
+                    enqueuedICEventTimes.add(eventTime);
                 }
+            }
+            
+            // Clean up processed IC event times to prevent memory growth
+            if (event.getClass().getSimpleName().equals("InventoryControlEvent")) {
+                enqueuedICEventTimes.remove(event.getTime());
             }
             if (eventSet != null) {
                 for (IEvent e : eventSet) {
@@ -231,6 +243,7 @@ public class Simulate {
         try {
             this.state.getKpiManager().calculateFinalCosts(this.environment, this.state);
             this.state.getKpiManager().reportKPIs(this.environment);
+            new ExcelReportGenerator(this.state.getKpiManager());
         } catch (Exception ignored) {}
         finalized = true;
     }
@@ -399,7 +412,7 @@ public class Simulate {
         else if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS){
             InventoryControlEvent ice = new InventoryControlEvent(0);
             this.eventQueue.offer(ice);
-            lastContinuousICEventTime = 0.0;
+            enqueuedICEventTimes.add(0.0);
         }
     }
 

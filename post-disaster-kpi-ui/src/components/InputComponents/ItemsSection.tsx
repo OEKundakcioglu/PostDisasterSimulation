@@ -644,11 +644,11 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                   if (
                     window.confirm(
                       `Are you sure you want to delete this item${
-                        item.name ? ` (${item.name})` : ""
-                      }?${
+                        item.name ? ` "${item.name}"` : ""
+                      }?\n\n${
                         item.name
-                          ? "\n\nWARNING: This will also remove any demands using this item."
-                          : ""
+                          ? "WARNING: This will also remove all demands associated with this item."
+                          : "WARNING: This will also remove all demands associated with this item."
                       }`
                     )
                   ) {
@@ -675,11 +675,13 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
-                      label="Name"
+                      label="Item Name"
                       value={item.name}
                       onChange={(e) =>
                         handleItemChange(index, "name", e.target.value)
                       }
+                      placeholder="Enter item name"
+                      helperText="A unique identifier for this item"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6} md={4}>
@@ -691,9 +693,9 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                       }}
                     >
                       <Typography variant="subtitle2" gutterBottom>
-                        Item Expiration
+                        Perishable Item
                         <Tooltip
-                          title="Items with an expiration date will become unusable after a certain period of time."
+                          title="Perishable items have a limited shelf life and will expire after a specified duration. When enabled, you must configure the duration distribution parameters."
                           arrow
                           placement="top"
                         >
@@ -715,14 +717,14 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                             }
                           />
                         }
-                        label="Has Expiration Date"
+                        label="Item is perishable"
                       />
                     </Box>
                   </Grid>
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
-                      label={getCustomLabel("price")}
+                      label="Unit Price"
                       type="number"
                       inputProps={{
                         min: 0,
@@ -734,6 +736,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         handleItemChange(index, "price", e.target.value)
                       }
                       onKeyDown={handleNumericKeyDown}
+                      helperText="Cost per unit of this item"
                     />
                   </Grid>
                 </Grid>
@@ -750,7 +753,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
-                      label={getCustomLabel("orderingCost")}
+                      label="Ordering Cost"
                       type="number"
                       inputProps={{
                         min: 0,
@@ -762,6 +765,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         handleItemChange(index, "orderingCost", e.target.value)
                       }
                       onKeyDown={handleNumericKeyDown}
+                      helperText="Fixed cost incurred when placing an order"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6} md={4}>
@@ -784,7 +788,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
-                      label={getCustomLabel("referralCost")}
+                      label="Referral Cost"
                       type="number"
                       inputProps={{
                         min: 0,
@@ -796,6 +800,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         handleItemChange(index, "referralCost", e.target.value)
                       }
                       onKeyDown={handleNumericKeyDown}
+                      helperText="Cost associated with referring unmet demand to external sources"
                     />
                   </Grid>
                 </Grid>
@@ -831,7 +836,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                       theme.palette.mode === "dark"
                         ? "rgba(255, 255, 255, 0.05)"
                         : "rgba(0, 0, 0, 0.04)",
-                    border: "1px dashed",
+                    border: "1px solid",
                     borderColor: "divider",
                     display: "flex",
                     flexDirection: "column",
@@ -841,23 +846,22 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                   }}
                 >
                   <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 0.5, fontWeight: 500 }}
+                  >
+                    Deprivation Cost Formula
+                  </Typography>
+                  <Typography
                     variant="body1"
                     color="text.primary"
                     sx={{
-                      fontFamily: '"Times New Roman", serif',
-                      fontStyle: "italic",
-                      fontSize: "1.1rem",
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      fontSize: "0.95rem",
+                      textAlign: "center",
                     }}
                   >
-                    {}
-                    Deprivation = Coeff × (e
-                    <Box
-                      component="span"
-                      sx={{ verticalAlign: "super", fontSize: "0.7em" }}
-                    >
-                      Rate × time
-                    </Box>
-                    - 1)
+                    Deprivation = Coefficient × (e<sup>Rate × time</sup> - 1)
                   </Typography>
                 </Box>
                 {/* ------------------------------------------- */}
@@ -883,7 +887,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         )
                       }
                       onKeyDown={handleNumericKeyDown}
-                      helperText="Exponential exponent (Rate)"
+                      helperText="Exponential growth rate (0-1). Higher values increase deprivation more rapidly over time."
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -905,7 +909,7 @@ const ItemsSection: React.FC<Props> = ({ items, setItems }) => {
                         )
                       }
                       onKeyDown={handleNumericKeyDown}
-                      helperText="Linear multiplier (Coefficient)"
+                      helperText="Linear multiplier for the deprivation calculation. Scales the overall impact."
                     />
                   </Grid>
                 </Grid>

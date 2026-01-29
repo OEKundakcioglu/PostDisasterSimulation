@@ -112,8 +112,20 @@ const SimulationConfigSection: React.FC<Props> = ({
       case "planningHorizon":
         return "Planning Horizon (days)";
       default:
-        return String(key);
+        // Format camelCase keys to readable labels
+        return key
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (str) => str.toUpperCase())
+          .trim();
     }
+  };
+
+  // Format checkbox labels to be more readable
+  const getCheckboxLabel = (key: string) => {
+    return key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
   };
 
   // Determine if a field should be numeric input
@@ -156,7 +168,7 @@ const SimulationConfigSection: React.FC<Props> = ({
                           name={String(key)}
                         />
                       }
-                      label={key}
+                      label={getCheckboxLabel(key)}
                     />
                   ) : (
                     <TextField
@@ -173,6 +185,13 @@ const SimulationConfigSection: React.FC<Props> = ({
                       onChange={handleChange}
                       onKeyDown={
                         isNumericField(key) ? handleNumericKeyDown : undefined
+                      }
+                      helperText={
+                        isNumericField(key)
+                          ? key.toLowerCase().includes("seed")
+                            ? "Enter a positive integer seed value"
+                            : "Enter the number of days"
+                          : undefined
                       }
                     />
                   )}

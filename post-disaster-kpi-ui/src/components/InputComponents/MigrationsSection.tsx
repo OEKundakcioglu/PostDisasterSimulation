@@ -290,6 +290,7 @@ const MigrationsSection: React.FC<Props> = ({
           <Grid item xs={12} sm={6} md={4}>
             <TextField
               fullWidth
+              type="number"
               label={`Mean ${dataType === "arrivalData" ? "(days)" : ""}`}
               value={params.mean || ""}
               onChange={(e) => {
@@ -301,6 +302,7 @@ const MigrationsSection: React.FC<Props> = ({
                   "mean"
                 );
               }}
+              helperText={dataType === "arrivalData" ? "Average time until migration occurs (days)" : "Average quantity of migrating population"}
             />
           </Grid>
         );
@@ -327,6 +329,7 @@ const MigrationsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
+                type="number"
                 label={`Standard Deviation ${
                   dataType === "arrivalData" ? "(days)" : ""
                 }`}
@@ -340,6 +343,7 @@ const MigrationsSection: React.FC<Props> = ({
                     "stdDev"
                   );
                 }}
+                helperText={dataType === "arrivalData" ? "Variability in migration timing (days)" : "Variability in migration quantity"}
               />
             </Grid>
           </>
@@ -351,6 +355,7 @@ const MigrationsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
+                type="number"
                 label={`Minimum ${dataType === "arrivalData" ? "(days)" : ""}`}
                 value={params.min || ""}
                 onChange={(e) => {
@@ -362,11 +367,13 @@ const MigrationsSection: React.FC<Props> = ({
                     "min"
                   );
                 }}
+                helperText={dataType === "arrivalData" ? "Earliest possible migration time (days)" : "Minimum quantity"}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
+                type="number"
                 label={`Mode ${dataType === "arrivalData" ? "(days)" : ""}`}
                 value={params.mode || ""}
                 onChange={(e) => {
@@ -378,11 +385,13 @@ const MigrationsSection: React.FC<Props> = ({
                     "mode"
                   );
                 }}
+                helperText={dataType === "arrivalData" ? "Most likely migration time (days)" : "Most likely quantity"}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
+                type="number"
                 label={`Maximum ${dataType === "arrivalData" ? "(days)" : ""}`}
                 value={params.max || ""}
                 onChange={(e) => {
@@ -394,6 +403,7 @@ const MigrationsSection: React.FC<Props> = ({
                     "max"
                   );
                 }}
+                helperText={dataType === "arrivalData" ? "Latest possible migration time (days)" : "Maximum quantity"}
               />
             </Grid>
           </>
@@ -488,7 +498,7 @@ const MigrationsSection: React.FC<Props> = ({
                   e.stopPropagation();
                   if (
                     window.confirm(
-                      "Are you sure you want to delete this migration?"
+                      "Are you sure you want to delete this migration configuration?"
                     )
                   ) {
                     const newMigrations = [...migrations];
@@ -595,25 +605,25 @@ const MigrationsSection: React.FC<Props> = ({
 
             {/* Add helper text explaining the migration type */}
             <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
                 {migration.migrationType === "INTERNAL_WITHIN_SYSTEM" &&
-                  "Migration of internal population between two camps within the system."}
+                  "Internal population migration between two camps within the system."}
                 {migration.migrationType === "INTERNAL_TO_SYSTEM" &&
-                  "Migration of internal population from outside into the system."}
+                  "Internal population entering the system from outside."}
                 {migration.migrationType === "INTERNAL_FROM_SYSTEM" &&
-                  "Migration of internal population from inside the system to outside."}
+                  "Internal population leaving the system to go outside."}
                 {migration.migrationType === "EXTERNAL_WITHIN_SYSTEM" &&
-                  "Migration of external population between two camps within the system."}
+                  "External population migration between two camps within the system."}
                 {migration.migrationType === "EXTERNAL_TO_SYSTEM" &&
-                  "Migration of external population from outside into the system."}
+                  "External population entering the system from outside."}
                 {migration.migrationType === "EXTERNAL_FROM_SYSTEM" &&
-                  "Migration of external population from inside the system to outside."}
+                  "External population leaving the system to go outside."}
               </Typography>
             </Grid>
 
             {/* Arrival Data Section */}
             <Grid item xs={12}>
-              <NestedCollapsibleSection title="Arrival Data" level="tertiary">
+              <NestedCollapsibleSection title="Migration Timing" level="tertiary">
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6} md={4}>
                     <FormControl fullWidth variant="outlined">
@@ -750,6 +760,7 @@ const MigrationsSection: React.FC<Props> = ({
                       e.target.value
                     )
                   }
+                  helperText="Proportion of population that migrates (0.0 to 1.0)"
                 />
               </Grid>
             )}

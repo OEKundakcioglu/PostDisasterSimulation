@@ -159,6 +159,8 @@ public class State implements Cloneable {
     }
 
     public void transferInventory(Camp camp, Item item, ArrayList<InventoryItem> inventoryToSend, double time) {
+        int totalQuantity = inventoryToSend.stream().mapToInt(InventoryItem::getQuantity).sum();
+        if (totalQuantity > 0) kpiManager.recordReplenishmentAtCamp(camp, item, totalQuantity);
         var totalCost = kpiManager.campReplenishmentCost.get(camp).get(item);
 
         for (var inventoryItem : inventoryToSend) {
@@ -177,14 +179,15 @@ public class State implements Cloneable {
             DeprivingPerson deprivingPerson = deprivingPopulation.get(camp).get(item).peek();
             assert deprivingPerson != null;
 
-            double totalTime = time - deprivingPerson.getArrivalTime();
+            // Deprivation time in days (simulation time unit for deprivation is days)
+            double totalTimeDays = time - deprivingPerson.getArrivalTime();
             kpiManager.totalDeprivedPopulation.get(camp).put(item, kpiManager.totalDeprivedPopulation.get(camp).get(item) + deprivingPerson.getQuantity());
-            kpiManager.averageDeprivationTime.get(camp).put(item, kpiManager.averageDeprivationTime.get(camp).get(item) + totalTime * deprivingPerson.getQuantity());
+            kpiManager.averageDeprivationTime.get(camp).put(item, kpiManager.averageDeprivationTime.get(camp).get(item) + totalTimeDays * deprivingPerson.getQuantity());
 
             var previousCost = kpiManager.totalDeprivationCost.get(camp).get(item);
 
             if (deprivingPerson.getQuantity() <= inventoryToSend.get(0).getQuantity()) {
-                var deprivation = calculateDeprivation(item, deprivingPerson.getQuantity(), time - deprivingPerson.getArrivalTime());
+                var deprivation = calculateDeprivation(item, deprivingPerson.getQuantity(), totalTimeDays);
                 kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
                 
                 // Calculate holding cost for consumed inventory
@@ -199,7 +202,7 @@ public class State implements Cloneable {
             }
             else {
                 // Since we are not able to satisfy all depriving population, we use available inventory
-                var deprivation = calculateDeprivation(item, inventoryToSend.get(0).getQuantity(), time - deprivingPerson.getArrivalTime());
+                var deprivation = calculateDeprivation(item, inventoryToSend.get(0).getQuantity(), totalTimeDays);
                 kpiManager.totalDeprivationCost.get(camp).put(item, previousCost + deprivation);
                 
                 // Calculate holding cost for consumed inventory
@@ -219,10 +222,23 @@ public class State implements Cloneable {
                 inventory.get(camp).get(item).offer(inventoryItem);
             }
         }
+        // Note: Positions were already updated when the transfer was ordered (in InventoryControlEvent)
+        // Position = on-hand + in-transit, so it stays the same when inventory arrives
     }
 
+    /**
+     * Deprivation cost for a given number of people deprived for a given time.
+     * Uses the same formula as KPIManager.calculateFinalCosts: linear + exponential term
+     * so that in-simulation and end-of-horizon costs are consistent.
+     *
+     * @param time duration deprived, in <b>days</b> (simulation time unit for deprivation is days)
+     */
     public double calculateDeprivation(Item item, int totalNumberOfPeople, double time){
-        return item.getDeprivationCoefficient() * (Math.exp(item.getDeprivationRate() * time) - 1) * totalNumberOfPeople;
+        double rate = item.getDeprivationRate();   // per day
+        double coeff = item.getDeprivationCoefficient();
+        double linearTerm = coeff * rate * time;
+        double exponentialTerm = coeff * (Math.exp(rate * time) - 1);
+        return (linearTerm + exponentialTerm) * totalNumberOfPeople;
     }
 
     public void replenishInventory(Item item, ArrayList<InventoryItem> inventoryToSend) {
@@ -234,11 +250,23 @@ public class State implements Cloneable {
             kpiManager.totalReplenishmentCost.put(item, cost);
             centralWarehouseInventory.get(item).offer(inventoryItem);
         }
+        // Note: Position was already updated when the order was placed (in InventoryControlEvent)
+        // Position = on-hand + in-transit, so it stays the same when inventory arrives
         // Now update the ordering cost
         kpiManager.totalOrderingCost.put(item, kpiManager.totalOrderingCost.get(item) + item.getOrderingCost());
     }
 
+    /**
+     * Returns the on-hand (physical) inventory quantity at a camp for an item.
+     * Does not include in-transit. Use this to cap how much demand we can actually satisfy.
+     */
+    private int getOnHandQuantity(Camp camp, Item item) {
+        if (!inventory.containsKey(camp) || !inventory.get(camp).containsKey(item)) return 0;
+        return inventory.get(camp).get(item).stream().mapToInt(InventoryItem::getQuantity).sum();
+    }
+
     public void consumeInventory(Camp camp, Item item, boolean isInternal, int quantity, double tNow) {
+        kpiManager.recordDemandArrived(camp, isInternal, quantity);
         // Internal consumption
         if (isInternal){
             // Consume from inventory
@@ -278,17 +306,11 @@ public class State implements Cloneable {
                 inventoryPosition.get(camp).put(item, inventoryPosition.get(camp).get(item) - (int) quantity);
             }
         }
-        // External consumption
+        // External consumption: allow only what we can actually give (on-hand), not position (on-hand + in-transit)
         else {
             int threshold = inventoryPolicy.getThreshold(camp, item);
-
-            int currentStock = 0;
-            if (this.inventoryPosition.containsKey(camp) && this.inventoryPosition.get(camp).containsKey(item)) {
-                currentStock = this.inventoryPosition.get(camp).get(item);
-            }
-
-            int availableAboveThreshold = Math.max(0, currentStock - threshold);
-
+            int onHand = getOnHandQuantity(camp, item);
+            int availableAboveThreshold = Math.max(0, onHand - threshold);
             int allowedQuantity = Math.min(quantity, availableAboveThreshold);
 
             int deniedDueToThreshold = quantity - allowedQuantity;
@@ -335,9 +357,10 @@ public class State implements Cloneable {
                     referralPopulation.get(camp).put(item, val);
                 }
 
-                // Update referral KPI map
+                // Update referral cost: total = cumulative referred people * unit referral cost (no double-count)
                 if (kpiManager.totalReferralCost.containsKey(camp)) {
-                    kpiManager.totalReferralCost.get(camp).put(item, referralPopulation.get(camp).get(item) * item.getReferralCost());
+                    int cumulativeReferred = referralPopulation.get(camp).get(item);
+                    kpiManager.totalReferralCost.get(camp).put(item, cumulativeReferred * item.getReferralCost());
                 }
             }
         }

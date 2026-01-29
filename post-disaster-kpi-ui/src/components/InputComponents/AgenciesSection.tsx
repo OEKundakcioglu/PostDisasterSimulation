@@ -251,6 +251,7 @@ const AgenciesSection: React.FC<Props> = ({
               <TextField
                 fullWidth
                 label="Mean"
+                type="number"
                 value={params.mean || ""}
                 onChange={(e) => {
                   const newAgencies = [...agencies];
@@ -259,12 +260,14 @@ const AgenciesSection: React.FC<Props> = ({
                   ].distParameters.mean = e.target.value;
                   setAgencies(newAgencies);
                 }}
+                helperText={dataType === "arrivalData" ? "Mean arrival time (days)" : "Mean amount value"}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
                 label="Standard Deviation"
+                type="number"
                 value={params.stdDev || ""}
                 onChange={(e) => {
                   const newAgencies = [...agencies];
@@ -273,6 +276,7 @@ const AgenciesSection: React.FC<Props> = ({
                   ].distParameters.stdDev = e.target.value;
                   setAgencies(newAgencies);
                 }}
+                helperText={dataType === "arrivalData" ? "Standard deviation of arrival time (days)" : "Standard deviation of amount"}
               />
             </Grid>
           </>
@@ -285,6 +289,7 @@ const AgenciesSection: React.FC<Props> = ({
               <TextField
                 fullWidth
                 label="Minimum"
+                type="number"
                 value={params.min || ""}
                 onChange={(e) => {
                   const newAgencies = [...agencies];
@@ -293,12 +298,14 @@ const AgenciesSection: React.FC<Props> = ({
                   ].distParameters.min = e.target.value;
                   setAgencies(newAgencies);
                 }}
+                helperText={dataType === "arrivalData" ? "Minimum arrival time (days)" : "Minimum amount value"}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
                 label="Mode"
+                type="number"
                 value={params.mode || ""}
                 onChange={(e) => {
                   const newAgencies = [...agencies];
@@ -307,12 +314,14 @@ const AgenciesSection: React.FC<Props> = ({
                   ].distParameters.mode = e.target.value;
                   setAgencies(newAgencies);
                 }}
+                helperText={dataType === "arrivalData" ? "Most likely arrival time (days)" : "Most likely amount value"}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
                 label="Maximum"
+                type="number"
                 value={params.max || ""}
                 onChange={(e) => {
                   const newAgencies = [...agencies];
@@ -321,6 +330,7 @@ const AgenciesSection: React.FC<Props> = ({
                   ].distParameters.max = e.target.value;
                   setAgencies(newAgencies);
                 }}
+                helperText={dataType === "arrivalData" ? "Maximum arrival time (days)" : "Maximum amount value"}
               />
             </Grid>
           </>
@@ -368,7 +378,7 @@ const AgenciesSection: React.FC<Props> = ({
   // Render empty placeholder when no items are available
   const renderItemOptions = () => {
     if (!items || items.length === 0) {
-      return <MenuItem disabled>No items available</MenuItem>;
+      return <MenuItem disabled>No items available. Please add items in the Items section first.</MenuItem>;
     }
     return items.map((item) => (
       <MenuItem key={`item-${item.name}`} value={item.name}>
@@ -380,7 +390,7 @@ const AgenciesSection: React.FC<Props> = ({
   // Render empty placeholder when no camps are available
   const renderCampOptions = () => {
     if (!camps || camps.length === 0) {
-      return <MenuItem disabled>No camps available</MenuItem>;
+      return <MenuItem disabled>No camps available. Please add camps in the Camps section first.</MenuItem>;
     }
     return camps.map((camp) => (
       <MenuItem key={`camp-${camp.name}`} value={camp.name}>
@@ -408,8 +418,8 @@ const AgenciesSection: React.FC<Props> = ({
                   if (
                     window.confirm(
                       `Are you sure you want to delete this agency${
-                        agency.name ? ` (${agency.name})` : ""
-                      }?`
+                        agency.name ? ` "${agency.name}"` : ""
+                      }?\n\nWARNING: This will remove all funding configurations associated with this agency.`
                     )
                   ) {
                     const newAgencies = [...agencies];
@@ -434,6 +444,8 @@ const AgenciesSection: React.FC<Props> = ({
                 onChange={(e) =>
                   handleAgencyChange(agencyIndex, "name", e.target.value)
                 }
+                placeholder="Enter agency name"
+                helperText="Name of the funding agency or organization"
               />
             </Grid>
 
@@ -460,7 +472,7 @@ const AgenciesSection: React.FC<Props> = ({
                           e.stopPropagation();
                           if (
                             window.confirm(
-                              "Are you sure you want to delete this funding?"
+                              "Are you sure you want to delete this funding configuration?"
                             )
                           ) {
                             const newAgencies = [...agencies];
@@ -515,7 +527,7 @@ const AgenciesSection: React.FC<Props> = ({
                         <TextField
                           select
                           fullWidth
-                          label="Select Item"
+                          label="Item"
                           value={funding.item || ""}
                           onChange={(e) => {
                             const newAgencies = [...agencies];
@@ -524,6 +536,7 @@ const AgenciesSection: React.FC<Props> = ({
                             ].item = e.target.value;
                             setAgencies(newAgencies);
                           }}
+                          helperText="Select the item for in-kind funding"
                         >
                           {renderItemOptions()}
                         </TextField>
@@ -536,7 +549,7 @@ const AgenciesSection: React.FC<Props> = ({
                         <TextField
                           select
                           fullWidth
-                          label="Earmarked For (Camp)"
+                          label="Earmarked For Camp"
                           value={funding.camp || ""}
                           onChange={(e) => {
                             const newAgencies = [...agencies];
@@ -545,6 +558,7 @@ const AgenciesSection: React.FC<Props> = ({
                             ].camp = e.target.value;
                             setAgencies(newAgencies);
                           }}
+                          helperText="Select the camp this funding is specifically allocated to"
                         >
                           {renderCampOptions()}
                         </TextField>

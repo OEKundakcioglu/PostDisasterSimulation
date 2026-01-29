@@ -74,7 +74,7 @@ const CostAnalysisChart: React.FC<Props> = ({ item }) => {
     return (
         <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: 2, bgcolor: '#fafafa' }}>
             <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                Cost Equalization: {data.equalPoint ? `${data.equalPoint.toFixed(1)} Days` : 'Not reached within range'}
+                Deprivation - Referral Equilibrium Point: {data.equalPoint ? `${data.equalPoint.toFixed(1)} days` : 'Not reached within range'}
             </Typography>
 
             <Plot
@@ -116,7 +116,7 @@ const CostAnalysisChart: React.FC<Props> = ({ item }) => {
                     legend: { orientation: 'h', y: -0.2 },
                     xaxis: { title: { text: 'Time (Days)' }, zeroline: true },
                     yaxis: {
-                        title: { text: 'Cost ($)' },
+                        title: { text: 'Cost' },
                         range: yAxisMax ? [0, yAxisMax] : undefined
                     },
                     shapes: data.equalPoint ? [{

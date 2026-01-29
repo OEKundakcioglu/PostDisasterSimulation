@@ -107,6 +107,7 @@ const InitialStateSection: React.FC<Props> = ({
               inputProps={{ step: 0.01, min: 0 }}
               value={initialState.availableFunds}
               onChange={(e) => handleAvailableFundsChange(e.target.value)}
+              helperText="Monetary funds available at day 0 for purchasing items"
             />
           </Grid>
         </Grid>
@@ -117,7 +118,7 @@ const InitialStateSection: React.FC<Props> = ({
         {camps.map((camp) => (
           <NestedCollapsibleSection
             key={`inventory-${camp.name}`}
-            title={`Camp: ${camp.name}`}
+            title={camp.name ? `Camp: ${camp.name}` : `Camp ${camps.indexOf(camp) + 1} (Unnamed)`}
             level="tertiary"
           >
             <Grid container spacing={2}>
@@ -145,6 +146,7 @@ const InitialStateSection: React.FC<Props> = ({
                         e.target.value
                       )
                     }
+                    helperText={`Inventory quantity for ${item.name} at this camp at day 0`}
                   />
                 </Grid>
               ))}
@@ -163,7 +165,7 @@ const InitialStateSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4} key={`central-${item.name}`}>
               <TextField
                 fullWidth
-                label={`${item.name} Central Inventory`}
+                label={`${item.name} Central Warehouse Inventory`}
                 type="number"
                 inputProps={{ step: 1, min: 0 }}
                 value={
@@ -176,6 +178,7 @@ const InitialStateSection: React.FC<Props> = ({
                     e.target.value
                   )
                 }
+                helperText={`Inventory quantity for ${item.name} in the central warehouse at day 0`}
               />
             </Grid>
           ))}
@@ -189,13 +192,14 @@ const InitialStateSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4} key={`earmarked-${camp.name}`}>
               <TextField
                 fullWidth
-                label={`${camp.name} Earmarked Funds`}
+                label={`${camp.name ? camp.name : `Camp ${camps.indexOf(camp) + 1}`} Earmarked Funds`}
                 type="number"
                 inputProps={{ step: 0.01, min: 0 }}
                 value={initialState.earmarkedFunds[camp.name] || "0"}
                 onChange={(e) =>
                   handleEarmarkedFundsChange(camp.name, e.target.value)
                 }
+                helperText={`Funds specifically allocated to ${camp.name || "this camp"} at day 0`}
               />
             </Grid>
           ))}
@@ -216,7 +220,7 @@ const InitialStateSection: React.FC<Props> = ({
                     }
                   />
                 }
-                label={`${item.name} Available`}
+                label={`${item.name} is available for procurement`}
               />
             </Grid>
           ))}
