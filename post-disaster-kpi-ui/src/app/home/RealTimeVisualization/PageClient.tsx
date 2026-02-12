@@ -37,14 +37,16 @@ export default function PageClient() {
     cumulativeReferralCosts: Record<string, number>;
     cumulativeDeprivationCosts: Record<string, number>;
     cumulativeReplenishmentCosts: Record<string, number>;
-    internalPopulation?: Record<string, number>;
-    externalPopulation?: Record<string, number>;
+    demandRatePerHour?: Record<string, Record<string, number>>;
+    demandRatePerHourInternal?: Record<string, Record<string, number>>;
+    demandRatePerHourExternal?: Record<string, Record<string, number>>;
   }
   interface IncomingLog extends Partial<TimeStepLog> {
     fundingReceived?: number;
     itemQuantities?: Record<string, Record<string, number>>;
-    internalPopulation?: Record<string, number>;
-    externalPopulation?: Record<string, number>;
+    demandRatePerHour?: Record<string, Record<string, number>>;
+    demandRatePerHourInternal?: Record<string, Record<string, number>>;
+    demandRatePerHourExternal?: Record<string, Record<string, number>>;
   }
   interface WSLogPayload {
     index: number;
@@ -74,8 +76,9 @@ export default function PageClient() {
       cumulativeReferralCosts: l.cumulativeReferralCosts || {},
       cumulativeDeprivationCosts: l.cumulativeDeprivationCosts || {},
       cumulativeReplenishmentCosts: l.cumulativeReplenishmentCosts || {},
-      internalPopulation: l.internalPopulation || {},
-      externalPopulation: l.externalPopulation || {},
+      demandRatePerHour: l.demandRatePerHour || {},
+      demandRatePerHourInternal: l.demandRatePerHourInternal || {},
+      demandRatePerHourExternal: l.demandRatePerHourExternal || {},
     };
   }, []);
 
