@@ -9,6 +9,7 @@ import data.event_info.Demand;
 import data.event_info.Funding;
 import data.event_info.Migration;
 import data.event_info.SupplyStatusSwitch;
+import simulation.State;
 
 public class InterarrivalGenerator {
     private final Random rngDemand;
@@ -29,15 +30,27 @@ public class InterarrivalGenerator {
         this.rngTransferTime = new Random(simulationConfig.getSeedTransferTime());
     }
     /**
-     * Generates the next demand interarrival time from the demand's arrival distribution only.
-     * Input parameters (e.g. "120 minutes exponential") define mean time between demands;
-     * population is not used for timing (it is used elsewhere, e.g. for quantity).
-     * Returns time in simulation units (days); input distribution is assumed to be in minutes.
+     * Generates the next demand interarrival time from the demand's arrival distribution or effective mean.
+     * Uses effective mean interarrival (modified by migration) if present in state; otherwise base from demand config.
+     * Input mean is in minutes; returns time in simulation units (days).
+     */
+    public double generateDemand(State state, Camp camp, Demand demand) {
+        Double effectiveMean = state != null && camp != null ? state.getEffectiveMeanInterarrivalMinutes(camp, demand) : null;
+        double baseInterarrivalMinutes = demand.getArrivalData().distParameters.generate(this.rngDemand);
+        if (effectiveMean != null && effectiveMean > 0) {
+            double baseMean = demand.getArrivalData().getDistParameters().getMean();
+            if (baseMean > 0) {
+                baseInterarrivalMinutes *= (effectiveMean / baseMean);
+            }
+        }
+        return baseInterarrivalMinutes / 1440.0;
+    }
+
+    /**
+     * Legacy overload: uses base demand config only (no effective mean from migration).
      */
     public double generateDemand(Demand demand) {
-        // Base interarrival time from distribution (input mean is in minutes, e.g. 120 = on average every 120 min)
         double baseInterarrivalMinutes = demand.getArrivalData().distParameters.generate(this.rngDemand);
-        // Convert minutes to days so event time matches simulation time scale (planning horizon in days)
         return baseInterarrivalMinutes / 1440.0;
     }
     public double generateFunding(Funding funding) {

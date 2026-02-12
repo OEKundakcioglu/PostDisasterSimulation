@@ -360,26 +360,8 @@ function buildMigrations(data: SimulationInputDTO, a: AnchorMaps): string {
           m.arrivalData.distributionType
         )
       );
-      if (type.includes("_TO_SYSTEM") && m.quantityData) {
-        lines.push("    quantityData:");
-        lines.push(
-          `      distributionType: ${m.quantityData.distributionType}`
-        );
-        lines.push(
-          `      distParameters: !!data.distribution.${distTag(
-            m.quantityData.distributionType
-          )}`
-        );
-        lines.push(
-          formatDistParameters(
-            m.quantityData.distParameters as Record<string, unknown>,
-            8,
-            m.quantityData.distributionType
-          )
-        );
-      }
       lines.push(
-        `    migrationRatio: ${formatNumber(m.migrationRatio || 0.05)}`
+        `    demandRatio: ${formatNumber(m.demandRatio ?? 0.05)}`
       );
       return lines.join("\n");
     })

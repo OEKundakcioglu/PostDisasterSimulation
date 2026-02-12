@@ -24,8 +24,7 @@ public class DemandEvent implements IEvent {
         this.isInternal = demand.getDemandClass() == enums.DemandClass.INTERNAL;
         this.demand = demand;
         this.item = demand.getItem();
-        // Interarrival depends only on input (e.g. "120 min exponential"); population is for quantity only
-        this.time = tNow + interarrivalGenerator.generateDemand(demand);
+        this.time = tNow + interarrivalGenerator.generateDemand(state, camp, demand);
 
         if (isInternal) {
             this.quantity = quantityGenerator.generateDemandQuantity(demand, state.getInternalPopulation().get(this.camp), true);
@@ -56,7 +55,7 @@ public class DemandEvent implements IEvent {
         if (this.demand.getDemandTimingType() == DemandTimingType.ONETIME) {
             return null;
         }
-        else{
+        else {
             DemandEvent newEvent = new DemandEvent(state, this.camp, this.demand, interarrivalGenerator,
                     quantityGenerator, this.getTime());
             returnEvents.add(newEvent);

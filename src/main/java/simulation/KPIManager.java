@@ -125,7 +125,7 @@ public class KPIManager {
         return internalExternal[0] + internalExternal[1];
     }
 
-    /** Returns { internalRate, externalRate } in units/hour. */
+    /** Returns { internalRate, externalRate } in units/hour. Uses effective mean interarrival when migration has modified demand rates. */
     private double[] computeDemandRatePerHourInternalExternal(State stateRef, Camp camp, Item item) {
         double internalRate = 0.0;
         double externalRate = 0.0;
@@ -135,7 +135,10 @@ public class KPIManager {
         for (Demand d : camp.getDemands()) {
             if (d == null || d.getItem() == null || !d.getItem().equals(item) || d.getArrivalData() == null
                     || d.getArrivalData().getDistParameters() == null) continue;
-            double meanMin = d.getArrivalData().getDistParameters().getMean();
+            Double effectiveMean = stateRef.getEffectiveMeanInterarrivalMinutes(camp, d);
+            double meanMin = effectiveMean != null && effectiveMean > 0
+                ? effectiveMean
+                : d.getArrivalData().getDistParameters().getMean();
             if (meanMin <= 0) continue;
             double eventsPerHour = 60.0 / meanMin;
             double expectedQty;

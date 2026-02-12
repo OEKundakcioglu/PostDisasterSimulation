@@ -162,9 +162,9 @@ export const DEFAULT_MIGRATIONS: Migration[] = [
     migrationType: "INTERNAL_WITHIN_SYSTEM",
     arrivalData: {
       distributionType: "FIXED",
-      distParameters: { mean: "120000" },
+      distParameters: { mean: "30" },
     },
-    migrationRatio: 0.05,
+    demandRatio: 0.05,
   },
 ];
 

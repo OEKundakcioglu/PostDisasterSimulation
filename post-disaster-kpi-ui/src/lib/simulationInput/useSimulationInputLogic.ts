@@ -796,23 +796,14 @@ export const useSimulationInputLogic = () => {
             `${ctx} arrivalData`
           )
         );
-        if (toSystem) {
-          issues.push(
-            ...validateDistribution(
-              m.quantityData as DistBlock | undefined,
-              `${ctx} quantityData`
-            )
-          );
-        } else {
-          if (m.migrationRatio === undefined || m.migrationRatio === null)
-            issues.push(`${ctx} missing migrationRatio`);
-          else if (
-            isNaN(Number(m.migrationRatio)) ||
-            Number(m.migrationRatio) < 0 ||
-            Number(m.migrationRatio) > 1
-          )
-            issues.push(`${ctx} migrationRatio must be 0-1`);
-        }
+        if (m.demandRatio === undefined || m.demandRatio === null)
+          issues.push(`${ctx} missing demandRatio`);
+        else if (
+          isNaN(Number(m.demandRatio)) ||
+          Number(m.demandRatio) < 0 ||
+          Number(m.demandRatio) > 1
+        )
+          issues.push(`${ctx} demandRatio must be 0-1`);
       });
 
       // Agencies / Funding

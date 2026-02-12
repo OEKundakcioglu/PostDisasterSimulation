@@ -11,6 +11,8 @@ import data.Environment;
 import data.Item;
 import data.event_info.Demand;
 import enums.CampExternalDemandSatisfactionType;
+import enums.DemandClass;
+import enums.DemandQuantityType;
 import simulation.State;
 import simulation.data.InventoryItem;
 import simulation.data.requests.TransferRequest;
@@ -52,17 +54,110 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
 
         // Ensure demand-driven default target levels so that with enough funding we can satisfy both internal and external demand.
         // If central or camp S is missing or 0, compute from demand (like OrderUpToPolicy).
-        ensureCentralTargetLevelsFromDemand();
-        ensureCampTargetLevelsFromDemand();
+        ensureCentralTargetLevelsFromDemand(false);
+        ensureCampTargetLevelsFromDemand(false);
     }
 
-    /** Compute default central target level S for each item from total demand * (leadTime + review) * buffer when S is missing or 0. */
-    private void ensureCentralTargetLevelsFromDemand() {
+    /** Recomputes all target levels from demand (uses effective rates when migration has changed them). Call after migration. */
+    public void recomputeTargetLevelsFromDemand() {
+        centralTargetLevels.clear();
+        for (Camp c : campTargetLevels.keySet()) campTargetLevels.get(c).clear();
+        ensureCentralTargetLevelsFromDemand(true);
+        ensureCampTargetLevelsFromDemand(true);
+    }
+
+    /** Proportional scaling: when migration changes demand rates, scale S and threshold by newRate/oldRate. */
+    public void scaleTargetLevelsForMigration(java.util.List<Camp> affectedCamps, java.util.Map<Camp, java.util.Map<Item, Double>> oldRates, java.util.Map<Camp, java.util.Map<Item, Double>> newRates) {
+        if (oldRates == null || newRates == null) return;
+        for (Camp camp : affectedCamps) {
+            if (camp == null) continue;
+            var oldByItem = oldRates.get(camp);
+            var newByItem = newRates.get(camp);
+            if (oldByItem == null || newByItem == null) continue;
+            for (Item item : environment.getItems()) {
+                Double oldRate = oldByItem.get(item);
+                Double newRate = newByItem.get(item);
+                if (oldRate == null || newRate == null || oldRate <= 0) continue;
+                double ratio = newRate / oldRate;
+                int oldS = campTargetLevels.containsKey(camp) && campTargetLevels.get(camp).containsKey(item)
+                    ? campTargetLevels.get(camp).get(item) : 0;
+                int oldThresh = getThreshold(camp, item);
+                int newS = Math.max(0, (int) Math.round(oldS * ratio));
+                int newThresh = Math.max(0, (int) Math.round(oldThresh * ratio));
+                campTargetLevels.computeIfAbsent(camp, k -> new HashMap<>()).put(item, newS);
+                campRationingThresholds.computeIfAbsent(camp, k -> new HashMap<>()).put(item, newThresh);
+            }
+        }
+        // Scale central levels by weighted rate change
+        double oldTotal = 0;
+        double newTotal = 0;
+        for (Camp camp : environment.getCamps()) {
+            for (Item item : environment.getItems()) {
+                var ob = oldRates.get(camp);
+                var nb = newRates.get(camp);
+                if (ob != null && nb != null) {
+                    Double o = ob.get(item);
+                    Double n = nb.get(item);
+                    if (o != null && n != null) {
+                        oldTotal += o;
+                        newTotal += n;
+                    }
+                }
+            }
+        }
+        if (oldTotal > 0 && newTotal > 0) {
+            double centralRatio = newTotal / oldTotal;
+            for (Item item : environment.getItems()) {
+                int oldCentral = centralTargetLevels.getOrDefault(item, 0);
+                if (oldCentral > 0) {
+                    centralTargetLevels.put(item, Math.max(0, (int) Math.round(oldCentral * centralRatio)));
+                }
+            }
+        }
+    }
+
+    /** Daily demand rate (units/day) for camp-item. Uses effective mean interarrival when migration has modified rates. */
+    public double getDailyDemandRate(Camp camp, Item item) {
+        return computeDailyDemandRate(camp, item);
+    }
+
+    private double computeDailyDemandRate(Camp camp, Item item) {
+        double rate = 0.0;
+        if (camp.getDemands() == null) return rate;
+        int internalPop = state.getCurrentInternalPopulation(camp);
+        int externalPop = state.getCurrentExternalPopulation(camp);
+        for (Demand d : camp.getDemands()) {
+            if (d == null || d.getItem() == null || !d.getItem().equals(item) || d.getArrivalData() == null
+                    || d.getArrivalData().getDistParameters() == null) continue;
+            Double effectiveMean = state.getEffectiveMeanInterarrivalMinutes(camp, d);
+            double meanMin = effectiveMean != null && effectiveMean > 0
+                ? effectiveMean
+                : d.getArrivalData().getDistParameters().getMean();
+            if (meanMin <= 0) continue;
+            double eventsPerDay = 1440.0 / meanMin;
+            double expectedQty;
+            if (d.getDemandQuantityType() == DemandQuantityType.BATCH) {
+                if (d.getDemandClass() == DemandClass.INTERNAL) {
+                    expectedQty = internalPop * d.getInternalRatio();
+                } else {
+                    expectedQty = externalPop * d.getExternalRatio();
+                    if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE)
+                        expectedQty = 0;
+                }
+            } else {
+                expectedQty = 1.0;
+            }
+            rate += eventsPerDay * expectedQty;
+        }
+        return rate;
+    }
+
+    private void ensureCentralTargetLevelsFromDemand(boolean forceRecalculate) {
         for (Item item : environment.getItems()) {
             int currentS = centralTargetLevels.getOrDefault(item, 0);
-            if (currentS > 0) continue;
+            if (!forceRecalculate && currentS > 0) continue;
 
-            double totalDemandRate = 0.0;
+            double totalDailyRate = 0.0;
             double leadTime = 0.0;
             if (item.getLeadTimeData() != null && item.getLeadTimeData().getDistParameters() != null) {
                 leadTime = item.getLeadTimeData().getDistParameters().getMean();
@@ -70,44 +165,28 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
 
             for (Camp camp : environment.getCamps()) {
                 Demand demand = environment.getCorrespondingDemand(item, camp);
-                if (demand == null || demand.getArrivalData() == null || demand.getArrivalData().getDistParameters() == null) continue;
-
-                double meanArrival = demand.getArrivalData().getDistParameters().getMean();
-                double internalPop = state.getInternalPopulation().getOrDefault(camp, 0) * demand.getInternalRatio();
-                double externalPop = state.getExternalPopulation().getOrDefault(camp, 0) * demand.getExternalRatio();
-                if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
-                    externalPop = 0;
-                }
-                totalDemandRate += meanArrival * (internalPop + externalPop);
-
-                if (demand.getLeadTimeData() != null && demand.getLeadTimeData().getDistParameters() != null) {
+                totalDailyRate += computeDailyDemandRate(camp, item);
+                if (demand != null && demand.getLeadTimeData() != null && demand.getLeadTimeData().getDistParameters() != null) {
                     leadTime = Math.max(leadTime, demand.getLeadTimeData().getDistParameters().getMean());
                 }
             }
 
-            int S = (int) Math.ceil(totalDemandRate * (DEFAULT_REVIEW_PERIOD + leadTime) * DEFAULT_BUFFER_FACTOR);
+            int S = (int) Math.ceil(totalDailyRate * (DEFAULT_REVIEW_PERIOD + leadTime) * DEFAULT_BUFFER_FACTOR);
             if (S > 0) centralTargetLevels.put(item, S);
         }
     }
 
-    /** Compute default camp target level S for each camp-item from demand * (leadTime + review) * buffer when S is missing or 0. */
-    private void ensureCampTargetLevelsFromDemand() {
+    private void ensureCampTargetLevelsFromDemand(boolean forceRecalculate) {
         for (Camp camp : environment.getCamps()) {
             for (Item item : environment.getItems()) {
                 Map<Item, Integer> campLevels = campTargetLevels.get(camp);
                 int currentS = (campLevels != null && campLevels.containsKey(item)) ? campLevels.get(item) : 0;
-                if (currentS > 0) continue;
+                if (!forceRecalculate && currentS > 0) continue;
 
                 Demand demand = environment.getCorrespondingDemand(item, camp);
                 if (demand == null || demand.getArrivalData() == null || demand.getArrivalData().getDistParameters() == null) continue;
 
-                double meanArrival = demand.getArrivalData().getDistParameters().getMean();
-                double internalPop = state.getInternalPopulation().getOrDefault(camp, 0) * demand.getInternalRatio();
-                double externalPop = state.getExternalPopulation().getOrDefault(camp, 0) * demand.getExternalRatio();
-                if (camp.getCampExternalDemandSatisfactionType() == CampExternalDemandSatisfactionType.NONE) {
-                    externalPop = 0;
-                }
-                double demandRate = meanArrival * (internalPop + externalPop);
+                double dailyRate = computeDailyDemandRate(camp, item);
 
                 double leadTime = 0.0;
                 if (demand.getLeadTimeData() != null && demand.getLeadTimeData().getDistParameters() != null) {
@@ -116,7 +195,7 @@ public class TargetLevelPolicy implements IPolicy, Cloneable {
                     leadTime = item.getLeadTimeData().getDistParameters().getMean();
                 }
 
-                int S = (int) Math.ceil(demandRate * (DEFAULT_REVIEW_PERIOD + leadTime) * DEFAULT_BUFFER_FACTOR);
+                int S = (int) Math.ceil(dailyRate * (DEFAULT_REVIEW_PERIOD + leadTime) * DEFAULT_BUFFER_FACTOR);
                 if (S > 0) {
                     campTargetLevels.computeIfAbsent(camp, k -> new HashMap<>()).put(item, S);
                     if (!campRationingThresholds.containsKey(camp)) campRationingThresholds.put(camp, new HashMap<>());

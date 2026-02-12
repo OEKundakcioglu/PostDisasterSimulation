@@ -134,7 +134,8 @@ public final class SimulationEnvironmentMapper {
             if (mm.containsKey("migrationType")) mg.setMigrationType(enumVal(MigrationType.class, mm.get("migrationType")));
             if (mm.containsKey("arrivalData")) mg.setArrivalData(probabilityData(map(mm.get("arrivalData"))));
             if (mm.containsKey("quantityData")) mg.setQuantityData(probabilityData(map(mm.get("quantityData"))));
-            if (mm.containsKey("migrationRatio")) mg.setMigrationRatio(dbl(mm.get("migrationRatio")));
+            if (mm.containsKey("demandRatio")) mg.setDemandRatio(dbl(mm.get("demandRatio")));
+            else if (mm.containsKey("migrationRatio")) mg.setDemandRatio(dbl(mm.get("migrationRatio")));
             migrations.add(mg);
         }
         Migration[] migrationsArr = migrations.toArray(Migration[]::new);

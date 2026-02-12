@@ -115,6 +115,7 @@ public class Simulate {
             if (event.getClass().getSimpleName().equals("MigrationEvent")) {
                 MigrationEvent migrationEvent = (MigrationEvent) event;
                 migrationStateUpdate(migrationEvent);
+                state.getKpiManager().logState(state, event.getTime(), 0.0);
             }
 
             if(event.getClass().getSimpleName().equals("DemandEvent")){
@@ -199,7 +200,10 @@ public class Simulate {
                 state.getKpiManager().logState(state, event.getTime(), 0.0);
                 lastLoggedSimTime = event.getTime();
             }
-            if (event.getClass().getSimpleName().equals("MigrationEvent")) migrationStateUpdate((MigrationEvent) event);
+            if (event.getClass().getSimpleName().equals("MigrationEvent")) {
+                migrationStateUpdate((MigrationEvent) event);
+                state.getKpiManager().logState(state, event.getTime(), 0.0);
+            }
             if(event.getClass().getSimpleName().equals("DemandEvent")){
                 DemandEvent demandEvent = (DemandEvent) event;
                 Camp camp = demandEvent.camp;
@@ -459,6 +463,8 @@ public class Simulate {
             System.out.println("Warning: Null migration event. Skipping state update.");
             return;
         }
+        // Migration is demand-based: effective rates were updated in processEvent.
+        // Regenerate demand events for affected camps so they use the new effective interarrivals.
 
         if (migrationEvent.migrationType == MigrationType.EXTERNAL_TO_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.INTERNAL_TO_SYSTEM) {
@@ -466,33 +472,24 @@ public class Simulate {
                 System.out.println("Warning: Migration event has null toCamp. Skipping state update.");
                 return;
             }
-
-            if (migrationEvent.quantity > 0) {
-                this.state.getInventoryPolicy().initialize(environment, this.state);
-                for (Demand demand : migrationEvent.toCamp.getDemands()) {
-                    if (demand == null) continue; // Skip null demands
-
-                    this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
-                    generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
-                }
+            this.state.getInventoryPolicy().initialize(environment, this.state);
+            for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                if (demand == null) continue;
+                this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
+                generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
             }
         }
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_FROM_SYSTEM ||
-                migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM
-        ) {
+                migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM) {
             if (migrationEvent.fromCamp == null) {
                 System.out.println("Warning: Migration event has null fromCamp. Skipping state update.");
                 return;
             }
-
-            if (migrationEvent.quantity > 0) {
-                this.state.getInventoryPolicy().initialize(environment, this.state);
-                for (Demand demand : migrationEvent.fromCamp.getDemands()) {
-                    if (demand == null) continue;
-
-                    this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
-                    generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
-                }
+            this.state.getInventoryPolicy().initialize(environment, this.state);
+            for (Demand demand : migrationEvent.fromCamp.getDemands()) {
+                if (demand == null) continue;
+                this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
+                generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
             }
         }
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM ||
@@ -501,21 +498,16 @@ public class Simulate {
                 System.out.println("Warning: Migration event has null fromCamp or toCamp. Skipping state update.");
                 return;
             }
-
-            if (migrationEvent.quantity > 0) {
-                this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
-                this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
-                this.state.getInventoryPolicy().initialize(environment, this.state);
-
-                for (Demand demand : migrationEvent.toCamp.getDemands()) {
-                    if (demand == null) continue;
-                    generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
-                }
-
-                for (Demand demand : migrationEvent.fromCamp.getDemands()) {
-                    if (demand == null) continue;
-                    generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
-                }
+            this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
+            this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
+            this.state.getInventoryPolicy().initialize(environment, this.state);
+            for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                if (demand == null) continue;
+                generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
+            }
+            for (Demand demand : migrationEvent.fromCamp.getDemands()) {
+                if (demand == null) continue;
+                generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
             }
         }
     }

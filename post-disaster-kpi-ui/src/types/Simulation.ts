@@ -105,7 +105,7 @@ export interface Migration {
     distributionType: string;
     distParameters: { mean?: string };
   };
-  migrationRatio: number;
+  demandRatio: number;
 }
 
 export type InventoryPolicyType = "ORDER_UP_TO" | "TARGET_LEVEL";

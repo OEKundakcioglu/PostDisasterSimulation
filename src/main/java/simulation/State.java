@@ -10,6 +10,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import data.Camp;
 import data.Environment;
 import data.Item;
+import data.event_info.Demand;
+import data.event_info.Migration;
+import enums.DemandClass;
 import enums.FundingType;
 import enums.MigrationType;
 import simulation.data.DeprivingPerson;
@@ -39,6 +42,9 @@ public class State implements Cloneable {
 
     private HashMap<Camp, Integer> internalPopulation;
     private HashMap<Camp, Integer> externalPopulation;
+
+    /** Effective mean interarrival in minutes per (camp, item, demandClass). Key: campName|itemName|INTERNAL|EXTERNAL */
+    private HashMap<String, Double> effectiveMeanInterarrivalMinutes = new HashMap<>();
 
     private HashMap<Camp, HashMap<Item, Double>> thresholdExternalDemand;
 
@@ -370,68 +376,106 @@ public class State implements Cloneable {
         this.isItemAvailable.put(item, isAvailable);
     }
 
-    public void updatePopulation(Camp fromCamp, Camp toCamp, double quantity, MigrationType migrationType) {
+    private static String demandKey(String campName, String itemName, DemandClass demandClass) {
+        return campName + "|" + itemName + "|" + demandClass.name();
+    }
 
-        if (migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM) {
-            // Null check for fromCamp and toCamp in internal population
-            Integer fromPopulation = this.internalPopulation.get(fromCamp);
-            Integer toPopulation = this.internalPopulation.get(toCamp);
-            
-            if (fromPopulation == null) {
-                System.err.println("Warning: fromCamp '" + fromCamp.getName() + "' not found in internal population. Skipping migration.");
-                return;
+    /**
+     * Returns effective mean interarrival in minutes for (camp, demand).
+     * If migration has modified demand rates, returns the effective value; otherwise null (use base from demand config).
+     */
+    public Double getEffectiveMeanInterarrivalMinutes(Camp camp, Demand demand) {
+        if (camp == null || demand == null || demand.getItem() == null) return null;
+        return effectiveMeanInterarrivalMinutes.get(demandKey(camp.getName(), demand.getItem().getName(), demand.getDemandClass()));
+    }
+
+    /**
+     * Updates demand rates when a migration event occurs. Transfers a fraction of demand rate
+     * from source to destination (or out of / into system). Migration is demand-based, not population-based.
+     */
+    public void updateDemandRates(Migration migration, double demandRatio) {
+        if (migration == null || demandRatio <= 0 || demandRatio > 1) return;
+        MigrationType mt = migration.getMigrationType();
+        Camp fromCamp = migration.getFromCamp();
+        Camp toCamp = migration.getToCamp();
+
+        if (mt == MigrationType.INTERNAL_WITHIN_SYSTEM || mt == MigrationType.EXTERNAL_WITHIN_SYSTEM) {
+            if (fromCamp == null || toCamp == null) return;
+            boolean internal = (mt == MigrationType.INTERNAL_WITHIN_SYSTEM);
+            DemandClass dc = internal ? DemandClass.INTERNAL : DemandClass.EXTERNAL;
+            for (Demand d : fromCamp.getDemands()) {
+                if (d == null || d.getDemandClass() != dc) continue;
+                Item item = d.getItem();
+                if (item == null) continue;
+                Demand toDemand = getMatchingDemand(toCamp, item, dc);
+                if (toDemand == null) continue;
+                double fromMean = getEffectiveOrBaseMean(fromCamp, d);
+                double toMean = getEffectiveOrBaseMean(toCamp, toDemand);
+                if (fromMean <= 0) continue;
+                double fromRatePerHour = 60.0 / fromMean;
+                double transferRate = fromRatePerHour * demandRatio;
+                double fromNewRate = fromRatePerHour * (1.0 - demandRatio);
+                double toCurrentRate = (toMean > 0) ? 60.0 / toMean : 0;
+                double toNewRate = toCurrentRate + transferRate;
+                setEffectiveMean(fromCamp.getName(), item.getName(), dc, fromNewRate > 0 ? 60.0 / fromNewRate : Double.MAX_VALUE);
+                setEffectiveMean(toCamp.getName(), item.getName(), dc, toNewRate > 0 ? 60.0 / toNewRate : 1.0);
             }
-            if (toPopulation == null) {
-                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in internal population. Skipping migration.");
-                return;
+        } else if (mt == MigrationType.INTERNAL_FROM_SYSTEM || mt == MigrationType.EXTERNAL_FROM_SYSTEM) {
+            if (fromCamp == null) return;
+            boolean internal = (mt == MigrationType.INTERNAL_FROM_SYSTEM);
+            DemandClass dc = internal ? DemandClass.INTERNAL : DemandClass.EXTERNAL;
+            for (Demand d : fromCamp.getDemands()) {
+                if (d == null || d.getDemandClass() != dc) continue;
+                Item item = d.getItem();
+                if (item == null) continue;
+                double fromMean = getEffectiveOrBaseMean(fromCamp, d);
+                if (fromMean <= 0) continue;
+                double fromRatePerHour = 60.0 / fromMean;
+                double fromNewRate = fromRatePerHour * (1.0 - demandRatio);
+                setEffectiveMean(fromCamp.getName(), item.getName(), dc, fromNewRate > 0 ? 60.0 / fromNewRate : Double.MAX_VALUE);
             }
-            
-            this.internalPopulation.put(fromCamp, fromPopulation - (int) quantity);
-            this.internalPopulation.put(toCamp, toPopulation + (int) quantity);
+        } else if (mt == MigrationType.INTERNAL_TO_SYSTEM || mt == MigrationType.EXTERNAL_TO_SYSTEM) {
+            if (toCamp == null) return;
+            boolean internal = (mt == MigrationType.INTERNAL_TO_SYSTEM);
+            DemandClass dc = internal ? DemandClass.INTERNAL : DemandClass.EXTERNAL;
+            for (Demand d : toCamp.getDemands()) {
+                if (d == null || d.getDemandClass() != dc) continue;
+                Item item = d.getItem();
+                if (item == null) continue;
+                double toMean = getEffectiveOrBaseMean(toCamp, d);
+                double toRate = (toMean > 0) ? 60.0 / toMean : 0;
+                double toNewRate = toRate * (1.0 + demandRatio);
+                setEffectiveMean(toCamp.getName(), item.getName(), dc, toNewRate > 0 ? 60.0 / toNewRate : 1.0);
+            }
         }
-        else if(migrationType == MigrationType.INTERNAL_TO_SYSTEM) {
-            Integer toPopulation = this.internalPopulation.get(toCamp);
-            if (toPopulation == null) {
-                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in internal population. Skipping migration.");
-                return;
-            }
-            this.internalPopulation.put(toCamp, toPopulation + (int) quantity);
+    }
+
+    private Demand getMatchingDemand(Camp camp, Item item, DemandClass demandClass) {
+        if (camp.getDemands() == null) return null;
+        for (Demand d : camp.getDemands()) {
+            if (d != null && d.getItem() != null && d.getItem().equals(item) && d.getDemandClass() == demandClass)
+                return d;
         }
-        else if (migrationType == MigrationType.INTERNAL_FROM_SYSTEM) {
-            Integer fromPopulation = this.externalPopulation.get(fromCamp);
-            if (fromPopulation == null) {
-                System.err.println("Warning: fromCamp '" + fromCamp.getName() + "' not found in external population. Skipping migration.");
-                return;
-            }
-            this.externalPopulation.put(fromCamp, fromPopulation - (int) quantity);
+        return null;
+    }
+
+    private double getEffectiveOrBaseMean(Camp camp, Demand demand) {
+        Double eff = getEffectiveMeanInterarrivalMinutes(camp, demand);
+        if (eff != null) return eff;
+        if (demand.getArrivalData() != null && demand.getArrivalData().getDistParameters() != null) {
+            double m = demand.getArrivalData().getDistParameters().getMean();
+            return m > 0 ? m : 0;
         }
-        else if (migrationType == MigrationType.EXTERNAL_WITHIN_SYSTEM) {
-            Integer fromPopulation = this.externalPopulation.get(fromCamp);
-            Integer toPopulation = this.externalPopulation.get(toCamp);
-            
-            if (fromPopulation == null) {
-                System.err.println("Warning: fromCamp '" + fromCamp.getName() + "' not found in external population. Skipping migration.");
-                return;
-            }
-            if (toPopulation == null) {
-                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in external population. Skipping migration.");
-                return;
-            }
-            
-            this.externalPopulation.put(fromCamp, fromPopulation - (int) quantity);
-            this.externalPopulation.put(toCamp, toPopulation + (int) quantity);
-        }
-        else if (migrationType == MigrationType.EXTERNAL_TO_SYSTEM) {
-            Integer toPopulation = this.externalPopulation.get(toCamp);
-            if (toPopulation == null) {
-                System.err.println("Warning: toCamp '" + toCamp.getName() + "' not found in external population. Skipping migration.");
-                return;
-            }
-            this.externalPopulation.put(toCamp, toPopulation + (int) quantity);
-        }
-        else if (migrationType == MigrationType.EXTERNAL_FROM_SYSTEM) {
-            this.externalPopulation.put(fromCamp, this.externalPopulation.get(fromCamp) - (int) quantity);
-        }
+        return 0;
+    }
+
+    private void setEffectiveMean(String campName, String itemName, DemandClass dc, double meanMinutes) {
+        effectiveMeanInterarrivalMinutes.put(demandKey(campName, itemName, dc), meanMinutes);
+    }
+
+    /** @deprecated Migration is now demand-based; use updateDemandRates instead. Kept for backward compatibility. */
+    public void updatePopulation(Camp fromCamp, Camp toCamp, double quantity, MigrationType migrationType) {
+        // No-op: migration now uses updateDemandRates (demand-based, not population-based)
     }
 
     public void updateFunds(Camp camp, Item item, FundingType fundingType, double amount, double expiration, double arrivalTime){
