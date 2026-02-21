@@ -65,20 +65,20 @@ const calcMeanLeadTimeDays = (dist: DistBlock): number => {
 
 const getCalculationParams = (camp: Camp, item: Item) => {
   const internalDemand = camp.demands.find(
-    (d) => d.item === item.name && d.demandClass === "INTERNAL"
+    (d) => d.item === item.name && d.demandClass === "INTERNAL",
   );
   const externalDemand = camp.demands.find(
-    (d) => d.item === item.name && d.demandClass === "EXTERNAL"
+    (d) => d.item === item.name && d.demandClass === "EXTERNAL",
   );
 
   const rateInt = internalDemand
     ? calcExpectedPerDayFromMeanMinutes(
-        internalDemand.arrivalData.distParameters.mean
+        internalDemand.arrivalData.distParameters.mean,
       )
     : 0;
   const rateExt = externalDemand
     ? calcExpectedPerDayFromMeanMinutes(
-        externalDemand.arrivalData.distParameters.mean
+        externalDemand.arrivalData.distParameters.mean,
       )
     : 0;
   const totalDailyRate = rateInt + rateExt;
@@ -285,7 +285,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
       const c_S_ratio = c_S_ratioStr ? parseFloat(c_S_ratioStr) : 1.5;
 
       const centralTargetS = Math.ceil(
-        aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio
+        aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio,
       );
 
       const storedCentralSStr = centralItemPolicy.S_targetLevel;
@@ -319,7 +319,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
   const updateCampPolicyState = (
     campName: string,
     itemName: string,
-    updates: Record<string, string>
+    updates: Record<string, string>,
   ) => {
     const nextPolicy = { ...policy };
 
@@ -355,7 +355,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
     campName: string,
     itemName: string,
     ratioVal: string,
-    intVal: string
+    intVal: string,
   ) => {
     const nextPolicy = { ...policy };
 
@@ -398,14 +398,14 @@ const TargetLevelPolicy: React.FC<Props> = ({
   const handleSRatioChange = (
     camp: Camp,
     item: Item,
-    newValue: number | number[]
+    newValue: number | number[],
   ) => {
     const ratio = Array.isArray(newValue) ? newValue[0] : newValue;
 
     // Calculate new S Level based on ratio
     const { totalDailyRate, finalLeadTime } = getCachedParams(
       camp.name,
-      item.name
+      item.name,
     );
     const baseExposure = reviewPeriod + finalLeadTime;
     const calculatedS = Math.ceil(totalDailyRate * baseExposure * ratio);
@@ -462,7 +462,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
   const handleThresholdChange = (
     camp: Camp,
     item: Item,
-    newValue: number | number[]
+    newValue: number | number[],
   ) => {
     const ratio = Array.isArray(newValue) ? newValue[0] : newValue;
 
@@ -477,7 +477,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
       camp.name,
       item.name,
       ratio.toString(),
-      newThreshold.toString()
+      newThreshold.toString(),
     );
   };
 
@@ -490,7 +490,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
   // Central için de aynı robust mantığı uyguluyoruz
   const updateCentralState = (
     itemName: string,
-    updates: Record<string, string>
+    updates: Record<string, string>,
   ) => {
     const nextPolicy = { ...policy };
     if (!nextPolicy.centralTargetLevels) nextPolicy.centralTargetLevels = {};
@@ -509,7 +509,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
       ? calcMeanLeadTimeDays(item.leadTimeData as DistBlock)
       : 0;
     const calculatedS = Math.ceil(
-      aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * ratio
+      aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * ratio,
     );
 
     updateCentralState(item.name, {
@@ -540,7 +540,8 @@ const TargetLevelPolicy: React.FC<Props> = ({
               Inventory Control & Rationing
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Define target level policies and critical rationing thresholds for inventory management.
+              Define target level policies and critical rationing thresholds for
+              inventory management.
             </Typography>
           </Grid>
           <Grid item xs={12} sm={3}>
@@ -568,463 +569,484 @@ const TargetLevelPolicy: React.FC<Props> = ({
           const campDataKey = camp.demands
             ?.map(
               (d) =>
-                `${d.arrivalData?.distParameters?.mean ?? ""}-${d.leadTimeData?.distParameters?.mean ?? ""}-${d.leadTimeData?.distParameters?.min ?? ""}-${d.leadTimeData?.distParameters?.max ?? ""}`
+                `${d.arrivalData?.distParameters?.mean ?? ""}-${d.leadTimeData?.distParameters?.mean ?? ""}-${d.leadTimeData?.distParameters?.min ?? ""}-${d.leadTimeData?.distParameters?.max ?? ""}`,
             )
             .join("|");
           return (
-          <NestedCollapsibleSection
-            key={`${camp.name}-${campDataKey}`}
-            title={camp.name}
-            level="tertiary"
-          >
-            {items.map((item) => {
-              // CALCULATIONS - derived from current camps (interarrival means & lead time from Camps section)
-              const params = getCachedParams(camp.name, item.name);
-              const {
-                totalDailyRate,
-                finalLeadTime,
-                rateInt,
-                rateExt,
-                internalDemand,
-                externalDemand,
-              } = params;
+            <NestedCollapsibleSection
+              key={`${camp.name}-${campDataKey}`}
+              title={camp.name}
+              level="tertiary"
+            >
+              {items.map((item) => {
+                // CALCULATIONS - derived from current camps (interarrival means & lead time from Camps section)
+                const params = getCachedParams(camp.name, item.name);
+                const {
+                  totalDailyRate,
+                  finalLeadTime,
+                  rateInt,
+                  rateExt,
+                  internalDemand,
+                  externalDemand,
+                } = params;
 
-              // SAFE READ: State okurken de fallback kullanıyoruz ki UI patlamasın
-              const campPolicy =
-                policy.targetLevels?.[camp.name]?.[item.name] || {};
+                // SAFE READ: State okurken de fallback kullanıyoruz ki UI patlamasın
+                const campPolicy =
+                  policy.targetLevels?.[camp.name]?.[item.name] || {};
 
-              // Slider value okuma
-              let S_ratio = 1.0;
-              if (campPolicy.S_targetRatio) {
-                S_ratio = parseFloat(campPolicy.S_targetRatio);
-              }
+                // Slider value okuma
+                let S_ratio = 1.0;
+                if (campPolicy.S_targetRatio) {
+                  S_ratio = parseFloat(campPolicy.S_targetRatio);
+                }
 
-              // Threshold ratio okuma
-              let thresh_ratio = 0.2;
-              const tVal = policy.thresholdRatios?.[camp.name]?.[item.name];
-              if (tVal) {
-                thresh_ratio = parseFloat(tVal);
-              }
+                // Threshold ratio okuma
+                let thresh_ratio = 0.2;
+                const tVal = policy.thresholdRatios?.[camp.name]?.[item.name];
+                if (tVal) {
+                  thresh_ratio = parseFloat(tVal);
+                }
 
-              const baseExposure = reviewPeriod + finalLeadTime;
-              const calculatedS = Math.ceil(
-                totalDailyRate * baseExposure * S_ratio
-              );
-              const calculatedThreshold = Math.ceil(calculatedS * thresh_ratio);
+                const baseExposure = reviewPeriod + finalLeadTime;
+                const calculatedS = Math.ceil(
+                  totalDailyRate * baseExposure * S_ratio,
+                );
+                const calculatedThreshold = Math.ceil(
+                  calculatedS * thresh_ratio,
+                );
 
-              if (!internalDemand && !externalDemand) {
+                if (!internalDemand && !externalDemand) {
+                  return (
+                    <Paper
+                      key={item.name}
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        bgcolor: "#f5f5f5",
+                        borderLeft: "4px solid #bdbdbd",
+                      }}
+                    >
+                      <Typography variant="subtitle2" color="text.secondary">
+                        {item.name}
+                      </Typography>
+                      <Typography variant="caption">
+                        No demand configuration found.
+                      </Typography>
+                    </Paper>
+                  );
+                }
+
                 return (
                   <Paper
                     key={item.name}
+                    elevation={2}
                     sx={{
-                      p: 2,
-                      mb: 2,
-                      bgcolor: "#f5f5f5",
-                      borderLeft: "4px solid #bdbdbd",
+                      mb: 3,
+                      border: "1px solid #e0e0e0",
+                      overflow: "hidden",
                     }}
                   >
-                    <Typography variant="subtitle2" color="text.secondary">
-                      {item.name}
-                    </Typography>
-                    <Typography variant="caption">
-                      No demand configuration found.
-                    </Typography>
-                  </Paper>
-                );
-              }
-
-              return (
-                <Paper
-                  key={item.name}
-                  elevation={2}
-                  sx={{
-                    mb: 3,
-                    border: "1px solid #e0e0e0",
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Item Header */}
-                  <Box
-                    sx={{
-                      p: 2,
-                      bgcolor: "#f8f9fa",
-                      borderBottom: "1px solid #eee",
-                    }}
-                  >
-                    <Grid
-                      container
-                      justifyContent="space-between"
-                      alignItems="center"
+                    {/* Item Header */}
+                    <Box
+                      sx={{
+                        p: 2,
+                        bgcolor: "#f8f9fa",
+                        borderBottom: "1px solid #eee",
+                      }}
                     >
-                      <Grid item>
-                        <Typography
-                          variant="h6"
-                          fontWeight="bold"
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          {item.name}
-                        </Typography>
-                      </Grid>
-                      <Grid item>
-                        <Chip
-                          icon={<Functions sx={{ fontSize: 16 }} />}
-                          label={`Total Expected Daily Demand: ${totalDailyRate.toFixed(
-                            2
-                          )}`}
-                          color="primary"
-                          variant="filled"
-                          sx={{ fontWeight: "bold" }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Box>
-
-                  <Grid container>
-                    {/* LEFT: ANALYTICS */}
-                    <Grid
-                      item
-                      xs={12}
-                      md={5}
-                      sx={{ p: 3, borderRight: { md: "1px solid #eee" } }}
-                    >
-                      <Stack spacing={3}>
-                        <Box>
-                          <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={1}
-                            mb={1}
-                          >
-                            <Box
-                              sx={{
-                                width: 12,
-                                height: 12,
-                                borderRadius: "50%",
-                                bgcolor: "primary.main",
-                              }}
-                            />
-                            <Typography variant="overline" fontWeight="bold">
-                              Internal Demand Stream
-                            </Typography>
-                            {!internalDemand && (
-                              <Chip label="None" size="small" />
-                            )}
-                          </Stack>
-                          <Grid container spacing={2}>
-                            <Grid item xs={6}>
-                              <MetricCard
-                                label="Interarrival Mean"
-                                value={
-                                  internalDemand?.arrivalData.distParameters
-                                    .mean || "-"
-                                }
-                                unit="min"
-                              />
-                            </Grid>
-                            <Grid item xs={6}>
-                              <MetricCard
-                                label="Expected Daily Demand"
-                                value={rateInt.toFixed(2)}
-                                unit="units"
-                                highlight={!!internalDemand}
-                              />
-                            </Grid>
-                          </Grid>
-                        </Box>
-
-                        <Divider />
-
-                        <Box>
-                          <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={1}
-                            mb={1}
-                          >
-                            <Box
-                              sx={{
-                                width: 12,
-                                height: 12,
-                                borderRadius: "50%",
-                                bgcolor: "secondary.main",
-                              }}
-                            />
-                            <Typography variant="overline" fontWeight="bold">
-                              External Demand Stream
-                            </Typography>
-                            {!externalDemand && (
-                              <Chip label="None" size="small" />
-                            )}
-                          </Stack>
-                          <Grid container spacing={2}>
-                            <Grid item xs={6}>
-                              <MetricCard
-                                label="Interarrival Mean"
-                                value={
-                                  externalDemand?.arrivalData.distParameters
-                                    .mean || "-"
-                                }
-                                unit="min"
-                              />
-                            </Grid>
-                            <Grid item xs={6}>
-                              <MetricCard
-                                label="Expected Daily Demand"
-                                value={rateExt.toFixed(2)}
-                                unit="units"
-                                highlight={!!externalDemand}
-                              />
-                            </Grid>
-                          </Grid>
-                        </Box>
-
-                        <Box
-                          sx={{
-                            bgcolor: "#fff3e0",
-                            p: 1.5,
-                            borderRadius: 2,
-                            border: "1px solid #ffe0b2",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            fontWeight="bold"
-                            color="text.secondary"
-                          >
-                            Expected Lead Time (L)
-                          </Typography>
+                      <Grid
+                        container
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Grid item>
                           <Typography
                             variant="h6"
                             fontWeight="bold"
-                            color="warning.dark"
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
                           >
-                            {finalLeadTime.toFixed(2)}{" "}
-                            <Typography
-                              component="span"
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              days
-                            </Typography>
+                            {item.name}
                           </Typography>
-                        </Box>
-                      </Stack>
-                    </Grid>
-
-                    {/* RIGHT: CONTROL PANEL */}
-                    <Grid item xs={12} md={7} sx={{ p: 3, bgcolor: "#fff" }}>
-                      {/* SECTION 1: Target Level Policy */}
-                      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                        <Typography
-                          variant="overline"
-                          color="primary"
-                          fontWeight="bold"
-                        >
-                          Target Level Policy
-                        </Typography>
-                        <Tooltip
-                          title="Target Level Policy maintains inventory at a target level (S). When inventory is reviewed, orders are placed to bring stock up to the target level S. Formula: S = Expected Daily Demand × (Review Period + Lead Time) × Multiplier"
-                          arrow
-                          placement="top"
-                        >
-                          <IconButton size="small" sx={{ ml: 1 }}>
-                            <InfoIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                      <Grid
-                        container
-                        spacing={3}
-                        alignItems="center"
-                        sx={{ mb: 2 }}
-                      >
-                        <Grid item xs={12}>
-                          <Typography variant="caption" fontWeight="bold">
-                            Target Level (S) Multiplier
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                            Multiplier applied to expected demand during review period and lead time to determine target level (S)
-                          </Typography>
-                          <Stack
-                            direction="row"
-                            spacing={2}
-                            alignItems="center"
-                          >
-                            <Slider
-                              value={S_ratio}
-                              min={0}
-                              max={3}
-                              step={0.01}
-                              valueLabelDisplay="auto"
-                              marks={[{ value: 1, label: "1.0" }]}
-                              onChange={(_, v) =>
-                                handleSRatioChange(camp, item, v)
-                              }
-                              sx={{ flexGrow: 1 }}
-                            />
-                            <Box
-                              sx={{
-                                minWidth: 50,
-                                textAlign: "right",
-                                fontWeight: "bold",
-                                color: "primary.main",
-                                border: "1px solid",
-                                borderColor: "primary.main",
-                                borderRadius: 1,
-                                px: 1,
-                              }}
-                            >
-                              {S_ratio.toFixed(2)}x
-                            </Box>
-                          </Stack>
+                        </Grid>
+                        <Grid item>
+                          <Chip
+                            icon={<Functions sx={{ fontSize: 16 }} />}
+                            label={`Total Expected Daily Demand: ${totalDailyRate.toFixed(
+                              2,
+                            )}`}
+                            color="primary"
+                            variant="filled"
+                            sx={{ fontWeight: "bold" }}
+                          />
                         </Grid>
                       </Grid>
+                    </Box>
 
-                      {/* Formula Visualization (s, S) */}
-                      <Box
-                        sx={{
-                          p: 1.5,
-                          bgcolor: "#f0f4f8",
-                          borderRadius: 2,
-                          mb: 3,
-                        }}
+                    <Grid container>
+                      {/* LEFT: ANALYTICS */}
+                      <Grid
+                        item
+                        xs={12}
+                        md={5}
+                        sx={{ p: 3, borderRight: { md: "1px solid #eee" } }}
                       >
-                        <Stack spacing={0.5}>
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
+                        <Stack spacing={3}>
+                          <Box>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              spacing={1}
+                              mb={1}
                             >
-                              Target (S) = Daily Demand Rate × (R+L) × Multiplier
-                            </Typography>
-                            <Typography
-                              variant="h6"
-                              color="primary.dark"
-                              fontWeight="bold"
+                              <Box
+                                sx={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: "50%",
+                                  bgcolor: "primary.main",
+                                }}
+                              />
+                              <Typography variant="overline" fontWeight="bold">
+                                Internal Demand Stream
+                              </Typography>
+                              {!internalDemand && (
+                                <Chip label="None" size="small" />
+                              )}
+                            </Stack>
+                            <Grid container spacing={2}>
+                              <Grid item xs={6}>
+                                <MetricCard
+                                  label="Interarrival Mean"
+                                  value={
+                                    internalDemand?.arrivalData.distParameters
+                                      .mean || "-"
+                                  }
+                                  unit="min"
+                                />
+                              </Grid>
+                              <Grid item xs={6}>
+                                <MetricCard
+                                  label="Expected Daily Demand"
+                                  value={rateInt.toFixed(2)}
+                                  unit="units"
+                                  highlight={!!internalDemand}
+                                />
+                              </Grid>
+                            </Grid>
+                          </Box>
+
+                          <Divider />
+
+                          <Box>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              spacing={1}
+                              mb={1}
                             >
-                              {calculatedS} Units
-                            </Typography>
-                          </Stack>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontFamily: "monospace", fontSize: "0.7rem" }}
-                          >
-                            = {totalDailyRate.toFixed(2)} × (
-                            {reviewPeriod.toFixed(2)} +{" "}
-                            {finalLeadTime.toFixed(2)}) × {S_ratio.toFixed(2)}
-                          </Typography>
-                        </Stack>
-                      </Box>
+                              <Box
+                                sx={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: "50%",
+                                  bgcolor: "secondary.main",
+                                }}
+                              />
+                              <Typography variant="overline" fontWeight="bold">
+                                External Demand Stream
+                              </Typography>
+                              {!externalDemand && (
+                                <Chip label="None" size="small" />
+                              )}
+                            </Stack>
+                            <Grid container spacing={2}>
+                              <Grid item xs={6}>
+                                <MetricCard
+                                  label="Interarrival Mean"
+                                  value={
+                                    externalDemand?.arrivalData.distParameters
+                                      .mean || "-"
+                                  }
+                                  unit="min"
+                                />
+                              </Grid>
+                              <Grid item xs={6}>
+                                <MetricCard
+                                  label="Expected Daily Demand"
+                                  value={rateExt.toFixed(2)}
+                                  unit="units"
+                                  highlight={!!externalDemand}
+                                />
+                              </Grid>
+                            </Grid>
+                          </Box>
 
-                      <Divider sx={{ my: 2 }} />
-
-                      {/* SECTION 2: Rationing Threshold */}
-                      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: "50%",
-                            bgcolor: "error.main",
-                            mr: 1,
-                          }}
-                        />
-                        <Typography
-                          variant="overline"
-                          color="error"
-                          fontWeight="bold"
-                        >
-                          Rationing Threshold
-                        </Typography>
-                        <Tooltip
-                          title="When inventory falls below this threshold (calculated as: Threshold = S × Percentage), rationing policies are activated to manage limited supply. This ensures fair distribution when stock is low."
-                          arrow
-                          placement="top"
-                        >
-                          <IconButton size="small" sx={{ ml: 1 }}>
-                            <InfoIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-
-                      <Grid container spacing={3} alignItems="center">
-                        <Grid item xs={12} sm={8}>
-                          <Typography
-                            variant="caption"
-                            fontWeight="bold"
-                            color="text.secondary"
-                          >
-                            Rationing percentage of target
-                          </Typography>
-                          <Stack
-                            direction="row"
-                            spacing={2}
-                            alignItems="center"
-                          >
-                            <Slider
-                              value={thresh_ratio}
-                              min={0}
-                              max={1}
-                              step={0.01}
-                              valueLabelDisplay="auto"
-                              color="error"
-                              marks={[{ value: 0.2, label: "20%" }]}
-                              onChange={(_, v) =>
-                                handleThresholdChange(camp, item, v)
-                              }
-                              sx={{ flexGrow: 1 }}
-                            />
-                            <Typography
-                              variant="body2"
-                              fontWeight="bold"
-                              color="error.main"
-                            >
-                              {(thresh_ratio * 100).toFixed(0)}%
-                            </Typography>
-                          </Stack>
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
                           <Box
                             sx={{
-                              textAlign: "right",
-                              borderLeft: "2px solid #ef5350",
-                              pl: 2,
+                              bgcolor: "#fff3e0",
+                              p: 1.5,
+                              borderRadius: 2,
+                              border: "1px solid #ffe0b2",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
                             }}
                           >
                             <Typography
-                              variant="caption"
-                              display="block"
+                              variant="body2"
+                              fontWeight="bold"
                               color="text.secondary"
                             >
-                              Rationing threshold level
+                              Expected Lead Time (L)
                             </Typography>
                             <Typography
-                              variant="h5"
-                              color="error.dark"
+                              variant="h6"
                               fontWeight="bold"
+                              color="warning.dark"
                             >
-                              {calculatedThreshold}
-                            </Typography>
-                            <Typography variant="caption" color="error.main">
-                              Units
+                              {finalLeadTime.toFixed(2)}{" "}
+                              <Typography
+                                component="span"
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                days
+                              </Typography>
                             </Typography>
                           </Box>
+                        </Stack>
+                      </Grid>
+
+                      {/* RIGHT: CONTROL PANEL */}
+                      <Grid item xs={12} md={7} sx={{ p: 3, bgcolor: "#fff" }}>
+                        {/* SECTION 1: Target Level Policy */}
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", mb: 2 }}
+                        >
+                          <Typography
+                            variant="overline"
+                            color="primary"
+                            fontWeight="bold"
+                          >
+                            Target Level Policy
+                          </Typography>
+                          <Tooltip
+                            title="Target Level Policy maintains inventory at a target level (S). When inventory is reviewed, orders are placed to bring stock up to the target level S. Formula: S = Expected Daily Demand × (Review Period + Lead Time) × Multiplier"
+                            arrow
+                            placement="top"
+                          >
+                            <IconButton size="small" sx={{ ml: 1 }}>
+                              <InfoIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                        <Grid
+                          container
+                          spacing={3}
+                          alignItems="center"
+                          sx={{ mb: 2 }}
+                        >
+                          <Grid item xs={12}>
+                            <Typography variant="caption" fontWeight="bold">
+                              Target Level (S) Multiplier
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              display="block"
+                              sx={{ mb: 1 }}
+                            >
+                              Multiplier applied to expected demand during
+                              review period and lead time to determine target
+                              level (S)
+                            </Typography>
+                            <Stack
+                              direction="row"
+                              spacing={2}
+                              alignItems="center"
+                            >
+                              <Slider
+                                value={S_ratio}
+                                min={0}
+                                max={3}
+                                step={0.01}
+                                valueLabelDisplay="auto"
+                                marks={[{ value: 1, label: "1.0" }]}
+                                onChange={(_, v) =>
+                                  handleSRatioChange(camp, item, v)
+                                }
+                                sx={{ flexGrow: 1 }}
+                              />
+                              <Box
+                                sx={{
+                                  minWidth: 50,
+                                  textAlign: "right",
+                                  fontWeight: "bold",
+                                  color: "primary.main",
+                                  border: "1px solid",
+                                  borderColor: "primary.main",
+                                  borderRadius: 1,
+                                  px: 1,
+                                }}
+                              >
+                                {S_ratio.toFixed(2)}x
+                              </Box>
+                            </Stack>
+                          </Grid>
+                        </Grid>
+
+                        {/* Formula Visualization (s, S) */}
+                        <Box
+                          sx={{
+                            p: 1.5,
+                            bgcolor: "#f0f4f8",
+                            borderRadius: 2,
+                            mb: 3,
+                          }}
+                        >
+                          <Stack spacing={0.5}>
+                            <Stack
+                              direction="row"
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Target (S) = Daily Demand Rate × (R+L) ×
+                                Multiplier
+                              </Typography>
+                              <Typography
+                                variant="h6"
+                                color="primary.dark"
+                                fontWeight="bold"
+                              >
+                                {calculatedS} Units
+                              </Typography>
+                            </Stack>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                fontFamily: "monospace",
+                                fontSize: "0.7rem",
+                              }}
+                            >
+                              = {totalDailyRate.toFixed(2)} × (
+                              {reviewPeriod.toFixed(2)} +{" "}
+                              {finalLeadTime.toFixed(2)}) × {S_ratio.toFixed(2)}
+                            </Typography>
+                          </Stack>
+                        </Box>
+
+                        <Divider sx={{ my: 2 }} />
+
+                        {/* SECTION 2: Rationing Threshold */}
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                        >
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              bgcolor: "error.main",
+                              mr: 1,
+                            }}
+                          />
+                          <Typography
+                            variant="overline"
+                            color="error"
+                            fontWeight="bold"
+                          >
+                            Rationing Threshold
+                          </Typography>
+                          <Tooltip
+                            title="When inventory falls below this threshold (calculated as: Threshold = S × Percentage), rationing policies are activated to manage limited supply. This ensures fair distribution when stock is low."
+                            arrow
+                            placement="top"
+                          >
+                            <IconButton size="small" sx={{ ml: 1 }}>
+                              <InfoIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+
+                        <Grid container spacing={3} alignItems="center">
+                          <Grid item xs={12} sm={8}>
+                            <Typography
+                              variant="caption"
+                              fontWeight="bold"
+                              color="text.secondary"
+                            >
+                              Rationing percentage of target
+                            </Typography>
+                            <Stack
+                              direction="row"
+                              spacing={2}
+                              alignItems="center"
+                            >
+                              <Slider
+                                value={thresh_ratio}
+                                min={0}
+                                max={1}
+                                step={0.01}
+                                valueLabelDisplay="auto"
+                                color="error"
+                                marks={[{ value: 0.2, label: "20%" }]}
+                                onChange={(_, v) =>
+                                  handleThresholdChange(camp, item, v)
+                                }
+                                sx={{ flexGrow: 1 }}
+                              />
+                              <Typography
+                                variant="body2"
+                                fontWeight="bold"
+                                color="error.main"
+                              >
+                                {(thresh_ratio * 100).toFixed(0)}%
+                              </Typography>
+                            </Stack>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Box
+                              sx={{
+                                textAlign: "right",
+                                borderLeft: "2px solid #ef5350",
+                                pl: 2,
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                color="text.secondary"
+                              >
+                                Rationing threshold level
+                              </Typography>
+                              <Typography
+                                variant="h5"
+                                color="error.dark"
+                                fontWeight="bold"
+                              >
+                                {calculatedThreshold}
+                              </Typography>
+                              <Typography variant="caption" color="error.main">
+                                Units
+                              </Typography>
+                            </Box>
+                          </Grid>
                         </Grid>
                       </Grid>
                     </Grid>
-                  </Grid>
-                </Paper>
-              );
-            })}
-          </NestedCollapsibleSection>
+                  </Paper>
+                );
+              })}
+            </NestedCollapsibleSection>
           );
         })}
       </NestedCollapsibleSection>
@@ -1055,7 +1077,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
             }
 
             const centralTargetS = Math.ceil(
-              aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio
+              aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio,
             );
 
             return (
@@ -1079,7 +1101,8 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       display="block"
                       color="text.secondary"
                     >
-                      Internal: {totalInt.toFixed(2)} | External: {totalExt.toFixed(2)}
+                      Internal: {totalInt.toFixed(2)} | External:{" "}
+                      {totalExt.toFixed(2)}
                     </Typography>
                     <Typography
                       variant="body2"
@@ -1105,7 +1128,11 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       >
                         Expected Lead Time (L)
                       </Typography>
-                      <Typography variant="body2" fontWeight="bold" color="warning.dark">
+                      <Typography
+                        variant="body2"
+                        fontWeight="bold"
+                        color="warning.dark"
+                      >
                         {centralLeadTimeDays.toFixed(2)} days
                       </Typography>
                     </Box>
@@ -1134,7 +1161,13 @@ const TargetLevelPolicy: React.FC<Props> = ({
                     >
                       Target Level (S) Multiplier
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" textAlign="center" sx={{ mt: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      textAlign="center"
+                      sx={{ mt: 0.5 }}
+                    >
                       Multiplier for aggregated demand across all camps
                     </Typography>
                     <Box
@@ -1145,11 +1178,22 @@ const TargetLevelPolicy: React.FC<Props> = ({
                         borderRadius: 2,
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary" display="block">
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                      >
                         Target (S) = Daily Demand Rate × (R+L) × Multiplier
                       </Typography>
-                      <Typography variant="caption" sx={{ fontFamily: "monospace", fontSize: "0.7rem" }} display="block">
-                        = {aggTotalDaily.toFixed(2)} × ({reviewPeriod.toFixed(2)} + {centralLeadTimeDays.toFixed(2)}) × {c_S_ratio.toFixed(2)}
+                      <Typography
+                        variant="caption"
+                        sx={{ fontFamily: "monospace", fontSize: "0.7rem" }}
+                        display="block"
+                      >
+                        = {aggTotalDaily.toFixed(2)} × (
+                        {reviewPeriod.toFixed(2)} +{" "}
+                        {centralLeadTimeDays.toFixed(2)}) ×{" "}
+                        {c_S_ratio.toFixed(2)}
                       </Typography>
                     </Box>
                   </Box>
