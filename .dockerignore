@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+*.iml
+.vscode
+
+# Build outputs
+build/
+bin/
+out/
+*.class
+*.jar
+
+# Node
+node_modules/
+.next/
+post-disaster-kpi-ui/node_modules/
+post-disaster-kpi-ui/.next/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Environment files (local)
+.env.local
+post-disaster-kpi-ui/.env.local
+
+# Gradle
+.gradle/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+
+# Misc
+*.md
+*.txt
+.DS_Store

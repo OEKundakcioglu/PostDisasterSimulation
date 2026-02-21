@@ -63,7 +63,10 @@ export default function PageClient() {
   const pollingActiveRef = useRef(false);
   const manualCloseRef = useRef(false); // distinguish manual teardown vs network close
 
-  const baseApi = process.env.NEXT_PUBLIC_API_URL || "";
+  // Use environment variable, or fallback to current origin for production
+  const baseApi =
+    process.env.NEXT_PUBLIC_API_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
 
   const normalize = useCallback((l: IncomingLog): TimeStepLog => {
     return {

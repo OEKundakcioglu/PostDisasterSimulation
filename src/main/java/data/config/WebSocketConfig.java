@@ -18,7 +18,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(simulationWebSocketHandler(), "/ws")
-                .setAllowedOrigins("http://localhost:3000", "http://localhost:8080", "http://localhost:8083", "https://inventory.camp");
-
+                .setAllowedOriginPatterns("http://localhost:*", "https://*.railway.app", "https://inventory.camp");
     }
 }
