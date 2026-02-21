@@ -106,8 +106,9 @@ interface TimeStepLog {
   cumulativeReferralCosts: Record<string, number>;
   cumulativeDeprivationCosts: Record<string, number>;
   cumulativeReplenishmentCosts: Record<string, number>;
-  internalPopulation?: Record<string, number>;
-  externalPopulation?: Record<string, number>;
+  demandRatePerHour?: Record<string, Record<string, number>>;
+  demandRatePerHourInternal?: Record<string, Record<string, number>>;
+  demandRatePerHourExternal?: Record<string, Record<string, number>>;
 }
 
 interface TimeAwareSimulationVisualizerProps {
@@ -507,146 +508,131 @@ const TimeAwareSimulationVisualizer: React.FC<
                 </RankBox>
               </Paper>
 
-              {/* Camp Population Bar Chart */}
+              {/* Demand rate (hourly) per camp–item — internal vs external; values can change over time. */}
               <Paper sx={{ p: 2 }}>
                 <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                  Camp Populations
+                  Demand rate (hourly) by camp & item
                 </Typography>
-
-                <Box sx={{ display: "flex", gap: 2, mb: 2, px: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                  Internal vs external units/hour at current time. These values can change over time (e.g. with migration).
+                </Typography>
+                <Box sx={{ display: "flex", gap: 2, mb: 1, px: 0 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        bgcolor: "#FF9800",
-                        borderRadius: "2px",
-                      }}
-                    />
-                    <Typography variant="caption" sx={{ fontSize: "0.75rem" }}>
-                      Internal
-                    </Typography>
+                    <Box sx={{ width: 12, height: 12, bgcolor: "#FF9800", borderRadius: "2px" }} />
+                    <Typography variant="caption" sx={{ fontSize: "0.75rem" }}>Internal</Typography>
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        bgcolor: "#2196F3",
-                        borderRadius: "2px",
-                      }}
-                    />
-                    <Typography variant="caption" sx={{ fontSize: "0.75rem" }}>
-                      External
-                    </Typography>
+                    <Box sx={{ width: 12, height: 12, bgcolor: "#2196F3", borderRadius: "2px" }} />
+                    <Typography variant="caption" sx={{ fontSize: "0.75rem" }}>External</Typography>
                   </Box>
                 </Box>
                 {(() => {
                   const latestLog = filteredLogs[filteredLogs.length - 1];
-                  let campPopulations: Record<
-                    string,
-                    { internal: number; external: number }
-                  > = {};
-
-                  if (
-                    latestLog?.internalPopulation &&
-                    latestLog?.externalPopulation
-                  ) {
-                    Object.keys(latestLog.internalPopulation).forEach(
-                      (camp) => {
-                        campPopulations[camp] = {
-                          internal: latestLog.internalPopulation![camp] || 0,
-                          external: latestLog.externalPopulation![camp] || 0,
-                        };
-                      }
-                    );
+                  const demandRates: { camp: string; item: string; internal: number; external: number; total: number }[] = [];
+                  const src = latestLog?.demandRatePerHourInternal && latestLog?.demandRatePerHourExternal
+                    ? { internal: latestLog.demandRatePerHourInternal, external: latestLog.demandRatePerHourExternal }
+                    : latestLog?.demandRatePerHour
+                      ? null
+                      : null;
+                  if (src) {
+                    const camps = new Set<string>([
+                      ...Object.keys(src.internal),
+                      ...Object.keys(src.external),
+                    ]);
+                    camps.forEach((camp) => {
+                      const itemsInternal = src.internal[camp] || {};
+                      const itemsExternal = src.external[camp] || {};
+                      const itemNames = new Set<string>([
+                        ...Object.keys(itemsInternal),
+                        ...Object.keys(itemsExternal),
+                      ]);
+                      itemNames.forEach((item) => {
+                        const internal = typeof itemsInternal[item] === "number" ? itemsInternal[item] : 0;
+                        const external = typeof itemsExternal[item] === "number" ? itemsExternal[item] : 0;
+                        demandRates.push({ camp, item, internal, external, total: internal + external });
+                      });
+                    });
+                  } else if (latestLog?.demandRatePerHour) {
+                    Object.entries(latestLog.demandRatePerHour).forEach(([camp, items]) => {
+                      if (items && typeof items === "object")
+                        Object.entries(items).forEach(([item, rate]) => {
+                          demandRates.push({
+                            camp,
+                            item,
+                            internal: 0,
+                            external: typeof rate === "number" ? rate : 0,
+                            total: typeof rate === "number" ? rate : 0,
+                          });
+                        });
+                    });
                   }
+                  demandRates.sort((a, b) => b.total - a.total);
+                  const topRates = demandRates.slice(0, 15);
+                  const labels = topRates.map((r) => `${r.camp} — ${r.item}`);
+                  const internalRates = topRates.map((r) => r.internal);
+                  const externalRates = topRates.map((r) => r.external);
 
-                  if (Object.keys(campPopulations).length === 0) {
+                  if (labels.length === 0) {
                     return (
                       <Box sx={{ py: 4, textAlign: "center" }}>
                         <Typography variant="body2" color="text.secondary">
-                          Awaiting population data...
+                          Awaiting demand rate data…
                         </Typography>
                       </Box>
                     );
                   }
-
-                  // Sort camps by total population (descending) and take top 10
-                  const sortedCamps = Object.entries(campPopulations)
-                    .sort(
-                      ([, a], [, b]) =>
-                        b.internal + b.external - (a.internal + a.external)
-                    )
-                    .slice(0, 10);
-
-                  const campNames = sortedCamps.map(([camp]) => camp);
-                  const internalPops = sortedCamps.map(
-                    ([, pop]) => pop.internal
-                  );
-                  const externalPops = sortedCamps.map(
-                    ([, pop]) => pop.external
-                  );
 
                   return (
                     <Box>
                       <Plot
                         data={[
                           {
-                            y: campNames,
-                            x: internalPops,
+                            y: labels,
+                            x: internalRates,
                             type: "bar",
                             orientation: "h",
                             name: "Internal",
-                            marker: {
-                              color: "#FF9800",
-                            },
-                            hovertemplate:
-                              "%{y}<br>Internal: %{x:,}<extra></extra>",
+                            marker: { color: "#FF9800" },
+                            text: internalRates.map((v) => (v > 0 ? v.toFixed(2) : "")),
+                            textposition: "auto",
+                            textfont: { color: "white", size: 11 },
+                            insidetextanchor: "middle",
+                            hovertemplate: "%{y}<br>Internal: %{x:,.2f} units/h<extra></extra>",
                           },
                           {
-                            y: campNames,
-                            x: externalPops,
+                            y: labels,
+                            x: externalRates,
                             type: "bar",
                             orientation: "h",
                             name: "External",
-                            marker: {
-                              color: "#2196F3",
-                            },
-                            hovertemplate:
-                              "%{y}<br>External: %{x:,}<extra></extra>",
+                            marker: { color: "#2196F3" },
+                            text: externalRates.map((v) => (v > 0 ? v.toFixed(2) : "")),
+                            textposition: "auto",
+                            textfont: { color: "white", size: 11 },
+                            insidetextanchor: "middle",
+                            hovertemplate: "%{y}<br>External: %{x:,.2f} units/h<extra></extra>",
                           },
                         ]}
                         layout={{
-                          height: Math.max(300, campNames.length * 40),
-                          margin: { t: 10, l: 120, r: 20, b: 40 },
+                          height: Math.max(300, labels.length * 32),
+                          margin: { t: 10, l: 140, r: 20, b: 50 },
                           barmode: "stack",
                           xaxis: {
-                            title: { text: "Population" },
+                            title: { text: "Demand (units/hour)" },
                             gridcolor: "#f0f0f0",
                           },
-                          yaxis: {
-                            automargin: true,
-                          },
+                          yaxis: { automargin: true },
                           paper_bgcolor: "white",
                           plot_bgcolor: "white",
                           showlegend: false,
                         }}
-                        config={{
-                          responsive: true,
-                          displayModeBar: false,
-                        }}
+                        config={{ responsive: true, displayModeBar: false }}
                         useResizeHandler
                         style={{ width: "100%" }}
                       />
-                      {Object.keys(campPopulations).length > 10 && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ textAlign: "center", pt: 1, display: "block" }}
-                        >
-                          +{Object.keys(campPopulations).length - 10} more
-                          camps...
+                      {demandRates.length > 15 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", pt: 1, display: "block" }}>
+                          +{demandRates.length - 15} more camp–item pairs
                         </Typography>
                       )}
                     </Box>

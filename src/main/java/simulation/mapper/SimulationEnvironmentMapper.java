@@ -91,8 +91,12 @@ public final class SimulationEnvironmentMapper {
                 if (dm.containsKey("arrivalData")) d.setArrivalData(probabilityData(map(dm.get("arrivalData"))));
                 if (dm.containsKey("quantityData")) d.setQuantityData(probabilityData(map(dm.get("quantityData"))));
                 if (dm.containsKey("leadTimeData")) d.setLeadTimeData(probabilityData(map(dm.get("leadTimeData"))));
+                if (dm.containsKey("internalRatio")) d.setInternalRatio(dbl(dm.get("internalRatio")));
+                if (dm.containsKey("externalRatio")) d.setExternalRatio(dbl(dm.get("externalRatio")));
                 demandObjs.add(d);
             }
+            // Ensure both INTERNAL and EXTERNAL demand streams exist per item so internal/external demands come one by one and rationing works
+            demandObjs = ensureBothDemandClassesPerItem(demandObjs);
             camp.setDemands(demandObjs.toArray(Demand[]::new));
             campByName.put(camp.getName(), camp);
         }
@@ -130,7 +134,8 @@ public final class SimulationEnvironmentMapper {
             if (mm.containsKey("migrationType")) mg.setMigrationType(enumVal(MigrationType.class, mm.get("migrationType")));
             if (mm.containsKey("arrivalData")) mg.setArrivalData(probabilityData(map(mm.get("arrivalData"))));
             if (mm.containsKey("quantityData")) mg.setQuantityData(probabilityData(map(mm.get("quantityData"))));
-            if (mm.containsKey("migrationRatio")) mg.setMigrationRatio(dbl(mm.get("migrationRatio")));
+            if (mm.containsKey("demandRatio")) mg.setDemandRatio(dbl(mm.get("demandRatio")));
+            else if (mm.containsKey("migrationRatio")) mg.setDemandRatio(dbl(mm.get("migrationRatio")));
             migrations.add(mg);
         }
         Migration[] migrationsArr = migrations.toArray(Migration[]::new);
@@ -321,6 +326,57 @@ public final class SimulationEnvironmentMapper {
                 policy.setCentralPolicy(item, S);
             }
         }
+    }
+
+    /** Ensures each item has both INTERNAL and EXTERNAL demand streams so rationing (internal always, external above threshold) works. */
+    private static List<Demand> ensureBothDemandClassesPerItem(List<Demand> demandObjs) {
+        java.util.Set<Item> itemsWithInternal = new java.util.HashSet<>();
+        java.util.Set<Item> itemsWithExternal = new java.util.HashSet<>();
+        java.util.Map<Item, Demand> internalByItem = new HashMap<>();
+        java.util.Map<Item, Demand> externalByItem = new HashMap<>();
+        for (Demand d : demandObjs) {
+            Item item = d.getItem();
+            if (item == null) continue;
+            if (d.getDemandClass() == DemandClass.INTERNAL) {
+                itemsWithInternal.add(item);
+                internalByItem.put(item, d);
+            } else if (d.getDemandClass() == DemandClass.EXTERNAL) {
+                itemsWithExternal.add(item);
+                externalByItem.put(item, d);
+            }
+        }
+        List<Demand> out = new ArrayList<>(demandObjs);
+        for (Item item : itemsWithInternal) {
+            if (!itemsWithExternal.contains(item)) {
+                Demand internal = internalByItem.get(item);
+                Demand external = cloneDemandWithClass(internal, DemandClass.EXTERNAL, internal.getExternalRatio(), true);
+                out.add(external);
+            }
+        }
+        for (Item item : itemsWithExternal) {
+            if (!itemsWithInternal.contains(item)) {
+                Demand external = externalByItem.get(item);
+                Demand internal = cloneDemandWithClass(external, DemandClass.INTERNAL, external.getInternalRatio(), false);
+                out.add(internal);
+            }
+        }
+        return out;
+    }
+
+    private static Demand cloneDemandWithClass(Demand from, DemandClass demandClass, double ratio, boolean useExternalRatio) {
+        Demand d = new Demand();
+        d.setItem(from.getItem());
+        d.setDemandClass(demandClass);
+        d.setDemandTimingType(from.getDemandTimingType());
+        d.setDemandQuantityType(from.getDemandQuantityType());
+        d.setArrivalData(from.getArrivalData());
+        d.setQuantityData(from.getQuantityData());
+        d.setLeadTimeData(from.getLeadTimeData());
+        d.setInternalRatio(from.getInternalRatio());
+        d.setExternalRatio(from.getExternalRatio());
+        if (useExternalRatio) d.setExternalRatio(ratio > 0 ? ratio : 0.05);
+        else d.setInternalRatio(ratio > 0 ? ratio : 0.2);
+        return d;
     }
 
     private static ProbabilityData probabilityData(Map<String,Object> pd) {

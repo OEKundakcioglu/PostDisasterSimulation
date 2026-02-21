@@ -95,6 +95,14 @@ const sanitizeConfig = (config: unknown): Partial<LegacyConfig> => {
     }));
   }
 
+  // Migration: migrate migrationRatio → demandRatio for backward compatibility
+  if (Array.isArray(typedConfig.migrations)) {
+    typedConfig.migrations = typedConfig.migrations.map((m: Record<string, unknown>) => ({
+      ...m,
+      demandRatio: m.demandRatio ?? m.migrationRatio ?? 0.05,
+    })) as Migration[];
+  }
+
   return typedConfig;
 };
 

@@ -9,6 +9,7 @@ import data.event_info.Demand;
 import data.event_info.Funding;
 import data.event_info.Migration;
 import data.event_info.SupplyStatusSwitch;
+import simulation.State;
 
 public class InterarrivalGenerator {
     private final Random rngDemand;
@@ -28,20 +29,29 @@ public class InterarrivalGenerator {
         this.rngReplenishment = new Random(simulationConfig.getSeedReplenishmentTime());
         this.rngTransferTime = new Random(simulationConfig.getSeedTransferTime());
     }
-    public double generateDemand(Demand demand, int population) {
-        // Base interarrival time from distribution (in minutes)
-        double baseInterarrival = demand.getArrivalData().distParameters.generate(this.rngDemand);
-        
-        // Adjust interarrival time based on population: as population increases, demand arrives more frequently
-        // Formula: adjusted_time = base_time / population_factor
-        // This means higher population = shorter time between demands = higher demand rate
-        if (population > 0) {
-            // Normalize by a reference population (e.g., 100) to keep the base rate meaningful
-            double populationFactor = population / 100.0;
-            baseInterarrival = baseInterarrival / populationFactor;
+    /**
+     * Generates the next demand interarrival time from the demand's arrival distribution or effective mean.
+     * Uses effective mean interarrival (modified by migration) if present in state; otherwise base from demand config.
+     * Input mean is in minutes; returns time in simulation units (days).
+     */
+    public double generateDemand(State state, Camp camp, Demand demand) {
+        Double effectiveMean = state != null && camp != null ? state.getEffectiveMeanInterarrivalMinutes(camp, demand) : null;
+        double baseInterarrivalMinutes = demand.getArrivalData().distParameters.generate(this.rngDemand);
+        if (effectiveMean != null && effectiveMean > 0) {
+            double baseMean = demand.getArrivalData().getDistParameters().getMean();
+            if (baseMean > 0) {
+                baseInterarrivalMinutes *= (effectiveMean / baseMean);
+            }
         }
-        
-        return baseInterarrival / 1440.0; // Convert minutes to days
+        return baseInterarrivalMinutes / 1440.0;
+    }
+
+    /**
+     * Legacy overload: uses base demand config only (no effective mean from migration).
+     */
+    public double generateDemand(Demand demand) {
+        double baseInterarrivalMinutes = demand.getArrivalData().distParameters.generate(this.rngDemand);
+        return baseInterarrivalMinutes / 1440.0;
     }
     public double generateFunding(Funding funding) {
         return funding.getArrivalData().distParameters.generate(this.rngFunding);

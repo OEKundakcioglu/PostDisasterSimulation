@@ -10,6 +10,9 @@ import com.google.gson.GsonBuilder;
 import data.Camp;
 import data.Environment;
 import data.Item;
+import data.event_info.Demand;
+import enums.DemandClass;
+import enums.DemandQuantityType;
 import simulation.data.DeprivingPerson;
 import simulation.data.InventoryItem;
 
@@ -39,6 +42,15 @@ public class KPIManager {
     HashMap<Camp, HashMap<Item, Integer>> totalExpiredInventory;
     HashMap<Item, Integer> totalCentralExpiredInventory;
 
+    /** Total demand quantity arrived (internal) per camp — for verification report. */
+    HashMap<Camp, Integer> totalInternalDemandArrived;
+    /** Total demand quantity arrived (external) per camp — for verification report. */
+    HashMap<Camp, Integer> totalExternalDemandArrived;
+    /** Total funding amount received by the system — for verification report. */
+    double totalFundingReceived;
+    /** Total replenishment quantity received at each camp per item — for verification report. */
+    HashMap<Camp, HashMap<Item, Integer>> replenishmentQuantityByCampItem;
+
     boolean reportEvents;
     boolean reportKPIs;
     boolean useReactUI;
@@ -67,6 +79,10 @@ public class KPIManager {
         totalExpiredInventory = new HashMap<>();
         totalCentralExpiredInventory = new HashMap<>();
         totalFundingSpent = 0.0;
+        totalInternalDemandArrived = new HashMap<>();
+        totalExternalDemandArrived = new HashMap<>();
+        totalFundingReceived = 0.0;
+        replenishmentQuantityByCampItem = new HashMap<>();
 
         for (Camp camp : state.getInitialInventory().keySet()){
             totalHoldingCost.put(camp, new HashMap<>());
@@ -100,6 +116,51 @@ public class KPIManager {
         ensureSeedLog();
     }
 
+    /**
+     * Computes current hourly demand rate (units/hour) for a camp-item from demand config and current population.
+     * Rate can change over time when population changes (e.g. migration).
+     */
+    private double computeDemandRatePerHour(State stateRef, Camp camp, Item item) {
+        double[] internalExternal = computeDemandRatePerHourInternalExternal(stateRef, camp, item);
+        return internalExternal[0] + internalExternal[1];
+    }
+
+    /** Returns { internalRate, externalRate } in units/hour. Uses effective mean interarrival when migration has modified demand rates. */
+    private double[] computeDemandRatePerHourInternalExternal(State stateRef, Camp camp, Item item) {
+        double internalRate = 0.0;
+        double externalRate = 0.0;
+        if (camp.getDemands() == null) return new double[] { internalRate, externalRate };
+        int internalPop = stateRef.getCurrentInternalPopulation(camp);
+        int externalPop = stateRef.getCurrentExternalPopulation(camp);
+        for (Demand d : camp.getDemands()) {
+            if (d == null || d.getItem() == null || !d.getItem().equals(item) || d.getArrivalData() == null
+                    || d.getArrivalData().getDistParameters() == null) continue;
+            Double effectiveMean = stateRef.getEffectiveMeanInterarrivalMinutes(camp, d);
+            double meanMin = effectiveMean != null && effectiveMean > 0
+                ? effectiveMean
+                : d.getArrivalData().getDistParameters().getMean();
+            if (meanMin <= 0) continue;
+            double eventsPerHour = 60.0 / meanMin;
+            double expectedQty;
+            if (d.getDemandQuantityType() == DemandQuantityType.BATCH) {
+                if (d.getDemandClass() == DemandClass.INTERNAL) {
+                    expectedQty = internalPop * d.getInternalRatio();
+                } else {
+                    expectedQty = externalPop * d.getExternalRatio();
+                }
+            } else {
+                expectedQty = 1.0;
+            }
+            double contribution = eventsPerHour * expectedQty;
+            if (d.getDemandClass() == DemandClass.INTERNAL) {
+                internalRate += contribution;
+            } else {
+                externalRate += contribution;
+            }
+        }
+        return new double[] { internalRate, externalRate };
+    }
+
     private void ensureSeedLog() {
         if (!useReactUI) return;
         synchronized (logLock) {
@@ -117,10 +178,15 @@ public class KPIManager {
                     seed.cumulativeDeprivationCosts.put(campName, 0.0);
                     seed.cumulativeReplenishmentCosts.put(campName, 0.0);
                     seed.itemQuantities.put(campName, new HashMap<>());
-                    seed.internalPopulation.put(campName, state.getCurrentInternalPopulation(camp));
-                    seed.externalPopulation.put(campName, state.getCurrentExternalPopulation(camp));
+                    seed.demandRatePerHour.put(campName, new HashMap<>());
+                    seed.demandRatePerHourInternal.put(campName, new HashMap<>());
+                    seed.demandRatePerHourExternal.put(campName, new HashMap<>());
                     for (Item item : state.getInitialInventory().get(camp).keySet()) {
                         seed.itemQuantities.get(campName).put(item.getName(), state.getInventoryPosition().get(camp).get(item));
+                        double[] ie = computeDemandRatePerHourInternalExternal(state, camp, item);
+                        seed.demandRatePerHour.get(campName).put(item.getName(), ie[0] + ie[1]);
+                        seed.demandRatePerHourInternal.get(campName).put(item.getName(), ie[0]);
+                        seed.demandRatePerHourExternal.get(campName).put(item.getName(), ie[1]);
                     }
                 }
                 timeStepLogs.add(seed);
@@ -135,14 +201,14 @@ public class KPIManager {
                 while (!stateRef.getDeprivingPopulation().get(camp).get(item).isEmpty()) {
                     DeprivingPerson deprivingPerson = stateRef.getDeprivingPopulation().get(camp).get(item).peek();
                     assert deprivingPerson != null;
-                    double totalTime = finalTime - deprivingPerson.getArrivalTime();
+                    // Deprivation time unit is days (simulation time for deprivation is in days)
+                    double totalTimeDays = finalTime - deprivingPerson.getArrivalTime();
                     double previousCost = stateRef.getKpiManager().totalDeprivationCost.get(camp).get(item);
                     // Linear + Exponential form (tangent at zero): linearTerm + exponentialTerm
-                    // Using deprivationCoefficient for both terms to maintain compatibility
-                    double rate = item.getDeprivationRate();
+                    double rate = item.getDeprivationRate();   // per day
                     double coeff = item.getDeprivationCoefficient();
-                    double linearTerm = coeff * rate * totalTime;  // Linear component
-                    double exponentialTerm = coeff * (Math.exp(totalTime * rate) - 1);  // Exponential component
+                    double linearTerm = coeff * rate * totalTimeDays;
+                    double exponentialTerm = coeff * (Math.exp(totalTimeDays * rate) - 1);
                     double currentCost = (linearTerm + exponentialTerm) * deprivingPerson.getQuantity();
                     stateRef.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).put(item, stateRef.getKpiManager().totalUnsatisfiedInternalDemand.get(camp).get(item) + deprivingPerson.getQuantity());
                     stateRef.getKpiManager().totalDeprivationCost.get(camp).put(item, previousCost + currentCost);
@@ -310,7 +376,7 @@ public class KPIManager {
             for (Item itemObj : environment.getItems()) {
                 double avgDepTime = this.averageDeprivationTime.get(campObj).get(itemObj);
                 if (avgDepTime != 0) {
-                    System.out.println("Average deprivation time for camp " + campObj.getName() + " and item " + itemObj.getName() + " is " + avgDepTime);
+                    System.out.println("Average deprivation time (days) for camp " + campObj.getName() + " and item " + itemObj.getName() + " is " + avgDepTime);
                 }
             }
         }
@@ -389,6 +455,31 @@ public class KPIManager {
         System.out.println();
     }
 
+    /** Records demand arrived at a camp (for verification report). */
+    public void recordDemandArrived(Camp camp, boolean isInternal, int quantity) {
+        if (camp == null || quantity <= 0) return;
+        if (isInternal) {
+            totalInternalDemandArrived.merge(camp, quantity, Integer::sum);
+        } else {
+            totalExternalDemandArrived.merge(camp, quantity, Integer::sum);
+        }
+    }
+
+    /** Records funding received by the system (for verification report). */
+    public void recordFundingReceived(double amount) {
+        totalFundingReceived += amount;
+    }
+
+    /** Records replenishment quantity received at a camp for an item (for verification report). */
+    public void recordReplenishmentAtCamp(Camp camp, Item item, int quantity) {
+        if (camp == null || item == null || quantity <= 0) return;
+        replenishmentQuantityByCampItem.computeIfAbsent(camp, c -> new HashMap<>()).merge(item, quantity, Integer::sum);
+    }
+
+    public Environment getEnvironment() {
+        return state != null ? state.getEnvironment() : null;
+    }
+
     public boolean isReportEvents() { return reportEvents; }
     public void setReportEvents(boolean reportEvents) { this.reportEvents = reportEvents; }
     public boolean isReportKPIs() { return reportKPIs; }
@@ -411,8 +502,12 @@ public class KPIManager {
         public HashMap<String, Double> cumulativeReplenishmentCosts = new HashMap<>();
         public HashMap<String, HashMap<String, Integer>> itemQuantities = new HashMap<>();
         public double fundingReceived = 0.0;
-        public HashMap<String, Integer> internalPopulation = new HashMap<>();
-        public HashMap<String, Integer> externalPopulation = new HashMap<>();
+        /** Hourly demand rate per camp and item (units/hour). May change over time (e.g. with population). */
+        public HashMap<String, HashMap<String, Double>> demandRatePerHour = new HashMap<>();
+        /** Internal demand rate per camp and item (units/hour). */
+        public HashMap<String, HashMap<String, Double>> demandRatePerHourInternal = new HashMap<>();
+        /** External demand rate per camp and item (units/hour). */
+        public HashMap<String, HashMap<String, Double>> demandRatePerHourExternal = new HashMap<>();
     }
 
     public void logState(State stateRef, double currentTime, double samplingInterval) {
@@ -466,14 +561,18 @@ public class KPIManager {
                 log.cumulativeDeprivationCosts.putIfAbsent(campName, 0.0);
                 log.cumulativeReplenishmentCosts.putIfAbsent(campName, 0.0);
                 log.itemQuantities.putIfAbsent(campName, new HashMap<>());
-                
-                log.internalPopulation.put(campName, stateRef.getCurrentInternalPopulation(camp));
-                log.externalPopulation.put(campName, stateRef.getCurrentExternalPopulation(camp));
+                log.demandRatePerHour.putIfAbsent(campName, new HashMap<>());
+                log.demandRatePerHourInternal.putIfAbsent(campName, new HashMap<>());
+                log.demandRatePerHourExternal.putIfAbsent(campName, new HashMap<>());
                 for (var itemEntry : stateRef.getInventory().get(camp).entrySet()) {
                     Item item = itemEntry.getKey();
                     var inventoryQueue = itemEntry.getValue();
                     int totalQuantity = inventoryQueue.stream().mapToInt(InventoryItem::getQuantity).sum();
                     log.itemQuantities.get(campName).put(item.getName(), totalQuantity);
+                    double[] ie = computeDemandRatePerHourInternalExternal(stateRef, camp, item);
+                    log.demandRatePerHour.get(campName).put(item.getName(), ie[0] + ie[1]);
+                    log.demandRatePerHourInternal.get(campName).put(item.getName(), ie[0]);
+                    log.demandRatePerHourExternal.get(campName).put(item.getName(), ie[1]);
 
                     // Calculate holding cost for current inventory items (still in inventory)
                     double currentInventoryHoldingCost = inventoryQueue.stream()
@@ -488,15 +587,14 @@ public class KPIManager {
                     log.cumulativeReferralCosts.put(campName, log.cumulativeReferralCosts.get(campName) + referralCostAcc);
 
 
-                    // Calculate deprivation cost as a final period
+                    // Deprivation cost: time unit is days
                     double deprivationCostAcc = 0.0;
                     for (DeprivingPerson deprivingPerson : stateRef.getDeprivingPopulation().get(camp).get(item)) {
-                        double totalTime = currentTime - deprivingPerson.getArrivalTime();
-                        // Linear + Exponential form (tangent at zero)
-                        double rate = item.getDeprivationRate();
+                        double totalTimeDays = currentTime - deprivingPerson.getArrivalTime();
+                        double rate = item.getDeprivationRate();   // per day
                         double coeff = item.getDeprivationCoefficient();
-                        double linearTerm = coeff * rate * totalTime;
-                        double exponentialTerm = coeff * (Math.exp(totalTime * rate) - 1);
+                        double linearTerm = coeff * rate * totalTimeDays;
+                        double exponentialTerm = coeff * (Math.exp(totalTimeDays * rate) - 1);
                         deprivationCostAcc += (linearTerm + exponentialTerm) * deprivingPerson.getQuantity();
                     }
                     log.cumulativeDeprivationCosts.put(campName, totalDeprivationCost.get(camp).get(item)

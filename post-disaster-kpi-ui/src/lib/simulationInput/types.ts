@@ -48,8 +48,8 @@ export interface Migration {
   toCamp: string;
   migrationType: string;
   arrivalData: DistBlock;
-  quantityData?: DistBlock; // for *_TO_SYSTEM
-  migrationRatio: number;
+  /** Fraction (0–1) of demand rate that migrates. Replaces population-based migrationRatio. */
+  demandRatio: number;
 }
 
 export type InventoryPolicyType = "ORDER_UP_TO" | "TARGET_LEVEL";

@@ -62,6 +62,7 @@ public class FundingEvent implements IEvent {
             state.updateFunds(this.camp, this.item, this.fundingType, this.amount, this.getTime(), this.getTime());
         }
         state.setLastFundingReceived(this.amount);
+        state.getKpiManager().recordFundingReceived(this.amount);
         return null;
     }
 }

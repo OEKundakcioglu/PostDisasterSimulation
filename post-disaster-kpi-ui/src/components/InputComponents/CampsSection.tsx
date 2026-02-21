@@ -389,10 +389,11 @@ const ArrivalEditor: React.FC<{
         <TextField
           fullWidth
           type="number"
-          label="Mean Interarrival Time (Minutes)"
+          label="Mean Interarrival Time"
           value={distParams.mean || ""}
           onChange={(e) => handleParamChange("mean", e.target.value)}
           InputProps={{ inputProps: { min: 0 } }}
+          helperText="Average time between demand occurrences (minutes)"
         />
       </Grid>
 
@@ -407,8 +408,8 @@ const ArrivalEditor: React.FC<{
             InputProps={{ inputProps: { min: 0, max: distParams.mean } }}
             helperText={
               distParams.mean
-                ? `Min: ${minVal} (≥0) | Max: ${maxVal}`
-                : "Cannot exceed Mean value"
+                ? `Range: ${minVal} to ${maxVal} minutes (minimum must be ≥ 0)`
+                : "Spread cannot exceed the mean value"
             }
             error={
               (parseFloat(distParams.spread || "0") || 0) >
@@ -432,9 +433,9 @@ const ArrivalEditor: React.FC<{
                 max: 0.25 * (parseFloat(distParams.mean || "0") || 0),
               },
             }}
-            helperText={`Standard deviation ≤ ${
+            helperText={`Standard deviation must be ≤ ${
               0.25 * (parseFloat(distParams.mean || "0") || 0)
-            }`}
+            } minutes (25% of mean)`}
           />
         </Grid>
       )}
@@ -762,13 +763,13 @@ const CampsSection: React.FC<Props> = ({
                   color="error"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (
-                      window.confirm(
-                        `Are you sure you want to delete this camp${
-                          camp.name ? ` (${camp.name})` : ""
-                        }?`
-                      )
-                    ) {
+                  if (
+                    window.confirm(
+                      `Are you sure you want to delete this camp${
+                        camp.name ? ` "${camp.name}"` : ""
+                      }?\n\nWARNING: This will also remove all demands, inventory, and other configurations associated with this camp.`
+                    )
+                  ) {
                       const newCamps = [...camps];
                       newCamps.splice(campIndex, 1);
                       setCamps(newCamps);
@@ -791,11 +792,13 @@ const CampsSection: React.FC<Props> = ({
                     <Grid item xs={12} sm={6} md={4}>
                       <TextField
                         fullWidth
-                        label="Name"
+                        label="Camp Name"
                         value={camp.name}
                         onChange={(e) =>
                           handleCampChange(campIndex, "name", e.target.value)
                         }
+                        placeholder="Enter camp name"
+                        helperText="A unique identifier for this camp"
                       />
                     </Grid>
 
@@ -813,6 +816,7 @@ const CampsSection: React.FC<Props> = ({
                             e.target.value
                           )
                         }
+                        helperText="Number of internal population members at day 0"
                       />
                     </Grid>
 
@@ -830,6 +834,7 @@ const CampsSection: React.FC<Props> = ({
                             e.target.value
                           )
                         }
+                        helperText="Number of external population members at day 0"
                       />
                     </Grid>
                   </Grid>
@@ -871,7 +876,7 @@ const CampsSection: React.FC<Props> = ({
                               e.stopPropagation();
                               if (
                                 window.confirm(
-                                  "Are you sure you want to delete this demand?"
+                                  "Are you sure you want to delete this demand?\n\nThis will remove both internal and external demand configurations for this item."
                                 )
                               ) {
                                 const newCamps = [...camps];
@@ -914,7 +919,7 @@ const CampsSection: React.FC<Props> = ({
                                       readOnly: true,
                                       style: { backgroundColor: "#f5f5f5" },
                                     }}
-                                    helperText="Item selection cannot be changed"
+                                    helperText="Item selection is locked once demand is configured"
                                   />
                                 ) : (
                                   <TextField
@@ -948,8 +953,7 @@ const CampsSection: React.FC<Props> = ({
                                   >
                                     {items.length === 0 ? (
                                       <MenuItem disabled>
-                                        No items available. Please add items
-                                        first.
+                                        No items available. Please add items in the Items section first.
                                       </MenuItem>
                                     ) : (
                                       items
@@ -1480,11 +1484,11 @@ const CampsSection: React.FC<Props> = ({
                                 }}
                               >
                                 <Typography
-                                  variant="caption"
-                                  color="text.secondary"
+                                  variant="subtitle2"
+                                  color="text.primary"
                                   fontWeight="bold"
                                   display="block"
-                                  mb={1}
+                                  mb={1.5}
                                 >
                                   Expected Demand during Lead Time
                                 </Typography>

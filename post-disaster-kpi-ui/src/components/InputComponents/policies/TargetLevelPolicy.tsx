@@ -19,6 +19,8 @@ import {
   LocalShipping,
   ReportProblem,
 } from "@mui/icons-material";
+import InfoIcon from "@mui/icons-material/Info";
+import { Tooltip, IconButton } from "@mui/material";
 import { Item } from "../../../types/Item";
 import { NestedCollapsibleSection } from "../../CollapsibleSections/CollapsibleSections";
 import {
@@ -274,14 +276,16 @@ const TargetLevelPolicy: React.FC<Props> = ({
     items.forEach((item) => {
       const itemName = item.name;
       const { aggTotalDaily } = getCentralCalculationParams(camps, item);
-      const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
+      const centralLeadTimeDays = item.leadTimeData
+        ? calcMeanLeadTimeDays(item.leadTimeData as DistBlock)
+        : 0;
 
       const centralItemPolicy = nextCentralLevels[itemName] || {};
       const c_S_ratioStr = centralItemPolicy.S_targetRatio;
       const c_S_ratio = c_S_ratioStr ? parseFloat(c_S_ratioStr) : 1.5;
 
       const centralTargetS = Math.ceil(
-        aggTotalDaily * (reviewPeriod + supplierLeadTime) * c_S_ratio
+        aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio
       );
 
       const storedCentralSStr = centralItemPolicy.S_targetLevel;
@@ -501,9 +505,11 @@ const TargetLevelPolicy: React.FC<Props> = ({
   const handleCentralSRatioChange = (item: Item, val: number | number[]) => {
     const ratio = Array.isArray(val) ? val[0] : val;
     const { aggTotalDaily } = getCentralCalculationParams(camps, item);
-    const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
+    const centralLeadTimeDays = item.leadTimeData
+      ? calcMeanLeadTimeDays(item.leadTimeData as DistBlock)
+      : 0;
     const calculatedS = Math.ceil(
-      aggTotalDaily * (reviewPeriod + supplierLeadTime) * ratio
+      aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * ratio
     );
 
     updateCentralState(item.name, {
@@ -534,8 +540,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
               Inventory Control & Rationing
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Define (s, S) policies and critical rationing thresholds for risk
-              management.
+              Define target level policies and critical rationing thresholds for inventory management.
             </Typography>
           </Grid>
           <Grid item xs={12} sm={3}>
@@ -551,21 +556,29 @@ const TargetLevelPolicy: React.FC<Props> = ({
                   <InputAdornment position="end">days</InputAdornment>
                 ),
               }}
+              helperText="Time interval between inventory reviews"
             />
           </Grid>
         </Grid>
       </Paper>
 
-      {/* 2. CAMP OPERATIONS */}
+      {/* 2. CAMP OPERATIONS - key includes demand/lead time so updates in Camps section flow here */}
       <NestedCollapsibleSection title="Camp Operations" level="secondary">
-        {camps.map((camp) => (
+        {camps.map((camp) => {
+          const campDataKey = camp.demands
+            ?.map(
+              (d) =>
+                `${d.arrivalData?.distParameters?.mean ?? ""}-${d.leadTimeData?.distParameters?.mean ?? ""}-${d.leadTimeData?.distParameters?.min ?? ""}-${d.leadTimeData?.distParameters?.max ?? ""}`
+            )
+            .join("|");
+          return (
           <NestedCollapsibleSection
-            key={camp.name}
+            key={`${camp.name}-${campDataKey}`}
             title={camp.name}
             level="tertiary"
           >
             {items.map((item) => {
-              // CALCULATIONS
+              // CALCULATIONS - derived from current camps (interarrival means & lead time from Camps section)
               const params = getCachedParams(camp.name, item.name);
               const {
                 totalDailyRate,
@@ -651,14 +664,11 @@ const TargetLevelPolicy: React.FC<Props> = ({
                         >
                           {item.name}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Supply Chain Configuration
-                        </Typography>
                       </Grid>
                       <Grid item>
                         <Chip
                           icon={<Functions sx={{ fontSize: 16 }} />}
-                          label={`Total Exp. Daily Demand: ${totalDailyRate.toFixed(
+                          label={`Total Expected Daily Demand: ${totalDailyRate.toFixed(
                             2
                           )}`}
                           color="primary"
@@ -685,7 +695,14 @@ const TargetLevelPolicy: React.FC<Props> = ({
                             spacing={1}
                             mb={1}
                           >
-                            <Timeline fontSize="small" color="action" />
+                            <Box
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: "50%",
+                                bgcolor: "primary.main",
+                              }}
+                            />
                             <Typography variant="overline" fontWeight="bold">
                               Internal Demand Stream
                             </Typography>
@@ -706,7 +723,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
                             </Grid>
                             <Grid item xs={6}>
                               <MetricCard
-                                label="Exp. Daily Demand"
+                                label="Expected Daily Demand"
                                 value={rateInt.toFixed(2)}
                                 unit="units"
                                 highlight={!!internalDemand}
@@ -724,7 +741,14 @@ const TargetLevelPolicy: React.FC<Props> = ({
                             spacing={1}
                             mb={1}
                           >
-                            <LocalShipping fontSize="small" color="action" />
+                            <Box
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: "50%",
+                                bgcolor: "secondary.main",
+                              }}
+                            />
                             <Typography variant="overline" fontWeight="bold">
                               External Demand Stream
                             </Typography>
@@ -745,7 +769,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
                             </Grid>
                             <Grid item xs={6}>
                               <MetricCard
-                                label="Exp. Daily Demand"
+                                label="Expected Daily Demand"
                                 value={rateExt.toFixed(2)}
                                 unit="units"
                                 highlight={!!externalDemand}
@@ -792,15 +816,25 @@ const TargetLevelPolicy: React.FC<Props> = ({
 
                     {/* RIGHT: CONTROL PANEL */}
                     <Grid item xs={12} md={7} sx={{ p: 3, bgcolor: "#fff" }}>
-                      {/* SECTION 1: (s, S) Policy */}
-                      <Typography
-                        variant="overline"
-                        color="primary"
-                        fontWeight="bold"
-                        sx={{ mb: 2, display: "block" }}
-                      >
-                        (s, S) Ordering Policy
-                      </Typography>
+                      {/* SECTION 1: Target Level Policy */}
+                      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                        <Typography
+                          variant="overline"
+                          color="primary"
+                          fontWeight="bold"
+                        >
+                          Target Level Policy
+                        </Typography>
+                        <Tooltip
+                          title="Target Level Policy maintains inventory at a target level (S). When inventory is reviewed, orders are placed to bring stock up to the target level S. Formula: S = Expected Daily Demand × (Review Period + Lead Time) × Multiplier"
+                          arrow
+                          placement="top"
+                        >
+                          <IconButton size="small" sx={{ ml: 1 }}>
+                            <InfoIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                       <Grid
                         container
                         spacing={3}
@@ -809,7 +843,10 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       >
                         <Grid item xs={12}>
                           <Typography variant="caption" fontWeight="bold">
-                            Target Level Ratio (S Factor)
+                            Target Level (S) Multiplier
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                            Multiplier applied to expected demand during review period and lead time to determine target level (S)
                           </Typography>
                           <Stack
                             direction="row"
@@ -865,7 +902,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
                               variant="caption"
                               color="text.secondary"
                             >
-                              Target (S) = Rate × (R+L) × Ratio
+                              Target (S) = Daily Demand Rate × (R+L) × Multiplier
                             </Typography>
                             <Typography
                               variant="h6"
@@ -882,10 +919,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
                           >
                             = {totalDailyRate.toFixed(2)} × (
                             {reviewPeriod.toFixed(2)} +{" "}
-                            {finalLeadTime.toFixed(2)}) × {S_ratio.toFixed(2)} ={" "}
-                            {totalDailyRate.toFixed(2)} ×{" "}
-                            {(reviewPeriod + finalLeadTime).toFixed(2)} ×{" "}
-                            {S_ratio.toFixed(2)} = {calculatedS}
+                            {finalLeadTime.toFixed(2)}) × {S_ratio.toFixed(2)}
                           </Typography>
                         </Stack>
                       </Box>
@@ -893,13 +927,16 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       <Divider sx={{ my: 2 }} />
 
                       {/* SECTION 2: Rationing Threshold */}
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={1}
-                        sx={{ mb: 2 }}
-                      >
-                        <ReportProblem color="error" fontSize="small" />
+                      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            bgcolor: "error.main",
+                            mr: 1,
+                          }}
+                        />
                         <Typography
                           variant="overline"
                           color="error"
@@ -907,7 +944,16 @@ const TargetLevelPolicy: React.FC<Props> = ({
                         >
                           Rationing Threshold
                         </Typography>
-                      </Stack>
+                        <Tooltip
+                          title="When inventory falls below this threshold (calculated as: Threshold = S × Percentage), rationing policies are activated to manage limited supply. This ensures fair distribution when stock is low."
+                          arrow
+                          placement="top"
+                        >
+                          <IconButton size="small" sx={{ ml: 1 }}>
+                            <InfoIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
 
                       <Grid container spacing={3} alignItems="center">
                         <Grid item xs={12} sm={8}>
@@ -979,7 +1025,8 @@ const TargetLevelPolicy: React.FC<Props> = ({
               );
             })}
           </NestedCollapsibleSection>
-        ))}
+          );
+        })}
       </NestedCollapsibleSection>
 
       {/* 3. CENTRAL WAREHOUSE */}
@@ -996,7 +1043,9 @@ const TargetLevelPolicy: React.FC<Props> = ({
             const { aggTotalDaily, totalInt, totalExt } =
               getCentralCalculationParams(camps, item);
 
-            const supplierLeadTime = (item as any).supplierLeadTime || 2.0;
+            const centralLeadTimeDays = item.leadTimeData
+              ? calcMeanLeadTimeDays(item.leadTimeData as DistBlock)
+              : 0;
 
             const centralPolicy = policy.centralTargetLevels?.[item.name] || {};
 
@@ -1006,7 +1055,7 @@ const TargetLevelPolicy: React.FC<Props> = ({
             }
 
             const centralTargetS = Math.ceil(
-              aggTotalDaily * (reviewPeriod + supplierLeadTime) * c_S_ratio
+              aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * c_S_ratio
             );
 
             return (
@@ -1030,15 +1079,36 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       display="block"
                       color="text.secondary"
                     >
-                      Int: {totalInt.toFixed(2)} | Ext: {totalExt.toFixed(2)}
+                      Internal: {totalInt.toFixed(2)} | External: {totalExt.toFixed(2)}
                     </Typography>
                     <Typography
                       variant="body2"
                       fontWeight="bold"
                       color="primary"
                     >
-                      Total: {aggTotalDaily.toFixed(2)} / day
+                      Total: {aggTotalDaily.toFixed(2)} items / day
                     </Typography>
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        bgcolor: "#fff3e0",
+                        p: 1,
+                        borderRadius: 2,
+                        border: "1px solid #ffe0b2",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        color="text.secondary"
+                        fontWeight="bold"
+                      >
+                        Expected Lead Time (L)
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold" color="warning.dark">
+                        {centralLeadTimeDays.toFixed(2)} days
+                      </Typography>
+                    </Box>
                   </Box>
 
                   <Box sx={{ flex: 1, minWidth: 200 }}>
@@ -1062,8 +1132,26 @@ const TargetLevelPolicy: React.FC<Props> = ({
                       display="block"
                       textAlign="center"
                     >
-                      Target Ratio (S)
+                      Target Level (S) Multiplier
                     </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" textAlign="center" sx={{ mt: 0.5 }}>
+                      Multiplier for aggregated demand across all camps
+                    </Typography>
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        p: 1,
+                        bgcolor: "#f0f4f8",
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Target (S) = Daily Demand Rate × (R+L) × Multiplier
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontFamily: "monospace", fontSize: "0.7rem" }} display="block">
+                        = {aggTotalDaily.toFixed(2)} × ({reviewPeriod.toFixed(2)} + {centralLeadTimeDays.toFixed(2)}) × {c_S_ratio.toFixed(2)}
+                      </Typography>
+                    </Box>
                   </Box>
 
                   <Box

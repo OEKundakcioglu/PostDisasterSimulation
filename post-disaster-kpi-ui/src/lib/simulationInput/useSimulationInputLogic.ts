@@ -496,10 +496,22 @@ export const useSimulationInputLogic = () => {
                 : 0;
               aggTotalDaily += rateInt + rateExt;
             });
-            
-            const supplierLeadTime = (item as any)?.supplierLeadTime || 2.0;
+
+            const calcLeadTimeFromItem = (dist: { distributionType?: string; distParameters?: Record<string, string> }): number => {
+              if (!dist?.distParameters) return 0;
+              const { distributionType, distParameters } = dist;
+              if (distributionType === "TRIANGULAR") {
+                return (
+                  (parseFloat(distParameters.min || "0") +
+                    parseFloat(distParameters.mode || "0") +
+                    parseFloat(distParameters.max || "0")) / 3
+                );
+              }
+              return parseFloat(distParameters.mean || "0") || 0;
+            };
+            const centralLeadTimeDays = item?.leadTimeData ? calcLeadTimeFromItem(item.leadTimeData as { distributionType?: string; distParameters?: Record<string, string> }) : 0;
             const ratio = parseFloat(existingVal?.S_targetRatio || "1.5");
-            const calculatedS = Math.ceil(aggTotalDaily * (reviewPeriod + supplierLeadTime) * ratio);
+            const calculatedS = Math.ceil(aggTotalDaily * (reviewPeriod + centralLeadTimeDays) * ratio);
             
             newCentralTargetLevels[itemName] = {
               S_targetRatio: existingVal?.S_targetRatio || "1.5",
@@ -784,23 +796,14 @@ export const useSimulationInputLogic = () => {
             `${ctx} arrivalData`
           )
         );
-        if (toSystem) {
-          issues.push(
-            ...validateDistribution(
-              m.quantityData as DistBlock | undefined,
-              `${ctx} quantityData`
-            )
-          );
-        } else {
-          if (m.migrationRatio === undefined || m.migrationRatio === null)
-            issues.push(`${ctx} missing migrationRatio`);
-          else if (
-            isNaN(Number(m.migrationRatio)) ||
-            Number(m.migrationRatio) < 0 ||
-            Number(m.migrationRatio) > 1
-          )
-            issues.push(`${ctx} migrationRatio must be 0-1`);
-        }
+        if (m.demandRatio === undefined || m.demandRatio === null)
+          issues.push(`${ctx} missing demandRatio`);
+        else if (
+          isNaN(Number(m.demandRatio)) ||
+          Number(m.demandRatio) < 0 ||
+          Number(m.demandRatio) > 1
+        )
+          issues.push(`${ctx} demandRatio must be 0-1`);
       });
 
       // Agencies / Funding

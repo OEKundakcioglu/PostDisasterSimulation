@@ -1,5 +1,6 @@
 package simulation;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
@@ -9,6 +10,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import data.Camp;
+import data.Environment;
 import data.Item;
 
 
@@ -26,12 +28,66 @@ public class ExcelReportGenerator {
             Sheet sheet = workbook.createSheet("Camp Report");
             createKpiTable(sheet, kpiManager);
 
-            FileOutputStream fileOut = new FileOutputStream(filename);
+            Sheet verificationSheet = workbook.createSheet("Verification Report");
+            createVerificationSheet(verificationSheet, kpiManager);
+
+            File file = new File(filename);
+            FileOutputStream fileOut = new FileOutputStream(file);
             workbook.write(fileOut);
             fileOut.close();
-            System.out.println("Excel file has been generated successfully!");
+            System.out.println("Excel file has been generated successfully! Path: " + file.getAbsolutePath());
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    /** Verification report: demand arrived per camp, total funding arrived, replenishment per camp and item. */
+    private void createVerificationSheet(Sheet sheet, KPIManager kpiManager) {
+        Environment env = kpiManager.getEnvironment();
+        java.util.Set<Camp> camps = env != null ? new java.util.LinkedHashSet<>(java.util.Arrays.asList(env.getCamps())) : new java.util.LinkedHashSet<>();
+        camps.addAll(kpiManager.totalInternalDemandArrived.keySet());
+        camps.addAll(kpiManager.totalExternalDemandArrived.keySet());
+        camps.addAll(kpiManager.replenishmentQuantityByCampItem.keySet());
+
+        int rowNum = 0;
+
+        // 1. Demand arrived per camp
+        Row h1 = sheet.createRow(rowNum++);
+        h1.createCell(0).setCellValue("Demand arrived per camp");
+        rowNum++;
+        Row demandHeader = sheet.createRow(rowNum++);
+        demandHeader.createCell(0).setCellValue("Camp");
+        demandHeader.createCell(1).setCellValue("Total Internal Arrived");
+        demandHeader.createCell(2).setCellValue("Total External Arrived");
+        for (Camp camp : camps) {
+            Row r = sheet.createRow(rowNum++);
+            r.createCell(0).setCellValue(camp.getName());
+            r.createCell(1).setCellValue(kpiManager.totalInternalDemandArrived.getOrDefault(camp, 0));
+            r.createCell(2).setCellValue(kpiManager.totalExternalDemandArrived.getOrDefault(camp, 0));
+        }
+        rowNum++;
+
+        // 2. Total funding arrived
+        Row h2 = sheet.createRow(rowNum++);
+        h2.createCell(0).setCellValue("Total funding arrived to system");
+        h2.createCell(1).setCellValue(kpiManager.totalFundingReceived);
+        rowNum++;
+
+        // 3. Replenishment per camp and item
+        Row h3 = sheet.createRow(rowNum++);
+        h3.createCell(0).setCellValue("Replenishment amount per camp and item");
+        rowNum++;
+        Row replHeader = sheet.createRow(rowNum++);
+        replHeader.createCell(0).setCellValue("Camp");
+        replHeader.createCell(1).setCellValue("Item");
+        replHeader.createCell(2).setCellValue("Total Quantity");
+        for (Camp camp : kpiManager.replenishmentQuantityByCampItem.keySet()) {
+            for (Item item : kpiManager.replenishmentQuantityByCampItem.get(camp).keySet()) {
+                Row r = sheet.createRow(rowNum++);
+                r.createCell(0).setCellValue(camp.getName());
+                r.createCell(1).setCellValue(item.getName());
+                r.createCell(2).setCellValue(kpiManager.replenishmentQuantityByCampItem.get(camp).get(item));
+            }
         }
     }
 
@@ -43,7 +99,7 @@ public class ExcelReportGenerator {
         headerRow.createCell(3).setCellValue("Total Item Consumed");
         headerRow.createCell(4).setCellValue("Deprivation Cost");
         headerRow.createCell(5).setCellValue("Deprived Population");
-        headerRow.createCell(6).setCellValue("Average Deprivation Time for Deprived Population");
+        headerRow.createCell(6).setCellValue("Average Deprivation Time (days) for Deprived Population");
         headerRow.createCell(7).setCellValue("Holding Cost");
         headerRow.createCell(8).setCellValue("Referral Cost");
         headerRow.createCell(9).setCellValue("Total Referral Population");
@@ -108,7 +164,7 @@ public class ExcelReportGenerator {
                 "Total Number of Replenishment",
                 "Total Item Deprivation Cost",
                 "Total Item Deprived Population",
-                "Total Item Average Deprivation Time",
+                "Total Item Average Deprivation Time (days)",
                 "Total Item Holding Cost",
                 "Total Item Referral Cost",
                 "Total Item Referral Population",

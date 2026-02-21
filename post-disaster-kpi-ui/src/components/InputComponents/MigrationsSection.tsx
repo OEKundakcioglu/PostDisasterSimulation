@@ -16,13 +16,123 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import { NestedCollapsibleSection } from "../CollapsibleSections/CollapsibleSections";
 
-// Helper function to convert uppercase macros to readable format
-const formatLabel = (value: string): string => {
-  return value
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
+// Population Group → Movement → migrationType mapping
+const POPULATION_GROUP = [
+  { value: "INTERNAL", label: "Camp Residents" },
+  { value: "EXTERNAL", label: "Surrounding Area Population" },
+] as const;
+
+const MOVEMENT = [
+  { value: "WITHIN_SYSTEM", label: "Between Camps" },
+  { value: "TO_SYSTEM", label: "Entering system" },
+  { value: "FROM_SYSTEM", label: "Leaving system" },
+] as const;
+
+function migrationTypeFromGroupAndMovement(group: string, movement: string): string {
+  const g = group === "EXTERNAL" ? "EXTERNAL" : "INTERNAL";
+  const m = movement === "TO_SYSTEM" ? "TO_SYSTEM" : movement === "FROM_SYSTEM" ? "FROM_SYSTEM" : "WITHIN_SYSTEM";
+  return `${g}_${m}`;
+}
+
+function parseMigrationType(migrationType: string): { group: string; movement: string } {
+  const internal = migrationType.includes("INTERNAL");
+  const group = internal ? "INTERNAL" : "EXTERNAL";
+  const movement = migrationType.includes("_TO_SYSTEM")
+    ? "TO_SYSTEM"
+    : migrationType.includes("_FROM_SYSTEM")
+    ? "FROM_SYSTEM"
+    : "WITHIN_SYSTEM";
+  return { group, movement };
+}
+
+const formatLabel = (value: string): string =>
+  value.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+
+/** Computes daily demand rate per item (items/day) for a camp's population group. */
+function computeDailyDemandRateByItem(
+  camp: CampWithDemands,
+  demandClass: "INTERNAL" | "EXTERNAL"
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!camp?.demands?.length) return out;
+  const internalPop = Math.max(0, Number(camp.initialInternalPopulation) || 0);
+  const externalPop = Math.max(0, Number(camp.initialExternalPopulation) || 0);
+  for (const d of camp.demands) {
+    if (d.demandClass !== demandClass || !d.arrivalData?.distParameters?.mean) continue;
+    const meanMin = Number(d.arrivalData.distParameters.mean);
+    if (meanMin <= 0) continue;
+    const eventsPerDay = 1440 / meanMin;
+    const expectedQty =
+      d.demandQuantityType === "BATCH"
+        ? demandClass === "INTERNAL"
+          ? internalPop * (Number(d.internalRatio) || 0.01)
+          : externalPop * (Number(d.externalRatio) || 0.01)
+        : 1;
+    const rate = eventsPerDay * expectedQty;
+    out[d.item] = (out[d.item] ?? 0) + rate;
+  }
+  return out;
+}
+
+function formatItemRates(rates: Record<string, number>, ratio: number): string {
+  const entries = Object.entries(rates)
+    .map(([item, r]) => {
+      const transfer = r * ratio;
+      return transfer > 0 ? `${item}: ${transfer.toFixed(1)} items/day` : null;
+    })
+    .filter(Boolean) as string[];
+  return entries.length > 0 ? ` (${entries.join(", ")})` : "";
+}
+
+/** Builds clear, numeric description: demand per day per item + arrival time. */
+function buildMigrationDescription(
+  m: Migration,
+  camps: CampWithDemands[]
+): { demandLine: string; arrivalLine: string } {
+  const ratio = m.demandRatio ?? 0.05;
+  const pct = Math.round(ratio * 100);
+  const mean = m.arrivalData?.distParameters?.mean;
+  const arrivalStr = mean ? `Expected arrival: ~${mean} days` : "Expected arrival: —";
+
+  const internal = m.migrationType.includes("INTERNAL");
+  const demandClass = internal ? "INTERNAL" : "EXTERNAL";
+  const group = internal ? "Camp Residents" : "Surrounding Area Population";
+
+  const getSourceRatesByItem = (campName: string): Record<string, number> => {
+    const camp = camps.find((c) => c.name === campName);
+    return camp ? computeDailyDemandRateByItem(camp, demandClass) : {};
+  };
+
+  if (m.migrationType.includes("_WITHIN_SYSTEM")) {
+    const from = m.fromCamp || "—";
+    const to = m.toCamp || "—";
+    const sourceRates = getSourceRatesByItem(m.fromCamp || "");
+    const itemStr = formatItemRates(sourceRates, ratio);
+    return {
+      demandLine: `${pct}% of ${from}'s ${group} demand${itemStr} transfers to ${to}.`,
+      arrivalLine: arrivalStr,
+    };
+  }
+  if (m.migrationType.includes("_TO_SYSTEM")) {
+    const to = m.toCamp || "—";
+    const baseRates = getSourceRatesByItem(m.toCamp || "");
+    const itemStr = formatItemRates(baseRates, ratio);
+    return {
+      demandLine: `Incoming demand: adds ${pct}% of camp ${to}'s base ${group} demand${itemStr}.`,
+      arrivalLine: arrivalStr,
+    };
+  }
+  if (m.migrationType.includes("_FROM_SYSTEM")) {
+    const from = m.fromCamp || "—";
+    const sourceRates = getSourceRatesByItem(m.fromCamp || "");
+    const itemStr = formatItemRates(sourceRates, ratio);
+    return {
+      demandLine: `${pct}% of ${from}'s ${group} demand${itemStr} leaves the system.`,
+      arrivalLine: arrivalStr,
+    };
+  }
+  return { demandLine: "", arrivalLine: "" };
+}
 
 // Updated interface to match Java backend implementation
 interface DistParams {
@@ -41,19 +151,27 @@ interface Migration {
   toCamp: string;
   migrationType: string;
   arrivalData: DataBlock;
-  // quantityData is only needed for *_TO_SYSTEM migration types
-  quantityData?: DataBlock;
-  migrationRatio: number;
+  demandRatio: number;
 }
 
-interface Camp {
+interface CampWithDemands {
   name: string;
+  demands?: Array<{
+    item: string;
+    demandClass: string;
+    demandQuantityType?: string;
+    arrivalData?: { distParameters?: { mean?: string } };
+    internalRatio?: string | number;
+    externalRatio?: string | number;
+  }>;
+  initialInternalPopulation?: string;
+  initialExternalPopulation?: string;
 }
 
 interface Props {
   migrations: Migration[];
   setMigrations: React.Dispatch<React.SetStateAction<Migration[]>>;
-  camps: Camp[];
+  camps: CampWithDemands[];
 }
 
 const MigrationsSection: React.FC<Props> = ({
@@ -70,42 +188,18 @@ const MigrationsSection: React.FC<Props> = ({
   ) => {
     const newMigrations = [...migrations];
 
-    // Validate migrationRatio
-    if (field === "migrationRatio") {
-      // Only allow values between 0-1 and in decimal format
+    // Validate demandRatio
+    if (field === "demandRatio") {
       if (
         typeof value === "string" &&
         (value === "" || /^0*\.?\d*$/.test(value))
       ) {
         if (value === "" || parseFloat(value) <= 1) {
-          newMigrations[index].migrationRatio =
+          newMigrations[index].demandRatio =
             value === "" ? 0 : parseFloat(value);
         }
         setMigrations(newMigrations);
         return;
-      }
-    }
-
-    // Handle migration type change - add or remove quantityData as needed
-    if (field === "migrationType") {
-      const newType = String(value);
-
-      // If changing to a type that needs quantityData
-      if (
-        newType.includes("_TO_SYSTEM") &&
-        !newMigrations[index].quantityData
-      ) {
-        newMigrations[index].quantityData = {
-          distributionType: "FIXED",
-          distParameters: { mean: "500" },
-        };
-      }
-      // If changing to a type that doesn't need quantityData
-      else if (
-        !newType.includes("_TO_SYSTEM") &&
-        newMigrations[index].quantityData
-      ) {
-        delete newMigrations[index].quantityData;
       }
     }
 
@@ -122,8 +216,8 @@ const MigrationsSection: React.FC<Props> = ({
       }
     } else if (subField) {
       // Handle direct subField
-      if (field === "arrivalData" || field === "quantityData") {
-        const block = newMigrations[index][field] as DataBlock | undefined;
+      if (field === "arrivalData") {
+        const block = newMigrations[index].arrivalData;
         if (block) {
           if (subField === "distributionType" && typeof value === "string") {
             block.distributionType = value;
@@ -134,13 +228,6 @@ const MigrationsSection: React.FC<Props> = ({
           ) {
             block.distParameters = value as DistParams;
           }
-        } else if (
-          field === "quantityData" &&
-          typeof value === "object" &&
-          value
-        ) {
-          // initialize quantityData if absent
-          newMigrations[index].quantityData = value as DataBlock;
         }
       }
     } else {
@@ -180,19 +267,15 @@ const MigrationsSection: React.FC<Props> = ({
           if (typeof value === "string")
             newMigrations[index].migrationType = value;
           break;
-        case "migrationRatio":
+        case "demandRatio":
           if (typeof value === "string") {
-            newMigrations[index].migrationRatio =
+            newMigrations[index].demandRatio =
               value === "" ? 0 : parseFloat(value);
           }
           break;
         case "arrivalData":
           if (typeof value === "object" && value)
             newMigrations[index].arrivalData = value as DataBlock;
-          break;
-        case "quantityData":
-          if (typeof value === "object" && value)
-            newMigrations[index].quantityData = value as DataBlock;
           break;
         default:
           break;
@@ -205,24 +288,10 @@ const MigrationsSection: React.FC<Props> = ({
   // Function to update distribution parameters based on type
   const updateDistParameters = (
     migrationIndex: number,
-    dataType: "arrivalData" | "quantityData",
+    dataType: "arrivalData",
     newDistType: string
   ) => {
     const newMigrations = [...migrations];
-
-    // Initialize quantityData if it doesn't exist and is needed
-    if (
-      dataType === "quantityData" &&
-      !newMigrations[migrationIndex].quantityData &&
-      newMigrations[migrationIndex].migrationType.includes("_TO_SYSTEM")
-    ) {
-      newMigrations[migrationIndex].quantityData = {
-        distributionType: newDistType,
-        distParameters: {},
-      };
-    }
-
-    // Use a type guard approach to fix the TypeScript error
     const updateParams = (): DistParams => {
       switch (newDistType) {
         case "TRIANGULAR":
@@ -234,49 +303,26 @@ const MigrationsSection: React.FC<Props> = ({
         case "EXPONENTIAL":
         case "FIXED":
         case "EQUAL_SHARE":
-          return {
-            mean: dataType === "arrivalData" ? "30" : "500",
-          };
+          return { mean: "30" };
         case "NORMAL":
-          return {
-            mean: dataType === "arrivalData" ? "30" : "500",
-            stdDev: dataType === "arrivalData" ? "5" : "100",
-          };
+          return { mean: "30", stdDev: "5" };
         case "UNIFORM":
-          return {
-            min: "1",
-            max: dataType === "arrivalData" ? "10" : "1000",
-          };
+          return { min: "1", max: "10" };
         default:
           return {};
       }
     };
 
-    // Set the parameters safely using type checking
-    if (dataType === "arrivalData") {
-      newMigrations[migrationIndex].arrivalData.distParameters = updateParams();
-    } else if (
-      dataType === "quantityData" &&
-      newMigrations[migrationIndex].quantityData
-    ) {
-      // Only access quantityData if it exists
-      newMigrations[migrationIndex].quantityData!.distParameters =
-        updateParams();
-    }
-
+    newMigrations[migrationIndex].arrivalData.distParameters = updateParams();
     setMigrations(newMigrations);
   };
 
-  // Helper to render the appropriate fields for a distribution type
   const renderDistParams = (
     migrationIndex: number,
-    dataType: "arrivalData" | "quantityData",
+    dataType: "arrivalData",
     migration: Migration
   ) => {
-    const data =
-      dataType === "arrivalData"
-        ? migration.arrivalData
-        : migration.quantityData;
+    const data = migration.arrivalData;
     if (!data) return null;
 
     const distType = data.distributionType;
@@ -290,17 +336,19 @@ const MigrationsSection: React.FC<Props> = ({
           <Grid item xs={12} sm={6} md={4}>
             <TextField
               fullWidth
+              type="number"
               label={`Mean ${dataType === "arrivalData" ? "(days)" : ""}`}
               value={params.mean || ""}
               onChange={(e) => {
                 handleMigrationChange(
                   migrationIndex,
-                  dataType,
+                  "arrivalData",
                   e.target.value,
                   "distParameters",
                   "mean"
                 );
               }}
+              helperText="Average time until migration occurs (days)"
             />
           </Grid>
         );
@@ -316,7 +364,7 @@ const MigrationsSection: React.FC<Props> = ({
                 onChange={(e) => {
                   handleMigrationChange(
                     migrationIndex,
-                    dataType,
+                    "arrivalData",
                     e.target.value,
                     "distParameters",
                     "mean"
@@ -327,19 +375,19 @@ const MigrationsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
-                label={`Standard Deviation ${
-                  dataType === "arrivalData" ? "(days)" : ""
-                }`}
+                type="number"
+                label="Standard Deviation (days)"
                 value={params.stdDev || ""}
                 onChange={(e) => {
                   handleMigrationChange(
                     migrationIndex,
-                    dataType,
+                    "arrivalData",
                     e.target.value,
                     "distParameters",
                     "stdDev"
                   );
                 }}
+                helperText="Variability in migration timing (days)"
               />
             </Grid>
           </>
@@ -351,49 +399,55 @@ const MigrationsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
-                label={`Minimum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                type="number"
+                label="Minimum (days)"
                 value={params.min || ""}
                 onChange={(e) => {
                   handleMigrationChange(
                     migrationIndex,
-                    dataType,
+                    "arrivalData",
                     e.target.value,
                     "distParameters",
                     "min"
                   );
                 }}
+                helperText="Earliest possible migration time (days)"
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
-                label={`Mode ${dataType === "arrivalData" ? "(days)" : ""}`}
+                type="number"
+                label="Mode (days)"
                 value={params.mode || ""}
                 onChange={(e) => {
                   handleMigrationChange(
                     migrationIndex,
-                    dataType,
+                    "arrivalData",
                     e.target.value,
                     "distParameters",
                     "mode"
                   );
                 }}
+                helperText="Most likely migration time (days)"
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
-                label={`Maximum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                type="number"
+                label="Maximum (days)"
                 value={params.max || ""}
                 onChange={(e) => {
                   handleMigrationChange(
                     migrationIndex,
-                    dataType,
+                    "arrivalData",
                     e.target.value,
                     "distParameters",
                     "max"
                   );
                 }}
+                helperText="Latest possible migration time (days)"
               />
             </Grid>
           </>
@@ -405,12 +459,12 @@ const MigrationsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
-                label={`Minimum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                label="Minimum (days)"
                 value={params.min || ""}
                 onChange={(e) => {
                   handleMigrationChange(
                     migrationIndex,
-                    dataType,
+                    "arrivalData",
                     e.target.value,
                     "distParameters",
                     "min"
@@ -421,12 +475,12 @@ const MigrationsSection: React.FC<Props> = ({
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
-                label={`Maximum ${dataType === "arrivalData" ? "(days)" : ""}`}
+                label="Maximum (days)"
                 value={params.max || ""}
                 onChange={(e) => {
                   handleMigrationChange(
                     migrationIndex,
-                    dataType,
+                    "arrivalData",
                     e.target.value,
                     "distParameters",
                     "max"
@@ -464,21 +518,18 @@ const MigrationsSection: React.FC<Props> = ({
               <Typography sx={{ flexGrow: 1 }}>
                 Migration {migrationIndex + 1}
                 {(() => {
-                  const t = migration.migrationType || "";
-                  if (t.includes("_WITHIN_SYSTEM")) {
-                    return migration.fromCamp && migration.toCamp
+                  const { group, movement } = parseMigrationType(migration.migrationType || "INTERNAL_WITHIN_SYSTEM");
+                  const groupLabel = POPULATION_GROUP.find((o) => o.value === group)?.label?.split(" (")[0] ?? group;
+                  const moveLabel = MOVEMENT.find((o) => o.value === movement)?.label ?? movement;
+                  const arrow =
+                    movement === "WITHIN_SYSTEM" && migration.fromCamp && migration.toCamp
                       ? `: ${migration.fromCamp} → ${migration.toCamp}`
-                      : "";
-                  }
-                  if (t.includes("_TO_SYSTEM")) {
-                    return migration.toCamp ? `: → ${migration.toCamp}` : "";
-                  }
-                  if (t.includes("_FROM_SYSTEM")) {
-                    return migration.fromCamp
+                      : movement === "TO_SYSTEM" && migration.toCamp
+                      ? `: → ${migration.toCamp}`
+                      : movement === "FROM_SYSTEM" && migration.fromCamp
                       ? `: ${migration.fromCamp} →`
                       : "";
-                  }
-                  return "";
+                  return ` — ${groupLabel} · ${moveLabel}${arrow}`;
                 })()}
               </Typography>
               <IconButton
@@ -488,7 +539,7 @@ const MigrationsSection: React.FC<Props> = ({
                   e.stopPropagation();
                   if (
                     window.confirm(
-                      "Are you sure you want to delete this migration?"
+                      "Are you sure you want to delete this migration configuration?"
                     )
                   ) {
                     const newMigrations = [...migrations];
@@ -504,42 +555,60 @@ const MigrationsSection: React.FC<Props> = ({
           level="secondary"
         >
           <Grid container spacing={2}>
-            {/* Migration Type - Show this first to determine which fields to show */}
-            <Grid item xs={12} sm={6} md={4}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel>Migration Type</InputLabel>
-                <Select
-                  label="Migration Type"
-                  value={migration.migrationType}
-                  onChange={(e) =>
-                    handleMigrationChange(
-                      migrationIndex,
-                      "migrationType",
-                      e.target.value
-                    )
-                  }
-                >
-                  <MenuItem value="INTERNAL_WITHIN_SYSTEM">
-                    {formatLabel("INTERNAL_WITHIN_SYSTEM")}
-                  </MenuItem>
-                  <MenuItem value="INTERNAL_TO_SYSTEM">
-                    {formatLabel("INTERNAL_TO_SYSTEM")}
-                  </MenuItem>
-                  <MenuItem value="INTERNAL_FROM_SYSTEM">
-                    {formatLabel("INTERNAL_FROM_SYSTEM")}
-                  </MenuItem>
-                  <MenuItem value="EXTERNAL_WITHIN_SYSTEM">
-                    {formatLabel("EXTERNAL_WITHIN_SYSTEM")}
-                  </MenuItem>
-                  <MenuItem value="EXTERNAL_TO_SYSTEM">
-                    {formatLabel("EXTERNAL_TO_SYSTEM")}
-                  </MenuItem>
-                  <MenuItem value="EXTERNAL_FROM_SYSTEM">
-                    {formatLabel("EXTERNAL_FROM_SYSTEM")}
-                  </MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+            {/* Population Group → Movement (replaces enum-based Migration Type) */}
+            {(() => {
+              const { group, movement } = parseMigrationType(migration.migrationType || "INTERNAL_WITHIN_SYSTEM");
+              return (
+                <>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <FormControl fullWidth variant="outlined">
+                      <InputLabel>Population Group</InputLabel>
+                      <Select
+                        label="Population Group"
+                        value={group}
+                        onChange={(e) => {
+                          const newGroup = e.target.value as string;
+                          handleMigrationChange(
+                            migrationIndex,
+                            "migrationType",
+                            migrationTypeFromGroupAndMovement(newGroup, movement)
+                          );
+                        }}
+                      >
+                        {POPULATION_GROUP.map((opt) => (
+                          <MenuItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <FormControl fullWidth variant="outlined">
+                      <InputLabel>Movement</InputLabel>
+                      <Select
+                        label="Movement"
+                        value={movement}
+                        onChange={(e) => {
+                          const newMovement = e.target.value as string;
+                          handleMigrationChange(
+                            migrationIndex,
+                            "migrationType",
+                            migrationTypeFromGroupAndMovement(group, newMovement)
+                          );
+                        }}
+                      >
+                        {MOVEMENT.map((opt) => (
+                          <MenuItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </>
+              );
+            })()}
 
             {/* From Camp - Only show for types that require a source camp */}
             {!migration.migrationType.includes("_TO_SYSTEM") && (
@@ -593,27 +662,9 @@ const MigrationsSection: React.FC<Props> = ({
               </Grid>
             )}
 
-            {/* Add helper text explaining the migration type */}
-            <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                {migration.migrationType === "INTERNAL_WITHIN_SYSTEM" &&
-                  "Migration of internal population between two camps within the system."}
-                {migration.migrationType === "INTERNAL_TO_SYSTEM" &&
-                  "Migration of internal population from outside into the system."}
-                {migration.migrationType === "INTERNAL_FROM_SYSTEM" &&
-                  "Migration of internal population from inside the system to outside."}
-                {migration.migrationType === "EXTERNAL_WITHIN_SYSTEM" &&
-                  "Migration of external population between two camps within the system."}
-                {migration.migrationType === "EXTERNAL_TO_SYSTEM" &&
-                  "Migration of external population from outside into the system."}
-                {migration.migrationType === "EXTERNAL_FROM_SYSTEM" &&
-                  "Migration of external population from inside the system to outside."}
-              </Typography>
-            </Grid>
-
             {/* Arrival Data Section */}
             <Grid item xs={12}>
-              <NestedCollapsibleSection title="Arrival Data" level="tertiary">
+              <NestedCollapsibleSection title="Migration Timing" level="tertiary">
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6} md={4}>
                     <FormControl fullWidth variant="outlined">
@@ -661,98 +712,51 @@ const MigrationsSection: React.FC<Props> = ({
               </NestedCollapsibleSection>
             </Grid>
 
-            {/* Quantity Data Section - Only show for *_TO_SYSTEM migration types */}
-            {migration.migrationType.includes("_TO_SYSTEM") && (
-              <Grid item xs={12}>
-                <NestedCollapsibleSection
-                  title="Quantity Data"
-                  level="tertiary"
-                >
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <FormControl fullWidth variant="outlined">
-                        <InputLabel>Quantity Distribution Type</InputLabel>
-                        <Select
-                          label="Quantity Distribution Type"
-                          value={
-                            migration.quantityData?.distributionType || "FIXED"
-                          }
-                          onChange={(e) => {
-                            const newDistType = e.target.value;
-                            if (!migration.quantityData) {
-                              handleMigrationChange(
-                                migrationIndex,
-                                "quantityData",
-                                {
-                                  distributionType: newDistType,
-                                  distParameters: { mean: "500" },
-                                }
-                              );
-                            } else {
-                              handleMigrationChange(
-                                migrationIndex,
-                                "quantityData",
-                                newDistType,
-                                "distributionType"
-                              );
-                            }
-                            updateDistParameters(
-                              migrationIndex,
-                              "quantityData",
-                              newDistType
-                            );
-                          }}
-                        >
-                          <MenuItem value="FIXED">
-                            {formatLabel("FIXED")}
-                          </MenuItem>
-                          <MenuItem value="EXPONENTIAL">
-                            {formatLabel("EXPONENTIAL")}
-                          </MenuItem>
-                          <MenuItem value="NORMAL">
-                            {formatLabel("NORMAL")}
-                          </MenuItem>
-                          <MenuItem value="UNIFORM">
-                            {formatLabel("UNIFORM")}
-                          </MenuItem>
-                          <MenuItem value="TRIANGULAR">
-                            {formatLabel("TRIANGULAR")}
-                          </MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
+            {/* Demand Ratio: fraction of demand rate that migrates */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label="Demand ratio"
+                type="number"
+                inputProps={{ min: 0, max: 1, step: 0.01 }}
+                value={migration.demandRatio ?? 0.05}
+                onChange={(e) =>
+                  handleMigrationChange(
+                    migrationIndex,
+                    "demandRatio",
+                    e.target.value
+                  )
+                }
+                helperText="Fraction (0–1) of demand rate that transfers. E.g. 0.05 = 5% of demand rate."
+              />
+            </Grid>
 
-                    {/* Dynamic parameter fields based on distribution type */}
-                    {migration.quantityData &&
-                      renderDistParams(
-                        migrationIndex,
-                        "quantityData",
-                        migration
-                      )}
-                  </Grid>
-                </NestedCollapsibleSection>
-              </Grid>
-            )}
-
-            {/* Migration Ratio (hidden for *_TO_SYSTEM types which use quantityData instead) */}
-            {!migration.migrationType.includes("_TO_SYSTEM") && (
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  fullWidth
-                  label="Migration Ratio"
-                  type="number"
-                  inputProps={{ min: 0, max: 1, step: 0.01 }}
-                  value={migration.migrationRatio || 0.05}
-                  onChange={(e) =>
-                    handleMigrationChange(
-                      migrationIndex,
-                      "migrationRatio",
-                      e.target.value
-                    )
-                  }
-                />
-              </Grid>
-            )}
+            {/* Description at bottom: demand per day transfer + arrival time */}
+            <Grid item xs={12}>
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 1.5,
+                  bgcolor: "#f0f4f8",
+                  borderRadius: 2,
+                }}
+              >
+                {(() => {
+                  const { demandLine, arrivalLine } = buildMigrationDescription(migration, camps);
+                  if (!demandLine) return null;
+                  return (
+                    <>
+                      <Typography variant="body2" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        {demandLine}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {arrivalLine}
+                      </Typography>
+                    </>
+                  );
+                })()}
+              </Box>
+            </Grid>
           </Grid>
         </NestedCollapsibleSection>
       ))}
@@ -769,8 +773,7 @@ const MigrationsSection: React.FC<Props> = ({
               distributionType: "FIXED",
               distParameters: { mean: "30" },
             },
-            // No quantityData by default since INTERNAL_WITHIN_SYSTEM doesn't use it
-            migrationRatio: 0.05,
+            demandRatio: 0.05,
           };
 
           // Set default camps based on type

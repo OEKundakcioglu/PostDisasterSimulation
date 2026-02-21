@@ -39,8 +39,8 @@ public class Simulate {
     private HashMap<Camp, PriorityQueue<IEvent>> demandEventQueue;
     private boolean prepared = false;
     private boolean finalized = false;
-    // Track last simulation time at which a continuous InventoryControlEvent was enqueued
-    private double lastContinuousICEventTime = Double.NaN;
+    // Track simulation times at which continuous InventoryControlEvents have been enqueued to prevent duplicates
+    private java.util.Set<Double> enqueuedICEventTimes = new java.util.HashSet<>();
 
     public Simulate(Environment environment) { this(environment, null); }
     public Simulate(Environment environment, CancelChecker cancelChecker) {
@@ -89,7 +89,7 @@ public class Simulate {
         long lastReport = startNano;
         long processed = 0;
         double lastLoggedSimTime = -1.0;
-        final int LOG_EVERY_N_EVENTS = 1000; // throttle expensive KPI logging
+        final int LOG_EVERY_N_EVENTS = 10000; // throttle expensive KPI logging
         int maxQueue = this.eventQueue.size();
         while (!this.eventQueue.isEmpty()) {
             if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
@@ -115,6 +115,7 @@ public class Simulate {
             if (event.getClass().getSimpleName().equals("MigrationEvent")) {
                 MigrationEvent migrationEvent = (MigrationEvent) event;
                 migrationStateUpdate(migrationEvent);
+                state.getKpiManager().logState(state, event.getTime(), 0.0);
             }
 
             if(event.getClass().getSimpleName().equals("DemandEvent")){
@@ -136,10 +137,16 @@ public class Simulate {
             if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS &&
                     !event.getClass().getSimpleName().equals("InventoryControlEvent")) {
                 // Enqueue at most one inventory control event per unique simulation time to avoid explosion
-                if (Double.isNaN(lastContinuousICEventTime) || event.getTime() > lastContinuousICEventTime) {
-                    this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
-                    lastContinuousICEventTime = event.getTime();
+                double eventTime = event.getTime();
+                if (!enqueuedICEventTimes.contains(eventTime)) {
+                    this.eventQueue.offer(new InventoryControlEvent(eventTime));
+                    enqueuedICEventTimes.add(eventTime);
                 }
+            }
+            
+            // Clean up processed IC event times to prevent memory growth
+            if (event.getClass().getSimpleName().equals("InventoryControlEvent")) {
+                enqueuedICEventTimes.remove(event.getTime());
             }
             if (eventSet != null) {
                 for (IEvent e : eventSet) {
@@ -193,7 +200,10 @@ public class Simulate {
                 state.getKpiManager().logState(state, event.getTime(), 0.0);
                 lastLoggedSimTime = event.getTime();
             }
-            if (event.getClass().getSimpleName().equals("MigrationEvent")) migrationStateUpdate((MigrationEvent) event);
+            if (event.getClass().getSimpleName().equals("MigrationEvent")) {
+                migrationStateUpdate((MigrationEvent) event);
+                state.getKpiManager().logState(state, event.getTime(), 0.0);
+            }
             if(event.getClass().getSimpleName().equals("DemandEvent")){
                 DemandEvent demandEvent = (DemandEvent) event;
                 Camp camp = demandEvent.camp;
@@ -205,10 +215,16 @@ public class Simulate {
             }
             if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS &&
                     !event.getClass().getSimpleName().equals("InventoryControlEvent")) {
-                if (Double.isNaN(lastContinuousICEventTime) || event.getTime() > lastContinuousICEventTime) {
-                    this.eventQueue.offer(new InventoryControlEvent(event.getTime()));
-                    lastContinuousICEventTime = event.getTime();
+                double eventTime = event.getTime();
+                if (!enqueuedICEventTimes.contains(eventTime)) {
+                    this.eventQueue.offer(new InventoryControlEvent(eventTime));
+                    enqueuedICEventTimes.add(eventTime);
                 }
+            }
+            
+            // Clean up processed IC event times to prevent memory growth
+            if (event.getClass().getSimpleName().equals("InventoryControlEvent")) {
+                enqueuedICEventTimes.remove(event.getTime());
             }
             if (eventSet != null) {
                 for (IEvent e : eventSet) {
@@ -231,6 +247,7 @@ public class Simulate {
         try {
             this.state.getKpiManager().calculateFinalCosts(this.environment, this.state);
             this.state.getKpiManager().reportKPIs(this.environment);
+            new ExcelReportGenerator(this.state.getKpiManager());
         } catch (Exception ignored) {}
         finalized = true;
     }
@@ -399,7 +416,7 @@ public class Simulate {
         else if (this.environment.getSimulationConfig().getInventoryControlType() == InventoryControlType.CONTINUOUS){
             InventoryControlEvent ice = new InventoryControlEvent(0);
             this.eventQueue.offer(ice);
-            lastContinuousICEventTime = 0.0;
+            enqueuedICEventTimes.add(0.0);
         }
     }
 
@@ -446,6 +463,8 @@ public class Simulate {
             System.out.println("Warning: Null migration event. Skipping state update.");
             return;
         }
+        // Migration is demand-based: effective rates were updated in processEvent.
+        // Regenerate demand events for affected camps so they use the new effective interarrivals.
 
         if (migrationEvent.migrationType == MigrationType.EXTERNAL_TO_SYSTEM ||
                 migrationEvent.migrationType == MigrationType.INTERNAL_TO_SYSTEM) {
@@ -453,33 +472,24 @@ public class Simulate {
                 System.out.println("Warning: Migration event has null toCamp. Skipping state update.");
                 return;
             }
-
-            if (migrationEvent.quantity > 0) {
-                this.state.getInventoryPolicy().initialize(environment, this.state);
-                for (Demand demand : migrationEvent.toCamp.getDemands()) {
-                    if (demand == null) continue; // Skip null demands
-
-                    this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
-                    generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
-                }
+            this.state.getInventoryPolicy().initialize(environment, this.state);
+            for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                if (demand == null) continue;
+                this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
+                generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
             }
         }
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_FROM_SYSTEM ||
-                migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM
-        ) {
+                migrationEvent.migrationType == MigrationType.EXTERNAL_FROM_SYSTEM) {
             if (migrationEvent.fromCamp == null) {
                 System.out.println("Warning: Migration event has null fromCamp. Skipping state update.");
                 return;
             }
-
-            if (migrationEvent.quantity > 0) {
-                this.state.getInventoryPolicy().initialize(environment, this.state);
-                for (Demand demand : migrationEvent.fromCamp.getDemands()) {
-                    if (demand == null) continue;
-
-                    this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
-                    generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
-                }
+            this.state.getInventoryPolicy().initialize(environment, this.state);
+            for (Demand demand : migrationEvent.fromCamp.getDemands()) {
+                if (demand == null) continue;
+                this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
+                generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
             }
         }
         else if (migrationEvent.migrationType == MigrationType.INTERNAL_WITHIN_SYSTEM ||
@@ -488,21 +498,16 @@ public class Simulate {
                 System.out.println("Warning: Migration event has null fromCamp or toCamp. Skipping state update.");
                 return;
             }
-
-            if (migrationEvent.quantity > 0) {
-                this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
-                this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
-                this.state.getInventoryPolicy().initialize(environment, this.state);
-
-                for (Demand demand : migrationEvent.toCamp.getDemands()) {
-                    if (demand == null) continue;
-                    generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
-                }
-
-                for (Demand demand : migrationEvent.fromCamp.getDemands()) {
-                    if (demand == null) continue;
-                    generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
-                }
+            this.demandEventQueue.put(migrationEvent.fromCamp, new PriorityQueue<>(IEvent::compareTo));
+            this.demandEventQueue.put(migrationEvent.toCamp, new PriorityQueue<>(IEvent::compareTo));
+            this.state.getInventoryPolicy().initialize(environment, this.state);
+            for (Demand demand : migrationEvent.toCamp.getDemands()) {
+                if (demand == null) continue;
+                generateDemandEvents(migrationEvent.toCamp, demand, migrationEvent.getTime());
+            }
+            for (Demand demand : migrationEvent.fromCamp.getDemands()) {
+                if (demand == null) continue;
+                generateDemandEvents(migrationEvent.fromCamp, demand, migrationEvent.getTime());
             }
         }
     }
